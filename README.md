@@ -12,7 +12,7 @@ Use language codes (list can be found [here](https://gist.github.com/daFish/5990
 Leave empty to download all of the available subtitles.  
 Example: `['en', 'fr', 'es']`
 
-* `DOWNLOAD_FOLDER (Default: "")` - Folder to save subtitles to. Leave empty to the folder the script is running from.  
+* `DOWNLOAD_FOLDER (Default: "")` - Folder to save subtitles to. Leave empty to use the folder the script is running from.  
 Example: `"C:\Subtitles"`
 
 * `FFMPEG_PATH (Default: "ffmpeg:")`- FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.  
