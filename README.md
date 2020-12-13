@@ -1,5 +1,5 @@
 # iSubRip
-A Python script to scrape and download subtitles off of iTunes using iTunes movie pages.
+A Python script to scrape and download subtitles off of iTunes using iTunes movie pages.  
 Latest version: 1.0.1 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blob/main/changelog.md))
 
 ##  Requirements
