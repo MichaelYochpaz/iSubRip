@@ -17,7 +17,7 @@ Example: `"C:\Subtitles"`
 * `FFMPEG_PATH (Default: "ffmpeg:")` - FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.  
 Example: `"C:\FFmpeg\ffmpeg.exe"`
 
-* `FFMPEG_ARGUMENTS (Default: "-loglevel warning -hide_banner")` - Which arguments to run FFmpeg commands with. 
+* `FFMPEG_ARGUMENTS (Default: "-loglevel warning -hide_banner")` - Arguments to run FFmpeg commands with. 
 
 ## Usage
 
