@@ -1,6 +1,6 @@
 # iSubRip
 A Python script to scrape and download subtitles off of iTunes using iTunes movie pages.  
-Latest version: 1.0.1 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blob/main/changelog.md))
+Latest version: 1.0.1 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blob/main/CHANGELOG.md))
 
 ##  Requirements
 * FFmpeg is required for the script to work. If FFmpeg is not in PATH, enter FFmpeg's path in `FFMPEG_PATH`.
@@ -21,5 +21,5 @@ Example: `"C:\FFmpeg\ffmpeg.exe"`
 
 ## Usage
 
-Usage: ```iSubRip <iTunes movie URL>```
+Usage: ```iSubRip <iTunes movie URL>```  
 Example: ```iSubRip https://itunes.apple.com/gb/movie/interstellar-2014/id965491522```
