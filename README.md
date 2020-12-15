@@ -3,7 +3,7 @@ A Python script to scrape and download subtitles off of iTunes using iTunes movi
 Latest version: 1.0.1 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blob/main/CHANGELOG.md))
 
 ##  Requirements
-* FFmpeg is required for the script to work. If FFmpeg is not in PATH, enter FFmpeg's path in `FFMPEG_PATH`.
+* FFmpeg is required for the script to work. If FFmpeg is not set in [PATH](https://en.wikipedia.org/wiki/PATH_(variable)), enter FFmpeg's path in `FFMPEG_PATH`.
 
 ## Configuration
 * `DOWNLOAD_FILTER (Default: [])` - A list of specific languages to download.  
