@@ -7,7 +7,7 @@ Latest version: 1.0.1 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blo
 
 ## Configuration
 * `DOWNLOAD_FILTER (Default: [])` - A list of specific languages to download.  
-Only iTunes anguage codes (list can be found [here](https://gist.github.com/daFish/5990634)) or language names can be used.
+Only iTunes language codes (list can be found [here](https://gist.github.com/daFish/5990634)) or language names can be used.
 Leave empty to download all available subtitles.  
 Example: `["en", "he"]`
 
