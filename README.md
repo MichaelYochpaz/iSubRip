@@ -14,7 +14,7 @@ Example: `["en", "he"]`
 * `DOWNLOAD_FOLDER (Default: "")` - Folder to save subtitles to. Leave empty to use the folder the script is running from.  
 Example: `"C:\Subtitles"`
 
-* `FFMPEG_PATH (Default: "ffmpeg:")` - FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.  
+* `FFMPEG_PATH (Default: "ffmpeg")` - FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.  
 Example: `"C:\FFmpeg\ffmpeg.exe"`
 
 * `FFMPEG_ARGUMENTS (Default: "-loglevel warning -hide_banner")` - Arguments to run FFmpeg commands with. 
