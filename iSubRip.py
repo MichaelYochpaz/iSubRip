@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-## ------------- iSubRip --------------
+## -------------- iSubRip ---------------------------
 ##  GitHub: https://github.com/MichaelYochpaz/iSubRip
-##  Version: 1.0.1
+##  Version: 1.0.2
+## --------------------------------------------------
 
 import sys
 import os
@@ -14,15 +15,18 @@ import requests
 from bs4 import BeautifulSoup
 import m3u8
 
-#---------------| Settings |---------------
-DOWNLOAD_FILTER = [] # - Download specific langauges. Use either a language name or a country code. Leave empty to download all available subtitles.
-DOWNLOAD_FOLDER = "" # - Path to download subtitles to. Leave empty to use current working directory.
-FFMPEG_PATH = "ffmpeg" # - Leave "ffmpeg" if FFmpeg is in PATH. If not, change value to FFmpeg's path.
-FFMPEG_ARGUMENTS = "-loglevel warning -hide_banner" # - Arguments to run FFmpeg with.
-#------------------------------------------
+# -------------------------| Settings |-------------------------
+DOWNLOAD_FILTER = [] # A list of subtitle languages to download. Only iTunes language codes names can be used. Leave empty to download all available subtitles.
+DOWNLOAD_FOLDER = r"" # Folder to save subtitle files to. Leave empty to use current working directory.
+FFMPEG_PATH = "ffmpeg" # FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.
+FFMPEG_ARGUMENTS = "-loglevel warning -hide_banner" # Arguments to run FFmpeg with.
+HEADERS = {"User-Agent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36"} # Session headers to run scraper with.
+# --------------------------------------------------------------
 
 def main():
     global DOWNLOAD_FILTER, DOWNLOAD_FOLDER
+    # Convert DOWNLOAD_FILTER to lower case to make filter case-insensitive
+    DOWNLOAD_FILTER = [item.lower() for item in DOWNLOAD_FILTER]
 
     # Invalid amount of arguments
     if len(sys.argv) != 2:
@@ -33,7 +37,7 @@ def main():
     if shutil.which(FFMPEG_PATH) == None:
         raise SystemExit(f"FFmpeg installation could not be found.\nFFmpeg is required for using this script.")
 
-    # If no "DOWNLOAD_FOLDER" was set.
+    # If no "DOWNLOAD_FOLDER" was set and if folder path is valid.
     if not os.path.exists(DOWNLOAD_FOLDER):
         if DOWNLOAD_FOLDER == "":
             DOWNLOAD_FOLDER = os.getcwd()
@@ -61,11 +65,10 @@ def main():
 def get_subtitles(url: str):
     try:
         print(f'Scarping {url}')
-        page = BeautifulSoup(requests.get(url).text, "lxml")
+        page = BeautifulSoup(requests.session().get(url, headers=HEADERS).text, "lxml")
         
         # A dictionary on the webpage that contains metdata.
         data = json.loads(page.find('script', type='application/ld+json').contents[0])
-
         type = data['@type']
         title = data['name']
 
@@ -73,14 +76,18 @@ def get_subtitles(url: str):
             print(f'Found Movie: "{title}"')
 
         page_script = page.find(id="shoebox-ember-data-store")
-        page_script_dict = json.loads(page_script.renderContents()) 
+        page_script_dict = json.loads(page_script.renderContents())
 
-    except:
-        print("Could not load " + url)
+        # Cleanup
+        del page
+        del data
+
+    except Exception as e:
+        print(e)
         return False
 
     found = False
-    for item in page_script_dict["included"]:
+    for item in page_script_dict[next(iter(page_script_dict))]["included"]:
         if "assets" in item["attributes"]:
             try:
                 playlist = m3u8.load(item["attributes"]["assets"][0]["hlsUrl"])
@@ -96,37 +103,32 @@ def get_subtitles(url: str):
     subtitles_playlists = []
 
     for p in playlist.media:
-        if p.type == "SUBTITLES" and p.group_id == "subtitles_ak" and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name in DOWNLOAD_FILTER):  # group_id can be either "subtitles_ak" or "subtitles_ap3"
+        if p.type == "SUBTITLES" and p.group_id == "subtitles_ak" and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER):  # group_id can be either "subtitles_ak" or "subtitles_ap3"
             is_forced = (p.forced == "YES")
             subtitles_playlists.append((p.uri, p.language, is_forced))
 
-    # No matching subtitles found
+    # No matching subtitle files found
     if len(subtitles_playlists) == 0: 
         print("No subtitles matching the filter were found.")
         return False
 
-    # One matching subtitles file found
+    # One matching subtitle files found
     elif len(subtitles_playlists) == 1:
         ffmpeg_command = f'{FFMPEG_PATH} {FFMPEG_ARGUMENTS} -i "{subtitles_playlists[0][0]}" "{DOWNLOAD_FOLDER}/{format_file_name(title, subtitles_playlists[0][1], subtitles_playlists[0][2])}"'
-        subprocess.call(ffmpeg_command, shell=False, stderr=subprocess.DEVNULL)
+        subprocess.call(ffmpeg_command, shell=False)
 
-    # Multiple matching subtitles files found
+    # Multiple matching subtitle files found
     else: 
-         # Generate a temporary folder to download subtitles files to
+         # Generate a temporary folder to download subtitle files to
         temp_dir = tempfile.mkdtemp(dir=tempfile.gettempdir())
         processes = []
         for p in subtitles_playlists:
             ffmpeg_command = f'{FFMPEG_PATH} {FFMPEG_ARGUMENTS} -i "{p[0]}" "{temp_dir}/{format_file_name(title, p[1], p[2])}"'
-            processes.append(subprocess.Popen(ffmpeg_command, shell=False, stderr=subprocess.DEVNULL))
+            processes.append(subprocess.Popen(ffmpeg_command, shell=False))
 
-        is_finished = False
-
-        # Loop runs until all subprocesses are done
-        while not is_finished: 
-            is_finished = True
-            for p in processes:
-                if p.poll() is None:
-                    is_finished = False
+        # Loop over all subprocesses and wait for them to finish
+        for p in processes:
+            p.communicate()
 
         # Create a zip file & cleanup temporary directory
         shutil.make_archive(f"{DOWNLOAD_FOLDER}/{format_zip_name(title)}", "zip", temp_dir) 
