@@ -18,7 +18,7 @@ Latest version: [1.0.2](https://github.com/MichaelYochpaz/iSubRip/blob/main/iSub
 
 ## Configuration
 * `DOWNLOAD_FILTER (Default: [])` - A list of subtitle languages to download.  
-Only iTunes language codes (list can be found [here](https://gist.github.com/daFish/5990634)) or language names can be used.
+Only iTunes language codes (list can be found [here](https://datahub.io/core/language-codes/r/0.html)) or language names can be used.
 Leave empty to download all available subtitles.  
 Example: `["en", "he"]`
 
