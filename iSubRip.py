@@ -2,7 +2,7 @@
 
 ## -------------- iSubRip ---------------------------
 ##  GitHub: https://github.com/MichaelYochpaz/iSubRip
-##  Version: 1.0.2
+##  Version: 1.0.3
 ## --------------------------------------------------
 
 import sys
@@ -11,9 +11,14 @@ import subprocess
 import tempfile
 import shutil
 import json
-import requests
-from bs4 import BeautifulSoup
 import m3u8
+from m3u8.model import M3U8
+import requests
+import m3u8
+from requests.sessions import session
+from enum import Enum
+from bs4 import BeautifulSoup
+
 
 # -------------------------| Settings |-------------------------
 DOWNLOAD_FILTER = [] # A list of subtitle languages to download. Only iTunes language codes names can be used. Leave empty to download all available subtitles.
@@ -23,7 +28,13 @@ FFMPEG_ARGUMENTS = "-loglevel warning -hide_banner" # Arguments to run FFmpeg wi
 HEADERS = {"User-Agent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36"} # Session headers to run scraper with.
 # --------------------------------------------------------------
 
-def main():
+class subtitles_type(Enum):
+    none = 1
+    cc = 2
+    forced = 3
+
+
+def main() -> None:
     global DOWNLOAD_FILTER, DOWNLOAD_FOLDER
     # Convert DOWNLOAD_FILTER to lower case to make filter case-insensitive
     DOWNLOAD_FILTER = [item.lower() for item in DOWNLOAD_FILTER]
@@ -62,10 +73,10 @@ def main():
         raise SystemExit(f"Unsupported / Invalid URL.")
 
 
-def get_subtitles(url: str):
+def get_subtitles(url: str) -> bool:
     try:
         print(f'Scarping {url}')
-        page = BeautifulSoup(requests.session().get(url, headers=HEADERS).text, "lxml")
+        page = BeautifulSoup(session().get(url, headers=HEADERS).text, "lxml")
         
         # A dictionary on the webpage that contains metdata.
         data = json.loads(page.find('script', type='application/ld+json').contents[0])
@@ -83,36 +94,48 @@ def get_subtitles(url: str):
         del data
 
     except Exception as e:
-        print(e)
+        print("Error scraping: " + str(e))
         return False
 
-    found = False
     for item in page_script_dict[next(iter(page_script_dict))]["included"]:
         if "assets" in item["attributes"]:
+            m3u8_url = item["attributes"]["assets"][0]["hlsUrl"]
             try:
-                playlist = m3u8.load(item["attributes"]["assets"][0]["hlsUrl"])
-                found = True
+                playlist = m3u8.load(m3u8_url)
+
+            except Exception as e:
+                continue
+
+            # Check if the first playlist found matches the movie that's being scraped. If not, then movie isn't available.
+            if is_playlist_valid(title, playlist):
                 break
 
-            except:
-                continue
-        
-    if not found:
-        return False   
+            else:
+                print("Couldn't find a working / valid playlist for the movie.")
+                return False
 
     subtitles_playlists = []
 
     for p in playlist.media:
-        if p.type == "SUBTITLES" and p.group_id == "subtitles_ak" and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER):  # group_id can be either "subtitles_ak" or "subtitles_ap3"
-            is_forced = (p.forced == "YES")
-            subtitles_playlists.append((p.uri, p.language, is_forced))
+        # "group_id" can be either "subtitles_ak" or "subtitles_ap3"
+        if p.type == "SUBTITLES" and p.group_id == "subtitles_ak" and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER): 
+            if (p.characteristics != None and "public.accessibility" in p.characteristics):
+                sub_type = subtitles_type.cc
 
-    # No matching subtitle files found
+            elif (p.forced == "YES"):
+                sub_type = subtitles_type.forced
+
+            else:
+                sub_type = subtitles_type.none
+
+            subtitles_playlists.append((p.uri, p.language, sub_type))
+
+    # No matching subtitles files found
     if len(subtitles_playlists) == 0: 
         print("No subtitles matching the filter were found.")
         return False
 
-    # One matching subtitle files found
+    # One matching subtitles file found
     elif len(subtitles_playlists) == 1:
         ffmpeg_command = f'{FFMPEG_PATH} {FFMPEG_ARGUMENTS} -i "{subtitles_playlists[0][0]}" "{DOWNLOAD_FOLDER}/{format_file_name(title, subtitles_playlists[0][1], subtitles_playlists[0][2])}"'
         subprocess.call(ffmpeg_command, shell=False)
@@ -137,19 +160,25 @@ def get_subtitles(url: str):
     return True
 
 
-def format_title(title: str):
+def is_playlist_valid(title: str, playlist: M3U8) -> bool:
+    for sessionData in playlist.session_data:
+        if sessionData.data_id == "com.apple.hls.title":
+            return (sessionData.value == title)
+
+
+def format_title(title: str) -> str:
         return title.replace(': ', '.').replace(' - ', '-').replace(', ', '.').replace('. ', '.').replace(' ', '.').replace('(', '').replace(')', '').replace('&amp;', '&')
 
 
-def format_file_name(title: str, language_code: str, is_forced: bool):
-        return f"{format_title(title)}.iT.WEB.{language_code}{'.forced' if is_forced else ''}.vtt"
+def format_file_name(title: str, language_code: str, type: subtitles_type) -> str:
+        return f"{format_title(title)}.iT.WEB.{language_code}{('.' + type.name) if (type is not subtitles_type.none) else ''}.vtt"
 
 
-def format_zip_name(title: str):
+def format_zip_name(title: str) -> str: 
     return f"{format_title(title)}.iT.WEB"
 
 
-def print_usage():
+def print_usage() -> None:
     print(f"Usage: {sys.argv[0]} <iTunes movie URL>")
 
 
