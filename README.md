@@ -38,5 +38,5 @@ Usage: ```python iSubRip.py <iTunes movie URL>```
 Example: ```python iSubRip.py https://itunes.apple.com/gb/movie/interstellar-2014/id965491522```
 
 ##
-<sub>The script was made for educational purposes only.  
-Any use of the script is at your own responsibility.</sub>
+This script was made for educational purposes only.  
+Any use of the script is at your own responsibility.
