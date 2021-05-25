@@ -2,7 +2,7 @@
 
 ## -------------- iSubRip ---------------------------
 ##  GitHub: https://github.com/MichaelYochpaz/iSubRip
-##  Version: 1.0.3
+##  Version: 1.0.4
 ## --------------------------------------------------
 
 import sys
@@ -11,9 +11,6 @@ import subprocess
 import tempfile
 import shutil
 import json
-import m3u8
-from m3u8.model import M3U8
-import requests
 import m3u8
 from requests.sessions import session
 from enum import Enum
@@ -25,7 +22,7 @@ DOWNLOAD_FILTER = [] # A list of subtitle languages to download. Only iTunes lan
 DOWNLOAD_FOLDER = r"" # Folder to save subtitle files to. Leave empty to use current working directory.
 FFMPEG_PATH = "ffmpeg" # FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.
 FFMPEG_ARGUMENTS = "-loglevel warning -hide_banner" # Arguments to run FFmpeg with.
-HEADERS = {"User-Agent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36"} # Session headers to run scraper with.
+HEADERS = {"User-Agent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"} # Session headers to run scraper with.
 # --------------------------------------------------------------
 
 class subtitles_type(Enum):
@@ -117,8 +114,8 @@ def get_subtitles(url: str) -> bool:
     subtitles_playlists = []
 
     for p in playlist.media:
-        # "group_id" can be either "subtitles_ak" or "subtitles_ap3"
-        if p.type == "SUBTITLES" and p.group_id == "subtitles_ak" and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER): 
+        # "group_id" can be either "subtitles_vod-ak-amt.tv.apple.com" or "subtitles_vod-ap-amt.tv.apple.com"
+        if p.type == "SUBTITLES" and p.group_id == "subtitles_vod-ak-amt.tv.apple.com" and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER): 
             if (p.characteristics != None and "public.accessibility" in p.characteristics):
                 sub_type = subtitles_type.cc
 
@@ -142,7 +139,7 @@ def get_subtitles(url: str) -> bool:
 
     # Multiple matching subtitle files found
     else: 
-         # Generate a temporary folder to download subtitle files to
+        # Generate a temporary folder to download subtitle files to
         temp_dir = tempfile.mkdtemp(dir=tempfile.gettempdir())
         processes = []
         for p in subtitles_playlists:
@@ -160,7 +157,7 @@ def get_subtitles(url: str) -> bool:
     return True
 
 
-def is_playlist_valid(title: str, playlist: M3U8) -> bool:
+def is_playlist_valid(title: str, playlist: m3u8.M3U8) -> bool:
     for sessionData in playlist.session_data:
         if sessionData.data_id == "com.apple.hls.title":
             return (sessionData.value == title)
