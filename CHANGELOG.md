@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to the script will be documented here.
 
+## 1.0.5 - [2021-05-27]
+* Fixed subtitles for some movies not being found after changes in previous update ([Issue #8](https://github.com/MichaelYochpaz/iSubRip/issues/8)).
+
 ## 1.0.4 - [2021-05-25]
 * Fixed the script to work again after iTunes webpage data orientation slightly changed. ([Issue #6](https://github.com/MichaelYochpaz/iSubRip/issues/6), [Issue #7](https://github.com/MichaelYochpaz/iSubRip/issues/7))
 

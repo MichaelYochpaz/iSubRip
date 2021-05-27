@@ -2,7 +2,7 @@
 
 ## -------------- iSubRip ---------------------------
 ##  GitHub: https://github.com/MichaelYochpaz/iSubRip
-##  Version: 1.0.4
+##  Version: 1.0.5
 ## --------------------------------------------------
 
 import sys
@@ -114,8 +114,8 @@ def get_subtitles(url: str) -> bool:
     subtitles_playlists = []
 
     for p in playlist.media:
-        # "group_id" can be either "subtitles_vod-ak-amt.tv.apple.com" or "subtitles_vod-ap-amt.tv.apple.com"
-        if p.type == "SUBTITLES" and p.group_id == "subtitles_vod-ak-amt.tv.apple.com" and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER): 
+        # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com"]
+        if p.type == "SUBTITLES" and (p.group_id == "subtitles_ak" or p.group_id == "subtitles_vod-ak-amt.tv.apple.com") and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER): 
             if (p.characteristics != None and "public.accessibility" in p.characteristics):
                 sub_type = subtitles_type.cc
 
