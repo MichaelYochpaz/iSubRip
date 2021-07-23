@@ -2,7 +2,7 @@
 
 ## -------------- iSubRip ---------------------------
 ##  GitHub: https://github.com/MichaelYochpaz/iSubRip
-##  Version: 1.0.5
+##  Version: 1.0.6
 ## --------------------------------------------------
 
 import sys
@@ -13,12 +13,13 @@ import shutil
 import json
 import m3u8
 from requests.sessions import session
+from requests.exceptions import ConnectionError
 from enum import Enum
 from bs4 import BeautifulSoup
 
 
 # -------------------------| Settings |-------------------------
-DOWNLOAD_FILTER = [] # A list of subtitle languages to download. Only iTunes language codes names can be used. Leave empty to download all available subtitles.
+DOWNLOAD_FILTER = ["he"] # A list of subtitle languages to download. Only iTunes language codes names can be used. Leave empty to download all available subtitles.
 DOWNLOAD_FOLDER = r"" # Folder to save subtitle files to. Leave empty to use current working directory.
 FFMPEG_PATH = "ffmpeg" # FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.
 FFMPEG_ARGUMENTS = "-loglevel warning -hide_banner" # Arguments to run FFmpeg with.
@@ -41,17 +42,17 @@ def main() -> None:
         print_usage()
         sys.exit(0)
 
-    # FFmpeg is not installed or not in PATH
+    # If FFmpeg is not installed or not set in PATH
     if shutil.which(FFMPEG_PATH) == None:
-        raise SystemExit(f"FFmpeg installation could not be found.\nFFmpeg is required for using this script.")
+        raise SystemExit(f"Error: FFmpeg installation could not be found.\nFFmpeg is required for using this script.")
 
-    # If no "DOWNLOAD_FOLDER" was set and if folder path is valid.
+    # If no "DOWNLOAD_FOLDER" was set and if folder path is valid
     if not os.path.exists(DOWNLOAD_FOLDER):
         if DOWNLOAD_FOLDER == "":
             DOWNLOAD_FOLDER = os.getcwd()
 
         else:
-            raise SystemExit(f"Folder {DOWNLOAD_FOLDER} not found.")
+            raise SystemExit(f"Error: Folder {DOWNLOAD_FOLDER} not found.")
 
     # Remove last char from from user's folder input if it's '/'
     if DOWNLOAD_FOLDER[-1:] == '/': 
@@ -67,7 +68,7 @@ def main() -> None:
             print("Download failed.")
 
     else:
-        raise SystemExit(f"Unsupported / Invalid URL.")
+        raise SystemExit(f"Error: Unsupported / Invalid URL.")
 
 
 def get_subtitles(url: str) -> bool:
@@ -75,7 +76,7 @@ def get_subtitles(url: str) -> bool:
         print(f'Scarping {url}')
         page = BeautifulSoup(session().get(url, headers=HEADERS).text, "lxml")
         
-        # A dictionary on the webpage that contains metdata.
+        # A dictionary on the webpage that contains metdata
         data = json.loads(page.find('script', type='application/ld+json').contents[0])
         type = data['@type']
         title = data['name']
@@ -86,36 +87,44 @@ def get_subtitles(url: str) -> bool:
         page_script = page.find(id="shoebox-ember-data-store")
         page_script_dict = json.loads(page_script.renderContents())
 
-        # Cleanup
-        del page
-        del data
+        # Memory cleanup
+        del page, data
 
-    except Exception as e:
-        print("Error scraping: " + str(e))
+    except ConnectionError:
+        print("Error: A connection error has occurred.\n" +
+        "Try running the script again in a few seconds / minutes.")
         return False
 
+    playlist = None
+
     for item in page_script_dict[next(iter(page_script_dict))]["included"]:
-        if "assets" in item["attributes"]:
+        if "assets" in item["attributes"] and "hlsUrl" in item["attributes"]["assets"][0]:
             m3u8_url = item["attributes"]["assets"][0]["hlsUrl"]
             try:
                 playlist = m3u8.load(m3u8_url)
 
-            except Exception as e:
+            except Exception:
                 continue
 
-            # Check if the first playlist found matches the movie that's being scraped. If not, then movie isn't available.
+            # Check if the first playlist found matches the movie that's being scraped (If not, it usually means that then movie isn't available yet)
             if is_playlist_valid(title, playlist):
                 break
 
             else:
-                print("Couldn't find a working / valid playlist for the movie.")
+                print("Error: Couldn't find a valid playlist for the movie.\n"+
+                "This usually means that the movie isn't available on iTunes yet.")
                 return False
+
+    if playlist is None:
+        print("Error: Couldn't find any playlists. This could be a result of the site not being loaded properly." + 
+        "\nTry running the script again in a few seconds / minutes.")
+        return False
 
     subtitles_playlists = []
 
     for p in playlist.media:
-        # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com"]
-        if p.type == "SUBTITLES" and (p.group_id == "subtitles_ak" or p.group_id == "subtitles_vod-ak-amt.tv.apple.com") and (len(DOWNLOAD_FILTER) == 0 or p.language in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER): 
+        # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
+        if p.type == "SUBTITLES" and (p.group_id == "subtitles_ak" or p.group_id == "subtitles_vod-ak-amt.tv.apple.com") and (len(DOWNLOAD_FILTER) == 0 or p.language.lower() in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER): 
             if (p.characteristics != None and "public.accessibility" in p.characteristics):
                 sub_type = subtitles_type.cc
 
