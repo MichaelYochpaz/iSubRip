@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 
 
 # -------------------------| Settings |-------------------------
-DOWNLOAD_FILTER = ["he"] # A list of subtitle languages to download. Only iTunes language codes names can be used. Leave empty to download all available subtitles.
+DOWNLOAD_FILTER = [] # A list of subtitle languages to download. Only iTunes language codes names can be used. Leave empty to download all available subtitles.
 DOWNLOAD_FOLDER = r"" # Folder to save subtitle files to. Leave empty to use current working directory.
 FFMPEG_PATH = "ffmpeg" # FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.
 FFMPEG_ARGUMENTS = "-loglevel warning -hide_banner" # Arguments to run FFmpeg with.
