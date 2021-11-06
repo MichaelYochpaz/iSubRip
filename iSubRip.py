@@ -10,6 +10,7 @@ import os
 import subprocess
 import tempfile
 import shutil
+import html
 import json
 import m3u8
 from requests.sessions import session
@@ -76,10 +77,10 @@ def get_subtitles(url: str) -> bool:
         print(f'Scarping {url}')
         page = BeautifulSoup(session().get(url, headers=HEADERS).text, "lxml")
         
-        # A dictionary on the webpage that contains metdata
+        # Scrape a dictionary on the webpage that contains metdata
         data = json.loads(page.find('script', type='application/ld+json').contents[0])
         type = data['@type']
-        title = data['name']
+        title = html.unescape(data['name'])
 
         if type == "Movie":
             print(f'Found Movie: "{title}"')
@@ -169,7 +170,7 @@ def get_subtitles(url: str) -> bool:
 def is_playlist_valid(title: str, playlist: m3u8.M3U8) -> bool:
     for sessionData in playlist.session_data:
         if sessionData.data_id == "com.apple.hls.title":
-            return (sessionData.value == title)
+            return (title in sessionData.value or sessionData.value in title)
 
 
 def format_title(title: str) -> str:
