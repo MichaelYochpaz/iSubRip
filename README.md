@@ -8,6 +8,7 @@ Latest version: [1.0.6](https://github.com/MichaelYochpaz/iSubRip/blob/main/iSub
 </p>
 
 ##  Requirements
+* Python 3.6+
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) (If FFmpeg is not set in [PATH](https://en.wikipedia.org/wiki/PATH_(variable)), enter FFmpeg's path in `FFMPEG_PATH` under configuration)
 
 ##  Installation
