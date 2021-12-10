@@ -75,21 +75,36 @@ def main() -> None:
 def get_subtitles(url: str) -> bool:
     try:
         print(f'Scarping {url}')
-        page = BeautifulSoup(session().get(url, headers=HEADERS).text, "lxml")
+        site_page = BeautifulSoup(session().get(url, headers=HEADERS).text, "lxml")
         
-        # Scrape a dictionary on the webpage that contains metdata
-        data = json.loads(page.find('script', type='application/ld+json').contents[0])
-        type = data['@type']
-        title = html.unescape(data['name'])
+        # Scrape a dictionary on the webpage that contains metdata about the movie
+        head_data = site_page.find("head").find("script", attrs={"name": "schema:movie", "type": 'application/ld+json'} )
+
+        if head_data == None:
+            print("Error: The page did not load properly.\n" +
+            "Try running the script again in a few seconds / minutes.")
+            return False
+        
+        # Convert to dictionary structure
+        head_data_dict = json.loads(head_data.contents[0])
+        type = head_data_dict['@type']
+        title = html.unescape(head_data_dict['name'])
 
         if type == "Movie":
             print(f'Found Movie: "{title}"')
 
-        page_script = page.find(id="shoebox-ember-data-store")
-        page_script_dict = json.loads(page_script.renderContents())
+        # Scrape a dictionary on the webpage that contains playlists data
+        playlists_data = site_page.find("script", attrs={"id": "shoebox-ember-data-store", "type": "fastboot/shoebox"})
+
+        if head_data == None:
+            print("Error: Playlists data could not be found.")
+            return False
+
+        # Convert to dictionary structure
+        playlists_data_dict = json.loads(playlists_data.renderContents())
 
         # Memory cleanup
-        del page, data
+        del site_page, head_data, head_data_dict
 
     except ConnectionError:
         print("Error: A connection error has occurred.\n" +
@@ -98,7 +113,7 @@ def get_subtitles(url: str) -> bool:
 
     playlist = None
 
-    for item in page_script_dict[next(iter(page_script_dict))]["included"]:
+    for item in playlists_data_dict[next(iter(playlists_data_dict))]["included"]:
         if "assets" in item["attributes"] and "hlsUrl" in item["attributes"]["assets"][0]:
             m3u8_url = item["attributes"]["assets"][0]["hlsUrl"]
             try:
@@ -112,13 +127,12 @@ def get_subtitles(url: str) -> bool:
                 break
 
             else:
-                print("Error: Couldn't find a valid playlist for the movie.\n"+
-                "This usually means that the movie isn't available on iTunes yet.")
+                print("Error: Couldn't find a valid playlist for the movie.")
                 return False
 
     if playlist is None:
-        print("Error: Couldn't find any playlists. This could be a result of the site not being loaded properly." + 
-        "\nTry running the script again in a few seconds / minutes.")
+        print("Error: Couldn't find any playlists.\n" + 
+        "Try running the script again in a few seconds / minutes.")
         return False
 
     subtitles_playlists = []
