@@ -159,7 +159,7 @@ def get_subtitles(url: str) -> bool:
     # One matching subtitles file found
     elif len(subtitles_playlists) == 1:
         ffmpeg_command = f'{FFMPEG_PATH} {FFMPEG_ARGUMENTS} -i "{subtitles_playlists[0][0]}" "{DOWNLOAD_FOLDER}/{format_file_name(title, subtitles_playlists[0][1], subtitles_playlists[0][2])}"'
-        subprocess.call(ffmpeg_command, shell=False)
+        subprocess.run(ffmpeg_command, shell=False)
 
     # Multiple matching subtitle files found
     else: 
