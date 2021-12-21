@@ -8,7 +8,7 @@ Latest version: [1.0.6](https://github.com/MichaelYochpaz/iSubRip/blob/main/iSub
 </p>
 
 ##  Requirements
-* Python 3.6+
+* Python 3.7+
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) (If FFmpeg is not set in [PATH](https://en.wikipedia.org/wiki/PATH_(variable)), enter FFmpeg's path in `FFMPEG_PATH` under configuration)
 
 ##  Installation
@@ -18,20 +18,19 @@ Latest version: [1.0.6](https://github.com/MichaelYochpaz/iSubRip/blob/main/iSub
 ```
 
 ## Configuration
-* `DOWNLOAD_FILTER (Default: [])` - A list of subtitle languages to download.  
-Only iTunes language codes (list can be found [here](https://datahub.io/core/language-codes/r/0.html)) or language names can be used.
-Leave empty to download all available subtitles.  
-Example: `["en", "he"]`
+The uses a [TOML](https://toml.io) config file for the settings.  
 
-* `DOWNLOAD_FOLDER (Default: "")` - Folder to save subtitle files to. Leave empty to use current working directory.  
-Example: `"C:\Subtitles"`
+Configuration file locations: 
 
-* `FFMPEG_PATH (Default: "ffmpeg")` - FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.  
-Example: `"C:\FFmpeg\ffmpeg.exe"`
+**Windows**: %AppData%/iSubRip/config.toml  
+**Linux**: $XDG_CONFIG_HOME/iSubRip/config.toml  
+**MacOS**: ~/Library/Application Support/isubrip/config.toml  
 
-* `FFMPEG_ARGUMENTS (Default: "-loglevel warning -hide_banner")` - Arguments to run FFmpeg commands with.  
+An example config file with documentation can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml)
 
-* `HEADERS (Default: {"User-Agent" : "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15"})` - Session headers to run scraper with.  
+### Notes
+* All settings are optional. Any settings not specified in the config will result in using the default value (set in the default.toml file).
+* If you are running the script on a Linux machine and XDG_CONFIG_HOME is not set in your environment, the value will default to ~/.config.
 
 ## Usage
 

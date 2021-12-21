@@ -1,0 +1,13 @@
+# This is the default config for iSubRip.
+# This file should NOT be altered. For changing the settings, use a custom config file.
+# Any settings set on the config.toml file will overwrite these settings.
+
+[downloads]
+filter = []
+useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
+folder = "."
+
+
+[ffmpeg]
+path = "ffmpeg"
+args = "-loglevel warning -hide_banner"

@@ -1,0 +1,35 @@
+# This is an example config for iSubRip using the default settings.
+#
+# The script looks for the config in the following locations, according to the OS:
+# Windows: %AppData%/iSubRip/config.toml  
+# Linux: $XDG_CONFIG_HOME/iSubRip/config.toml  
+# MacOS: ~/Library/Application Support/isubrip/config.toml  
+#
+# All settings are optional. Any settings not specified in the config will result in using the default value (set in the default.toml file).
+
+[downloads]
+# A list of subtitle languages to download.
+# Only iTunes language codes names can be used.
+# Leave an empty array to download all available subtitles.
+# Example: ["en", "fr", "he"]
+filter = []
+
+# User-Agent to use while scraping.
+# Don't change this unless you know what you're doing.
+useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
+
+# Folder to downloads files to.
+# The default "." value means it will download to the same folder the script ran from.
+# Use double backslashes in path to avoid escaping. Example: "C:\\Users\\<username>\\Downloads\\"
+folder = "."
+
+
+[ffmpeg]
+# Path to ffmpeg binary. 
+# You can use "ffmpeg" value if FFmpeg's location is set in PATH.
+# To check whether it's on PATH type "ffmpeg" in cmd / Terminal. If you get an output with ffmpeg's version then it's set in PATH.
+path = "ffmpeg"
+
+# Arguments to run FFmpeg with
+# Don't change this unless you know what you're doing.
+args = "-loglevel warning -hide_banner"

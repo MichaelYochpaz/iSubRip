@@ -7,15 +7,18 @@
 
 import sys
 import os
-import subprocess
 import tempfile
-import shutil
+import tomli
 import html
 import json
 import m3u8
+import subprocess
+import shutil
+from enum import Enum
+from xdg import xdg_config_home
+from mergedeep import merge
 from requests.sessions import session
 from requests.exceptions import ConnectionError
-from enum import Enum
 from bs4 import BeautifulSoup
 
 
@@ -33,10 +36,54 @@ class subtitles_type(Enum):
     forced = 3
 
 
+def parse_config() -> dict:
+    # Load settings from default config file
+    with open ("default.toml", "r") as config_file:
+        config = tomli.loads(config_file.read())
+
+    user_config = find_config_file()
+    config["user-config"] = False
+
+    # If a user config file exists, load it and update default config with it's values
+    if(user_config != None):
+        with open (user_config, "r") as config_file:
+            user_config = tomli.loads(config_file.read())
+
+        # The function merges user_config with the default config, and overrides existing config values with values from user_config
+        merge(config, user_config)
+        config["user-config"] = True
+
+    # Convert all language codes to lower case
+    for i in range(len(config["downloads"]["filter"])):
+        config["downloads"]["filter"][i] = config["downloads"]["filter"][i].lower()
+
+    return config
+
+
+def find_config_file() -> str:
+    config_path = None
+
+    # Windows
+    if sys.platform == "win32":
+        config_path = f"{os.getenv('appdata')}\iSubRip\config.toml"
+
+    # Linux
+    elif sys.platform == "linux":
+        config_path = f"{xdg_config_home().resolve()}/iSubRip/config.toml"
+    
+    # MacOS
+    elif sys.platform == "darwin":
+        config_path = r"~/Library/Application Support/isubrip/config.toml"
+
+    if (config_path != None) and (os.path.exists(config_path)):
+        return config_path
+    
+    return None
+
+
 def main() -> None:
-    global DOWNLOAD_FILTER, DOWNLOAD_FOLDER
-    # Convert DOWNLOAD_FILTER to lower case to make filter case-insensitive
-    DOWNLOAD_FILTER = [item.lower() for item in DOWNLOAD_FILTER]
+    global config
+    config = parse_config()
 
     # Invalid amount of arguments
     if len(sys.argv) != 2:
@@ -44,20 +91,16 @@ def main() -> None:
         sys.exit(0)
 
     # If FFmpeg is not installed or not set in PATH
-    if shutil.which(FFMPEG_PATH) == None:
+    if shutil.which(config["ffmpeg"]["path"]) == None:
         raise SystemExit(f"Error: FFmpeg installation could not be found.\nFFmpeg is required for using this script.")
 
-    # If no "DOWNLOAD_FOLDER" was set and if folder path is valid
-    if not os.path.exists(DOWNLOAD_FOLDER):
-        if DOWNLOAD_FOLDER == "":
-            DOWNLOAD_FOLDER = os.getcwd()
-
-        else:
-            raise SystemExit(f"Error: Folder {DOWNLOAD_FOLDER} not found.")
+    # If downloads folder does not exist
+    if not os.path.exists(config["downloads"]["folder"]):
+        raise SystemExit(f"Error: Folder \"{config['downloads']['folder']}\" could not be found.")
 
     # Remove last char from from user's folder input if it's '/'
-    if DOWNLOAD_FOLDER[-1:] == '/': 
-        DOWNLOAD_FOLDER = DOWNLOAD_FOLDER[:-1]
+    if config["downloads"]["folder"][-1:] == '/': 
+        config["downloads"]["folder"] = config["downloads"]["folder"][:-1]
     
     # Check if the URL is valid
     if "itunes.apple.com" in sys.argv[1] and "/movie/" in sys.argv[1]: 
@@ -75,7 +118,7 @@ def main() -> None:
 def get_subtitles(url: str) -> bool:
     try:
         print(f'Scarping {url}')
-        site_page = BeautifulSoup(session().get(url, headers=HEADERS).text, "lxml")
+        site_page = BeautifulSoup(session().get(url, headers={"User-Agent" : config["downloads"]["useragent"]}).text, "lxml")
         
         # Scrape a dictionary on the webpage that contains metdata about the movie
         head_data = site_page.find("head").find("script", attrs={"name": "schema:movie", "type": 'application/ld+json'} )
@@ -139,7 +182,7 @@ def get_subtitles(url: str) -> bool:
 
     for p in playlist.media:
         # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
-        if p.type == "SUBTITLES" and (p.group_id == "subtitles_ak" or p.group_id == "subtitles_vod-ak-amt.tv.apple.com") and (len(DOWNLOAD_FILTER) == 0 or p.language.lower() in DOWNLOAD_FILTER or p.name.lower() in DOWNLOAD_FILTER): 
+        if p.type == "SUBTITLES" and (p.group_id == "subtitles_ak" or p.group_id == "subtitles_vod-ak-amt.tv.apple.com") and (len(config["downloads"]["filter"]) == 0 or p.language.lower() in config["downloads"]["filter"] or p.name.lower() in config["downloads"]["filter"]): 
             if (p.characteristics != None and "public.accessibility" in p.characteristics):
                 sub_type = subtitles_type.cc
 
@@ -158,7 +201,7 @@ def get_subtitles(url: str) -> bool:
 
     # One matching subtitles file found
     elif len(subtitles_playlists) == 1:
-        ffmpeg_command = f'{FFMPEG_PATH} {FFMPEG_ARGUMENTS} -i "{subtitles_playlists[0][0]}" "{DOWNLOAD_FOLDER}/{format_file_name(title, subtitles_playlists[0][1], subtitles_playlists[0][2])}"'
+        ffmpeg_command = f'{config["ffmpeg"]["path"]} {config["ffmpeg"]["args"]} -i "{subtitles_playlists[0][0]}" "{config["downloads"]["folder"]}/{format_file_name(title, subtitles_playlists[0][1], subtitles_playlists[0][2])}"'
         subprocess.run(ffmpeg_command, shell=False)
 
     # Multiple matching subtitle files found
@@ -167,7 +210,7 @@ def get_subtitles(url: str) -> bool:
         temp_dir = tempfile.mkdtemp(dir=tempfile.gettempdir())
         processes = []
         for p in subtitles_playlists:
-            ffmpeg_command = f'{FFMPEG_PATH} {FFMPEG_ARGUMENTS} -i "{p[0]}" "{temp_dir}/{format_file_name(title, p[1], p[2])}"'
+            ffmpeg_command = f'{config["ffmpeg"]["path"]} {config["ffmpeg"]["args"]} -i "{p[0]}" "{temp_dir}/{format_file_name(title, p[1], p[2])}"'
             processes.append(subprocess.Popen(ffmpeg_command, shell=False))
 
         # Loop over all subprocesses and wait for them to finish
@@ -175,7 +218,7 @@ def get_subtitles(url: str) -> bool:
             p.communicate()
 
         # Create a zip file & cleanup temporary directory
-        shutil.make_archive(f"{DOWNLOAD_FOLDER}/{format_zip_name(title)}", "zip", temp_dir) 
+        shutil.make_archive(f"{config['downloads']['folder']}/{format_zip_name(title)}", "zip", temp_dir) 
         shutil.rmtree(temp_dir)
 
     return True

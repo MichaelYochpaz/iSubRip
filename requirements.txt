@@ -1,4 +1,7 @@
-m3u8>=0.7.1
+xdg>=5.0.2
+tomli==2.*
+mergedeep>=1.3.4
 requests>=2.24.0
-lxml>=4.6.2 
 beautifulsoup4>=4.9.3
+lxml>=4.6.2 
+m3u8>=0.7.1
