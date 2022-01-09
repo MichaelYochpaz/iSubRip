@@ -139,7 +139,7 @@ def get_subtitles(url: str) -> bool:
         # Scrape a dictionary on the webpage that contains playlists data
         playlists_data = site_page.find("script", attrs={"id": "shoebox-ember-data-store", "type": "fastboot/shoebox"})
 
-        if head_data == None:
+        if playlists_data == None:
             print("Error: Playlists data could not be found.")
             return False
 
