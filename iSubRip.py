@@ -65,7 +65,7 @@ def find_config_file() -> str:
 
     # Windows
     if sys.platform == "win32":
-        config_path = f"{os.getenv('appdata')}\iSubRip\config.toml"
+        config_path = f"{os.getenv('appdata')}\\iSubRip\\config.toml"
 
     # Linux
     elif sys.platform == "linux":
