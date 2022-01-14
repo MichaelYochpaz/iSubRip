@@ -16,7 +16,7 @@ filter = []
 
 # User-Agent to use while scraping.
 # Don't change this unless you know what you're doing.
-useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
+user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
 
 # Folder to downloads files to.
 # The default "." value means it will download to the same folder the script ran from.
