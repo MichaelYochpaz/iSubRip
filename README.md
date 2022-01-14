@@ -18,7 +18,7 @@ Latest version: [1.0.6](https://github.com/MichaelYochpaz/iSubRip/blob/main/iSub
 ```
 
 ## Configuration
-The uses a [TOML](https://toml.io) config file for the settings.  
+The script uses a [TOML](https://toml.io) config file for the settings.  
 
 Configuration file locations: 
 
