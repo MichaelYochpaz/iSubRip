@@ -21,15 +21,6 @@ from requests.sessions import session
 from requests.exceptions import ConnectionError
 from bs4 import BeautifulSoup
 
-
-# -------------------------| Settings |-------------------------
-DOWNLOAD_FILTER = [] # A list of subtitle languages to download. Only iTunes language codes names can be used. Leave empty to download all available subtitles.
-DOWNLOAD_FOLDER = r"" # Folder to save subtitle files to. Leave empty to use current working directory.
-FFMPEG_PATH = "ffmpeg" # FFmpeg's location. Use default "ffmpeg" value if FFmpeg is in PATH.
-FFMPEG_ARGUMENTS = "-loglevel warning -hide_banner" # Arguments to run FFmpeg with.
-HEADERS = {"User-Agent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"} # Session headers to run scraper with.
-# --------------------------------------------------------------
-
 class subtitles_type(Enum):
     none = 1
     cc = 2
