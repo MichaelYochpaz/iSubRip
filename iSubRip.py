@@ -35,10 +35,9 @@ class subtitles_type(Enum):
     cc = 2
     forced = 3
 
-
 def parse_config() -> dict:
     # Load settings from default config file
-    with open ("default.toml", "r") as config_file:
+    with open ("default_config.toml", "r") as config_file:
         config = tomli.loads(config_file.read())
 
     user_config = find_config_file()
