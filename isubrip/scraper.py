@@ -2,40 +2,20 @@
 import re
 import html
 import json
-from urllib.error import HTTPError
 import m3u8
 from typing import Union
 from enum import Enum
 from requests.sessions import session
+from urllib.error import HTTPError
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 
 from playlist_downloader import PlaylistDownloader
-
+from utils.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
 
 class iSubRip:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""
-
-
-    class ScrapeError(Exception):
-        """An issue while scraping the page."""
-        pass
-
-
-    class InvalidURL(ScrapeError):
-        """An invalid URL has been used."""
-        pass
-
-
-    class PageLoadError(ScrapeError):
-        """The Page did not load properly."""
-        pass
-
-
-    class PlaylistDownloadError(ScrapeError):
-        """The playlist could not be downloaded."""
-        pass
 
 
     class SubtitlesType(Enum):
@@ -67,13 +47,13 @@ class iSubRip:
         # Check whether URL is valid
         regex_exp = r"https?://itunes.apple.com/[a-z]{2}/movie/[a-zA-Z0-9\-%]+/id[0-9]+($|(\?.*))"
         if re.match(regex_exp, itunes_url) == None:
-            raise iSubRip.InvalidURL(f"{itunes_url} is not a valid iTunes movie URL.")
+            raise InvalidURL(f"{itunes_url} is not a valid iTunes movie URL.")
 
         site_page: BeautifulSoup = BeautifulSoup(session().get(itunes_url, headers={"User-Agent": user_agent}).text, "lxml")
         movie_metadata: Union[Tag, NavigableString, None] = site_page.find("script", attrs={"name": "schema:movie", "type": 'application/ld+json'})
 
         if (not isinstance(movie_metadata, Tag)):
-            raise iSubRip.PageLoadError("The page did not load properly.")
+            raise PageLoadError("The page did not load properly.")
         
         # Convert to dictionary structure
         movie_metadata_dict: dict = json.loads(str(movie_metadata.contents[0]).strip())
@@ -82,14 +62,14 @@ class iSubRip:
         movie_title: str = html.unescape(movie_metadata_dict['name'])
 
         if media_type != "Movie":
-            raise iSubRip.InvalidURL("The provided iTunes URL is not for a movie.")
+            raise InvalidURL("The provided iTunes URL is not for a movie.")
         
         # Scrape a dictionary on the webpage for playlists data
         playlists_data_tag: Union[Tag, NavigableString, None] = site_page.find("script", attrs={"id": "shoebox-ember-data-store", "type": "fastboot/shoebox"})
 
         # fastboot/shoebox data could not be found
         if (not isinstance(playlists_data_tag, Tag)):
-            raise iSubRip.PageLoadError("fastboot/shoebox data could not be found.")
+            raise PageLoadError("fastboot/shoebox data could not be found.")
 
         # Convert to dictionary structure
         playlists_data: dict[str, dict] = json.loads(str(playlists_data_tag.contents[0]).strip())

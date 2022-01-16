@@ -3,16 +3,13 @@ import shutil
 import subprocess
 from enum import Enum
 
+from utils.exceptions import FFmpegNotFound
 
 class PlaylistDownloader:
     """
     A class for downloading M3U8 playlists.\n
     The class required ffmpeg to be installed for the download to work.
     """
-
-    class FFmpegNotFound(Exception):
-        """FFmpeg could not be found."""
-        pass
 
 
     class SubtitlesFormat(Enum):        
@@ -48,7 +45,7 @@ class PlaylistDownloader:
 
         # Check whether FFmpeg is found
         if shutil.which(self.ffmpeg_path) == None:
-            raise PlaylistDownloader.FFmpegNotFound("FFmpeg could not be found.")
+            raise FFmpegNotFound("FFmpeg could not be found.")
 
 
     def download_subtitles(self, playlist_url: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.SRT) -> None:
