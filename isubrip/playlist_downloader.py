@@ -1,8 +1,8 @@
 import os
 import shutil
 import subprocess
-from enum import Enum
 
+from utils.enums import SubtitlesFormat
 from utils.exceptions import FFmpegNotFound
 
 class PlaylistDownloader:
@@ -10,12 +10,6 @@ class PlaylistDownloader:
     A class for downloading M3U8 playlists.\n
     The class required ffmpeg to be installed for the download to work.
     """
-
-
-    class SubtitlesFormat(Enum):        
-        """Subtitles format (srt / vtt)."""
-        SRT = 1
-        VTT = 2
 
 
     def __init__(self, output_dir: str, ffmpeg_path: str = "ffmpeg", ffmpeg_args: str = None) -> None:

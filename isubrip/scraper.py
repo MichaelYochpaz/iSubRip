@@ -4,7 +4,6 @@ import html
 import json
 import m3u8
 from typing import Union
-from enum import Enum
 from requests.sessions import session
 from urllib.error import HTTPError
 from bs4 import BeautifulSoup
@@ -12,18 +11,11 @@ from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 
 from playlist_downloader import PlaylistDownloader
+from utils.enums import SubtitlesType, SubtitlesFormat
 from utils.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
 
 class iSubRip:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""
-
-
-    class SubtitlesType(Enum):
-        """Subtitles type (Normal / CC / Forced)."""
-        NORMAL = 1
-        CC = 2
-        FORCED = 3
-
 
     @staticmethod
     def find_m3u8_playlist(itunes_url: str, user_agent: str = None) -> tuple[str, Union[M3U8, None]]:
@@ -124,7 +116,7 @@ class iSubRip:
 
                 language_code: str = playlist.language
                 language_name: str = playlist.name
-                sub_type: iSubRip.SubtitlesType = iSubRip.SubtitlesType.NORMAL
+                sub_type: SubtitlesType = SubtitlesType.NORMAL
                 
                 # Playlist does not match filter
                 if (len(filter) != 0) and not (language_code in filter or language_name in filter):
@@ -132,10 +124,10 @@ class iSubRip:
 
                 # Find subtitles type (Normal / Forced / Closed Captions)
                 if (playlist.forced == "YES"):
-                    sub_type = iSubRip.SubtitlesType.FORCED
+                    sub_type = SubtitlesType.FORCED
 
                 elif (playlist.characteristics != None and "public.accessibility" in playlist.characteristics):
-                    sub_type = iSubRip.SubtitlesType.CC
+                    sub_type = SubtitlesType.CC
 
                 yield (language_code, language_name, sub_type, playlist.uri)
 
@@ -151,7 +143,7 @@ class iSubRip:
             file_name (str): File name to use for the subtitles file.
         """
 
-        playlist_downloader.download_subtitles(playlist_url, file_name, PlaylistDownloader.SubtitlesFormat.SRT)
+        playlist_downloader.download_subtitles(playlist_url, file_name, SubtitlesFormat.SRT)
 
 
     @staticmethod

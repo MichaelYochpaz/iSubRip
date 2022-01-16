@@ -7,6 +7,7 @@ from mergedeep import merge
 
 from scraper import iSubRip
 from playlist_downloader import PlaylistDownloader
+from utils.enums import SubtitlesType, SubtitlesFormat
 
 
 def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
@@ -102,15 +103,15 @@ def main() -> None:
             for subtitles in iSubRip.find_matching_subtitles(result[1], config["downloads"]["filter"]):
                 language_code: str = subtitles[0]
                 language_name: str = subtitles[1]
-                subtitles_type: iSubRip.SubtitlesType = subtitles[2]
-                subtitles_type_str = ('[' + subtitles_type.name + ']') if (subtitles_type != iSubRip.SubtitlesType.NORMAL) else ''
+                subtitles_type: SubtitlesType = subtitles[2]
+                subtitles_type_str = ('[' + subtitles_type.name + ']') if (subtitles_type != SubtitlesType.NORMAL) else ''
 
                 print(f"Found \"{language_name}\" ({language_code})" + subtitles_type_str + f"subtitles. Downloading...")
                 playlist_url = subtitles[3]
                 file_name = format_file_name(movie_name, language_code, subtitles_type)
 
                 # Download subtitles
-                playlist_downloader.download_subtitles(playlist_url, file_name, PlaylistDownloader.SubtitlesFormat.SRT)
+                playlist_downloader.download_subtitles(playlist_url, file_name, SubtitlesFormat.SRT)
 
             print(f"All matching subtitles for {movie_name} downloaded.")
 
@@ -123,10 +124,10 @@ def format_title(title: str) -> str:
         return title.replace(': ', '.').replace(' - ', '-').replace(', ', '.').replace('. ', '.').replace(' ', '.').replace('(', '').replace(')', '').replace('&amp;', '&')
 
 
-def format_file_name(title: str, language_code: str, type: iSubRip.SubtitlesType) -> str:
+def format_file_name(title: str, language_code: str, type: SubtitlesType) -> str:
     file_name = f"{format_title(title)}.iT.WEB.{language_code}"
 
-    if type is not iSubRip.SubtitlesType.NORMAL:
+    if type is not SubtitlesType.NORMAL:
         file_name += '.' + type.name
 
     return file_name
