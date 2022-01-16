@@ -55,7 +55,7 @@ class iSubRip:
             user_agent (str, optional): User-Agent string to use for scraping. Defaults to None.
 
         Raises:
-            ValueError: An inavlid iTunes URL was provided.
+            InvalidURL: An inavlid iTunes URL was provided.
             ConnectionError: A connection error occurred while trying to request the page.
             HTTPError: An error while trying to download m3u8 playlist data.
             PageLoadError: The page did not load properly.
@@ -82,7 +82,7 @@ class iSubRip:
         movie_title: str = html.unescape(movie_metadata_dict['name'])
 
         if media_type != "Movie":
-            raise ValueError("The provided iTunes URL is not for a movie.")
+            raise iSubRip.InvalidURL("The provided iTunes URL is not for a movie.")
         
         # Scrape a dictionary on the webpage for playlists data
         playlists_data_tag: Union[Tag, NavigableString, None] = site_page.find("script", attrs={"id": "shoebox-ember-data-store", "type": "fastboot/shoebox"})
