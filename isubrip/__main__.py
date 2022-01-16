@@ -90,30 +90,25 @@ def main() -> None:
     for url in sys.argv[1:]:
         try:
             print(f"Scraping {url}...")
-            result = iSubRip.find_m3u8_playlist(url, config["downloads"]["user-agent"])
+            movie_data = iSubRip.find_m3u8_playlist(url, config["downloads"]["user-agent"])
 
-            if result[1] == None:
-                print(f"Error: Main m3u8 playlist for \"{result[0]}\" could not be found / downloaded.")
+            if movie_data.playlist == None:
+                print(f"Error: Main m3u8 playlist for \"{movie_data.name}\" could not be found / downloaded.")
                 continue
             
-            movie_name: str = result[0]
-            print(f"Found movie \"{movie_name}\".",
+            print(f"Found movie \"{movie_data.name}\".",
             f"Downloading subtitles using")
 
-            for subtitles in iSubRip.find_matching_subtitles(result[1], config["downloads"]["filter"]):
-                language_code: str = subtitles[0]
-                language_name: str = subtitles[1]
-                subtitles_type: SubtitlesType = subtitles[2]
-                subtitles_type_str = ('[' + subtitles_type.name + ']') if (subtitles_type != SubtitlesType.NORMAL) else ''
+            for subtitles in iSubRip.find_matching_subtitles(movie_data.playlist, config["downloads"]["filter"]):
+                subtitles_type_str = ('[' + subtitles.subtitles_type.name + ']') if (subtitles.subtitles_type != SubtitlesType.NORMAL) else ''
 
-                print(f"Found \"{language_name}\" ({language_code})" + subtitles_type_str + f"subtitles. Downloading...")
-                playlist_url = subtitles[3]
-                file_name = format_file_name(movie_name, language_code, subtitles_type)
+                print(f"Found \"{subtitles.language_name}\" ({subtitles.language_code})" + subtitles_type_str + f"subtitles. Downloading...")
+                file_name = format_file_name(movie_data.name, subtitles.language_code, subtitles.subtitles_type)
 
                 # Download subtitles
-                playlist_downloader.download_subtitles(playlist_url, file_name, SubtitlesFormat.SRT)
+                playlist_downloader.download_subtitles(subtitles.playlist_url, file_name, SubtitlesFormat.SRT)
 
-            print(f"All matching subtitles for {movie_name} downloaded.")
+            print(f"All matching subtitles for {movie_data.name} downloaded.")
 
         except Exception as e:
             print(f"Error: {e}\nSkipping...")

@@ -12,13 +12,14 @@ from m3u8.model import M3U8
 
 from playlist_downloader import PlaylistDownloader
 from utils.enums import SubtitlesType, SubtitlesFormat
+from utils.typing import MovieData, SubtitlesData
 from utils.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
 
 class iSubRip:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""
 
     @staticmethod
-    def find_m3u8_playlist(itunes_url: str, user_agent: str = None) -> tuple[str, Union[M3U8, None]]:
+    def find_m3u8_playlist(itunes_url: str, user_agent: str = None) -> MovieData:
         """
         Scrape an iTunes page to find the URL of the M3U8 playlist.
 
@@ -33,7 +34,7 @@ class iSubRip:
             PageLoadError: The page did not load properly.
 
         Returns:
-            tuple[str, M3U8 | None]: The movie's name and an M3U8 object of the playlist if the playlist is found, and None otherwise.
+            MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist if the playlist is found, and None otherwise.
         """
 
         # Check whether URL is valid
@@ -89,9 +90,9 @@ class iSubRip:
                             
                             # Assure playlist is for the correct movie
                             if iSubRip.is_playlist_valid(playlist, movie_title):
-                                return (movie_title, playlist)
+                                return MovieData(movie_title, playlist)
 
-        return (movie_title, None)
+        return MovieData(movie_title, None)
 
 
     @staticmethod
@@ -104,10 +105,9 @@ class iSubRip:
             filter (list, optional): A list of subtitles language codes (ISO 639-1) or names to use as a filter. Defaults to [].
 
         Yields:
-            Tuple: A Tuple with a matching playlist and it's metadata using the following structure:
-            (Language Code, Language Name, SubtitlesType, Playlist URL)
+            SubtitlesData: A SubtitlesData (NamedTuple) object with a matching playlist and it's metadata:
+            Language Code, Language Name, SubtitlesType, Playlist URL.
         """
-
         for playlist in main_playlist.media:
             # Check whether playlist is valid and matches filter
             # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
@@ -129,7 +129,7 @@ class iSubRip:
                 elif (playlist.characteristics != None and "public.accessibility" in playlist.characteristics):
                     sub_type = SubtitlesType.CC
 
-                yield (language_code, language_name, sub_type, playlist.uri)
+                yield SubtitlesData(language_code, language_name, sub_type, playlist.uri)
 
 
     @staticmethod
