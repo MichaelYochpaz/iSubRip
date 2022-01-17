@@ -1,7 +1,7 @@
 from typing import NamedTuple, Union
 from m3u8 import M3U8
 
-from enums import SubtitlesType
+from utils.enums import SubtitlesType
 
 class MovieData(NamedTuple):
     """A named tuple containing a movie name and it's main M3U8 playlist."""
