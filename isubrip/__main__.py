@@ -105,7 +105,7 @@ def main() -> None:
                 file_name = format_file_name(movie_data.name, subtitles.language_code, subtitles.subtitles_type)
 
                 # Download subtitles
-                playlist_downloader.download_subtitles(subtitles.playlist_url, file_name, SubtitlesFormat.SRT)
+                playlist_downloader.download_subtitles(subtitles.playlist_url, file_name, SubtitlesFormat.VTT)
 
             print(f"All matching subtitles for {movie_data.name} downloaded.")
 
