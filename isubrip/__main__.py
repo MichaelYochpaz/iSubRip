@@ -91,12 +91,14 @@ def main() -> None:
         try:
             print(f"\nScraping {url}...")
             movie_data = iSubRip.find_m3u8_playlist(url, config["downloads"]["user-agent"])
+            print(f"Found movie \"{movie_data.name}\".")
+
 
             if movie_data.playlist == None:
-                print(f"Error: Main m3u8 playlist for \"{movie_data.name}\" could not be found / downloaded.")
+                print(f"Error: Main m3u8 playlist could not be found / downloaded.")
                 continue
             
-            print(f"Found movie \"{movie_data.name}\".")
+            downloaded_subtitles = 0
 
             for subtitles in iSubRip.find_matching_subtitles(movie_data.playlist, config["downloads"]["filter"]):
                 subtitles_type_str = ('[' + subtitles.subtitles_type.name + ']') if (subtitles.subtitles_type != SubtitlesType.NORMAL) else ''
@@ -106,8 +108,9 @@ def main() -> None:
 
                 # Download subtitles
                 playlist_downloader.download_subtitles(subtitles.playlist_url, file_name, SubtitlesFormat.VTT)
+                downloaded_subtitles += 1
 
-            print(f"All matching subtitles for {movie_data.name} downloaded.")
+            print(f"{downloaded_subtitles} matching subtitles for \"{movie_data.name}\" were found and downloaded.")
 
         except Exception as e:
             print(f"Error: {e}\nSkipping...")
