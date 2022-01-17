@@ -96,13 +96,12 @@ def main() -> None:
                 print(f"Error: Main m3u8 playlist for \"{movie_data.name}\" could not be found / downloaded.")
                 continue
             
-            print(f"Found movie \"{movie_data.name}\".",
-            f"Downloading subtitles using")
+            print(f"Found movie \"{movie_data.name}\".")
 
             for subtitles in iSubRip.find_matching_subtitles(movie_data.playlist, config["downloads"]["filter"]):
                 subtitles_type_str = ('[' + subtitles.subtitles_type.name + ']') if (subtitles.subtitles_type != SubtitlesType.NORMAL) else ''
 
-                print(f"Found \"{subtitles.language_name}\" ({subtitles.language_code})" + subtitles_type_str + f"subtitles. Downloading...")
+                print(f"Found \"{subtitles.language_name}\" ({subtitles.language_code}) " + subtitles_type_str + f"subtitles. Downloading...")
                 file_name = format_file_name(movie_data.name, subtitles.language_code, subtitles.subtitles_type)
 
                 # Download subtitles
