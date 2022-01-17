@@ -13,7 +13,8 @@ class PlaylistDownloader:
 
 
     def __init__(self, output_dir: str, ffmpeg_path: str = "ffmpeg", ffmpeg_args: str = None) -> None:
-        """Create a new PlaylistDownloader instance.
+        """
+        Create a new PlaylistDownloader instance.
 
         Args:
             output_dir (str): A folder to save the downloaded files to.
@@ -43,7 +44,8 @@ class PlaylistDownloader:
 
 
     def download_subtitles(self, playlist_url: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.SRT) -> None:
-        """Download a subtitles playlist to a file.
+        """
+        Download a subtitles playlist to a file.
 
         Args:
             playlist_url (str): Link to the playlist to download
@@ -52,5 +54,5 @@ class PlaylistDownloader:
         """        
         # Download file
         ffmpeg_args_str = (self.ffmpeg_args + " ") if (self.ffmpeg_args != None) else ''
-        ffmpeg_command = f"{self.ffmpeg_path} " + ffmpeg_args_str + "-i \"{playlist_url}\" \"{self.output_dir}/{file_name}.{file_format.name.lower()}\""
+        ffmpeg_command = f"{self.ffmpeg_path} " + ffmpeg_args_str + f"-i \"{playlist_url}\" \"{self.output_dir}/{file_name}.{file_format.name.lower()}\""
         subprocess.run(ffmpeg_command, shell=False)
