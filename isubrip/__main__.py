@@ -89,7 +89,7 @@ def main() -> None:
 
     for url in sys.argv[1:]:
         try:
-            print(f"Scraping {url}...")
+            print(f"\nScraping {url}...")
             movie_data = iSubRip.find_m3u8_playlist(url, config["downloads"]["user-agent"])
 
             if movie_data.playlist == None:
