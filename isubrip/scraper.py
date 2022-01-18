@@ -71,7 +71,8 @@ class iSubRip:
         for key in playlists_data.keys():
                 if isinstance(playlists_data[key].get("included"), list):
                     for item in playlists_data[key]["included"]:
-                        if (isinstance(item.get("attributes"), dict) and
+                        if (isinstance(item.get("type"), str) and item["type"] == "offer" and
+                        isinstance(item.get("attributes"), dict) and
                         isinstance(item["attributes"].get("assets"), list) and
                         len(item["attributes"]["assets"]) > 0 and
                         isinstance(item["attributes"]["assets"][0], dict) and
