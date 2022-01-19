@@ -20,7 +20,7 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
         dict: A dictionary containing all settings.
     """    
     # Load settings from default config file
-    with open ("isubrip/default_config.toml", "r") as config_file:
+    with open ("isubrip/resources/default_config.toml", "r") as config_file:
         config: Union[dict[str, Any], None] = tomli.loads(config_file.read())
 
     config["user-config"] = False
