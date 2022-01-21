@@ -130,10 +130,6 @@ def format_file_name(title: str, language_code: str, type: SubtitlesType) -> str
     return file_name
 
 
-def format_zip_name(title: str) -> str: 
-    return f"{format_title(title)}.iT.WEB"
-
-
 def print_usage() -> None:
     print(f"Usage: {sys.argv[0]} <iTunes movie URL>")
 
