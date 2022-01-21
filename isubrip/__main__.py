@@ -118,7 +118,21 @@ def main() -> None:
 
 
 def format_title(title: str) -> str:
-        return title.replace(': ', '.').replace(' - ', '-').replace(', ', '.').replace('. ', '.').replace(' ', '.').replace('(', '').replace(')', '').replace('&amp;', '&')
+    # Replacements will be done in the same order as the list
+    replacement_pairs = [
+        (': ', '.'),
+        (' - ', '-'),
+        (', ', '.'),
+        ('. ', '.'),
+        (' ', '.'),
+        ('(', ''),
+        (')', '')
+    ]
+
+    for pair in replacement_pairs:
+        title = title.replace(pair[0], pair[1])
+
+    return title
 
 
 def format_file_name(title: str, language_code: str, type: SubtitlesType) -> str:
