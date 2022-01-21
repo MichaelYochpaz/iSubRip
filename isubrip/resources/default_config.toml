@@ -10,4 +10,4 @@ folder = "."
 
 [ffmpeg]
 path = "ffmpeg"
-args = "-loglevel warning -hide_banner"
+args = "-loglevel warning -hide_banner -y"

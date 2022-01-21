@@ -34,4 +34,4 @@ path = "ffmpeg"
 
 # Arguments to run FFmpeg commands with
 # Don't use this setting unless you know what you're doing.
-args = "-loglevel warning -hide_banner"
+args = "-loglevel warning -hide_banner -y"
