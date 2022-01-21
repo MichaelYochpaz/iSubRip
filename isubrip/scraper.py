@@ -109,6 +109,9 @@ class iSubRip:
             SubtitlesData: A SubtitlesData (NamedTuple) object with a matching playlist and it's metadata:
             Language Code, Language Name, SubtitlesType, Playlist URL.
         """
+        # Convert all filters to lower-case for case-insensitive matching
+        filter = [f.lower() for f in filter]
+
         for playlist in main_playlist.media:
             # Check whether playlist is valid and matches filter
             # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
@@ -120,7 +123,7 @@ class iSubRip:
                 sub_type: SubtitlesType = SubtitlesType.NORMAL
                 
                 # Playlist does not match filter
-                if (len(filter) != 0) and not (language_code in filter or language_name in filter):
+                if (len(filter) != 0) and not (language_code.lower() in filter or language_name in filter):
                     continue
 
                 # Find subtitles type (Normal / Forced / Closed Captions)
