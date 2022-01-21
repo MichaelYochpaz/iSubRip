@@ -8,7 +8,9 @@ from mergedeep import merge
 from scraper import iSubRip
 from playlist_downloader import PlaylistDownloader
 from utils.enums import SubtitlesType, SubtitlesFormat
+from utils.exceptions import DefaultConfigNotFound, UserConfigNotFound, InvalidConfigValue
 
+DEFAULT_CONFIG_PATH = "isubrip/resources/default_config.toml"
 
 def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
     """Parse and config file and save settings to a dictionary.
@@ -16,20 +18,28 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
     Args:
         user_config (str, optional): Path to an additional optional config to use for overwriting default settings. Defaults to None.
 
+    Raises:
+        DefaultConfigNotFound: Default config file could not be found.
+        UserConfigNotFound: User config file could not be found.
+
     Returns:
         dict: A dictionary containing all settings.
     """    
+    # Assure default config file exists
+    if not os.path.isfile(DEFAULT_CONFIG_PATH):
+        raise DefaultConfigNotFound(f"Default config file could not be found at \"{DEFAULT_CONFIG_PATH}\".")
+
     # Load settings from default config file
-    with open ("isubrip/resources/default_config.toml", "r") as config_file:
+    with open (DEFAULT_CONFIG_PATH, "r") as config_file:
         config: Union[dict[str, Any], None] = tomli.loads(config_file.read())
 
     config["user-config"] = False
 
     # If a user config file exists, load it and update default config with it's values
     if(user_config_path != None):
-        # User config file could not be found
+        # Assure config file exists
         if not os.path.isfile(user_config_path):
-            raise FileNotFoundError(f"Error: Config file \"{user_config_path}\" could not be found.")
+            raise UserConfigNotFound(f"User config file could not be found at \"{user_config_path}\".")
             
         with open (user_config_path, "r") as config_file:
             user_config: Union[dict[str, Any], None] = tomli.loads(config_file.read())
