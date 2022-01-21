@@ -56,6 +56,11 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
 
 
 def find_config_file() -> Union[str, None]:
+    """Return the path to user's config file.
+
+    Returns:
+        Union[str, None]: A string with the path to user's config file if it's found, and None otherwise.
+    """
     config_path = None
 
     # Windows
@@ -128,6 +133,14 @@ def main() -> None:
 
 
 def format_title(title: str) -> str:
+    """Format iTunes movie title to a standardized title.
+
+    Args:
+        title (str): iTunes movie title.
+
+    Returns:
+        str: A modified standardized title.
+    """
     # Replacements will be done in the same order as the list
     replacement_pairs = [
         (': ', '.'),
@@ -146,6 +159,16 @@ def format_title(title: str) -> str:
 
 
 def format_file_name(title: str, language_code: str, type: SubtitlesType) -> str:
+    """Generate file name for subtitles.
+
+    Args:
+        title (str): Movie's title
+        language_code (str): Subtitle language code
+        type (SubtitlesType): Subtitles type
+
+    Returns:
+        str: A formatted file name (without a file extension).
+    """
     file_name = f"{format_title(title)}.iT.WEB.{language_code}"
 
     if type is not SubtitlesType.NORMAL:
@@ -155,6 +178,7 @@ def format_file_name(title: str, language_code: str, type: SubtitlesType) -> str
 
 
 def print_usage() -> None:
+    """Print usage information."""
     print(f"Usage: {sys.argv[0]} <iTunes movie URL>")
 
 
