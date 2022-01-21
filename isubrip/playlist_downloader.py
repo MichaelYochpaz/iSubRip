@@ -52,7 +52,8 @@ class PlaylistDownloader:
             file_name (str): Name for the downloaded file
             file_format (SubtitlesFormat, optional): Format to use for saving the subtitles. Defaults to SubtitlesFormat.SRT.
         """        
-        path = os.path.join(self.output_dir, (file_name + file_format.name.lower()))
+        file_name += '.' + file_format.name.lower()
+        path = os.path.join(self.output_dir, file_name)
 
         ffmpeg_args_str = (self.ffmpeg_args + " ") if (self.ffmpeg_args != None) else ''
         ffmpeg_command = f"{self.ffmpeg_path} " + ffmpeg_args_str + f"-i \"{playlist_url}\" \"{path}\""
