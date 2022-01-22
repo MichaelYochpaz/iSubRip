@@ -2,6 +2,7 @@ from typing import NamedTuple, Union
 from enum import Enum
 from m3u8 import M3U8
 
+
 # ---------------------- Enums --------------------- #
 class SubtitlesType(Enum):
     """Subtitles type (Normal / CC / Forced)."""
@@ -10,19 +11,18 @@ class SubtitlesType(Enum):
     FORCED = 3
 
 
-class SubtitlesFormat(Enum):        
+class SubtitlesFormat(Enum):
     """Subtitles format (srt / vtt)."""
     SRT = 1
     VTT = 2
 
 
-class ArchiveFormat(Enum):        
+class ArchiveFormat(Enum):
     """Archive Format (zip / tar / tar.gz)."""
     ZIP = 1
     TAR = 2
     TAR_GZ = 3
 # -------------------------------------------------- #
-
 
 
 class MovieData(NamedTuple):

@@ -15,8 +15,8 @@ def main() -> None:
         print_usage()
         exit(0)
 
-    # Remove last char from from user's folder input if it's '/'
-    if config["downloads"]["folder"][-1:] == '/': 
+    # Remove last char from user's folder input if it's '/'
+    if config["downloads"]["folder"][-1:] == '/':
         config["downloads"]["folder"] = config["downloads"]["folder"][:-1]
 
     # Check and print and exit if an error is raised during object creation
@@ -33,8 +33,7 @@ def main() -> None:
             movie_data = iSubRip.find_m3u8_playlist(url, config["downloads"]["user-agent"])
             print(f"Found movie \"{movie_data.name}\".")
 
-
-            if movie_data.playlist == None:
+            if movie_data.playlist is None:
                 print(f"Error: Main m3u8 playlist could not be found / downloaded.")
                 continue
             

@@ -8,7 +8,6 @@ from mergedeep import merge
 from isubrip.types import SubtitlesType
 from isubrip.exceptions import DefaultConfigNotFound, UserConfigNotFound
 
-
 DEFAULT_CONFIG_PATH = "resources/default_config.toml"
 USER_CONFIG_PATH_WINDOWS = f"{os.getenv('appdata')}\\iSubRip\\config.toml"
 USER_CONFIG_PATH_LINUX = f"{xdg_config_home().resolve()}/iSubRip/config.toml"
@@ -41,18 +40,18 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
         raise DefaultConfigNotFound(f"Default config file could not be found at \"{DEFAULT_CONFIG_PATH}\".")
 
     # Load settings from default config file
-    with open (DEFAULT_CONFIG_PATH, "r") as config_file:
+    with open(DEFAULT_CONFIG_PATH, "r") as config_file:
         config: Union[dict[str, Any], None] = tomli.loads(config_file.read())
 
     config["user-config"] = False
 
     # If a user config file exists, load it and update default config with it's values
-    if user_config_path != None:
+    if user_config_path is not None:
         # Assure config file exists
         if not os.path.isfile(user_config_path):
             raise UserConfigNotFound(f"User config file could not be found at \"{user_config_path}\".")
-            
-        with open (user_config_path, "r") as config_file:
+
+        with open(user_config_path, "r") as config_file:
             user_config: Union[dict[str, Any], None] = tomli.loads(config_file.read())
 
         # Change config["ffmpeg"]["args"] value to None if empty
@@ -81,14 +80,14 @@ def find_config_file() -> Union[str, None]:
     # Linux
     elif sys.platform == "linux":
         config_path = USER_CONFIG_PATH_LINUX
-    
+
     # MacOS
     elif sys.platform == "darwin":
         config_path = USER_CONFIG_PATH_MACOS
 
-    if (config_path != None) and (os.path.exists(config_path)):
+    if (config_path is not None) and (os.path.exists(config_path)):
         return config_path
-    
+
     return None
 
 
@@ -118,13 +117,13 @@ def format_title(title: str) -> str:
     return title
 
 
-def format_file_name(title: str, language_code: str, type: SubtitlesType) -> str:
+def format_file_name(title: str, language_code: str, subtitles_type: SubtitlesType) -> str:
     """Generate file name for subtitles.
 
     Args:
         title (str): A movie title
         language_code (str): Subtitles language code
-        type (SubtitlesType): Subtitles type
+        subtitles_type (SubtitlesType): Subtitles type
 
     Returns:
         str: A formatted file name (without a file extension).
@@ -132,6 +131,6 @@ def format_file_name(title: str, language_code: str, type: SubtitlesType) -> str
     file_name = f"{format_title(title)}.iT.WEB.{language_code}"
 
     if type is not SubtitlesType.NORMAL:
-        file_name += '.' + type.name
+        file_name += '.' + subtitles_type.name
 
     return file_name

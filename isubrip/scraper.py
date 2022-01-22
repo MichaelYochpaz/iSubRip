@@ -15,6 +15,7 @@ from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.types import SubtitlesType, SubtitlesFormat, MovieData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
 
+
 class iSubRip:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""
 
@@ -34,18 +35,19 @@ class iSubRip:
             PageLoadError: The page did not load properly.
 
         Returns:
-            MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist if the playlist is found, and None otherwise.
+            MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
+            if the playlist is found. None otherwise.
         """
         # Check whether URL is valid
-        if re.match(utils.ITUNES_STORE_REGEX, itunes_url) == None:
+        if re.match(utils.ITUNES_STORE_REGEX, itunes_url) is None:
             raise InvalidURL(f"{itunes_url} is not a valid iTunes movie URL.")
 
         site_page: BeautifulSoup = BeautifulSoup(session().get(itunes_url, headers={"User-Agent": user_agent}).text, "lxml")
         movie_metadata: Union[Tag, NavigableString, None] = site_page.find("script", attrs={"name": "schema:movie", "type": 'application/ld+json'})
 
-        if (not isinstance(movie_metadata, Tag)):
+        if not isinstance(movie_metadata, Tag):
             raise PageLoadError("The page did not load properly.")
-        
+
         # Convert to dictionary structure
         movie_metadata_dict: dict = json.loads(str(movie_metadata.contents[0]).strip())
 
@@ -54,12 +56,12 @@ class iSubRip:
 
         if media_type != "Movie":
             raise InvalidURL("The provided iTunes URL is not for a movie.")
-        
+
         # Scrape a dictionary on the webpage for playlists data
         playlists_data_tag: Union[Tag, NavigableString, None] = site_page.find("script", attrs={"id": "shoebox-ember-data-store", "type": "fastboot/shoebox"})
 
         # fastboot/shoebox data could not be found
-        if (not isinstance(playlists_data_tag, Tag)):
+        if not isinstance(playlists_data_tag, Tag):
             raise PageLoadError("fastboot/shoebox data could not be found.")
 
         # Convert to dictionary structure
@@ -67,72 +69,71 @@ class iSubRip:
 
         # Loop safely over different structures to find a matching playlist
         for key in playlists_data.keys():
-                if isinstance(playlists_data[key].get("included"), list):
-                    for item in playlists_data[key]["included"]:
-                        if (isinstance(item.get("type"), str) and item["type"] == "offer" and
-                        isinstance(item.get("attributes"), dict) and
-                        isinstance(item["attributes"].get("assets"), list) and
-                        len(item["attributes"]["assets"]) > 0 and
-                        isinstance(item["attributes"]["assets"][0], dict) and
-                        isinstance(item["attributes"]["assets"][0].get("hlsUrl"), str)):
-                            m3u8_url: str = item["attributes"]["assets"][0]["hlsUrl"]
+            if isinstance(playlists_data[key].get("included"), list):
+                for item in playlists_data[key]["included"]:
+                    if (isinstance(item.get("type"), str) and item["type"] == "offer" and
+                            isinstance(item.get("attributes"), dict) and
+                            isinstance(item["attributes"].get("assets"), list) and
+                            len(item["attributes"]["assets"]) > 0 and
+                            isinstance(item["attributes"]["assets"][0], dict) and
+                            isinstance(item["attributes"]["assets"][0].get("hlsUrl"), str)):
+                        m3u8_url: str = item["attributes"]["assets"][0]["hlsUrl"]
 
-                            try:
-                                playlist: M3U8 = m3u8.load(m3u8_url)
+                        try:
+                            playlist: M3U8 = m3u8.load(m3u8_url)
 
-                            # If m3u8 playlist is invalid, skip it
-                            except ValueError:
-                                continue
+                        # If m3u8 playlist is invalid, skip it
+                        except ValueError:
+                            continue
 
-                            except HTTPError:
-                                continue
-                            
-                            # Assure playlist is for the correct movie
-                            if iSubRip.is_playlist_valid(playlist, movie_title):
-                                return MovieData(movie_title, playlist)
+                        except HTTPError:
+                            continue
+
+                        # Assure playlist is for the correct movie
+                        if iSubRip.is_playlist_valid(playlist, movie_title):
+                            return MovieData(movie_title, playlist)
 
         return MovieData(movie_title, None)
 
-
     @staticmethod
-    def find_matching_subtitles(main_playlist: M3U8, filter: list = []):
+    def find_matching_subtitles(main_playlist: M3U8, subtitles_filter: list = Union[list, None]):
         """
         Find and yield iTunes subtitles playlists within main_playlist that match the filter.
 
         Args:
             main_playlist (M3U8): an M3U8 object of the main playlist.
-            filter (list, optional): A list of subtitles language codes (ISO 639-1) or names to use as a filter. Defaults to [].
+            subtitles_filter (list, optional): A list of subtitles language codes (ISO 639-1) or names
+            to use as a filter. Defaults to [].
 
         Yields:
-            SubtitlesData: A SubtitlesData (NamedTuple) object with a matching playlist and it's metadata:
+            SubtitlesData: A SubtitlesData (NamedTuple) object with a matching playlist, and it's metadata:
             Language Code, Language Name, SubtitlesType, Playlist URL.
         """
         # Convert all filters to lower-case for case-insensitive matching
-        filter = [f.lower() for f in filter]
+        subtitles_filter = [f.lower() for f in subtitles_filter]
 
         for playlist in main_playlist.media:
             # Check whether playlist is valid and matches filter
             # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
             if ((playlist.type == "SUBTITLES") and
-            (playlist.group_id in ("subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"))):
+                    (playlist.group_id in ("subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"))):
 
                 language_code: str = playlist.language
                 language_name: str = playlist.name
                 sub_type: SubtitlesType = SubtitlesType.NORMAL
-                
+
                 # Playlist does not match filter
-                if (len(filter) != 0) and not (language_code.lower() in filter or language_name in filter):
+                if (len(subtitles_filter) != 0) and not (language_code.lower() in filter or language_name in filter):
                     continue
 
                 # Find subtitles type (Normal / Forced / Closed Captions)
-                if (playlist.forced == "YES"):
+                if playlist.forced == "YES":
                     sub_type = SubtitlesType.FORCED
 
-                elif (playlist.characteristics != None and "public.accessibility" in playlist.characteristics):
+                elif playlist.characteristics is not None and "public.accessibility" in playlist.characteristics:
                     sub_type = SubtitlesType.CC
 
                 yield SubtitlesData(language_code, language_name, sub_type, playlist.uri)
-
 
     @staticmethod
     def download_playlist(playlist_downloader: PlaylistDownloader, playlist_url: str, file_name: str) -> None:
@@ -147,7 +148,6 @@ class iSubRip:
 
         playlist_downloader.download_subtitles(playlist_url, file_name, SubtitlesFormat.SRT)
 
-
     @staticmethod
     def is_playlist_valid(playlist: m3u8.M3U8, movie_title: str) -> bool:
         """
@@ -159,7 +159,7 @@ class iSubRip:
 
         Returns:
             bool: True if the title matches the title of the playlist, and False otherwise.
-        """        
+        """
         for sessionData in playlist.session_data:
             if sessionData.data_id == "com.apple.hls.title":
                 return movie_title == sessionData.value
