@@ -11,8 +11,7 @@ from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 
 from playlist_downloader import PlaylistDownloader
-from utils.enums import SubtitlesType, SubtitlesFormat
-from utils.typing import MovieData, SubtitlesData
+from utils.types import SubtitlesType, SubtitlesFormat, MovieData, SubtitlesData
 from utils.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
 
 class iSubRip:

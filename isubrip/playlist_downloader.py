@@ -2,7 +2,7 @@ import os
 import shutil
 import subprocess
 
-from utils.enums import SubtitlesFormat
+from utils.types import SubtitlesFormat
 from utils.exceptions import FFmpegNotFound
 
 class PlaylistDownloader:

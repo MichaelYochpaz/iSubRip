@@ -7,7 +7,7 @@ from mergedeep import merge
 
 from scraper import iSubRip
 from playlist_downloader import PlaylistDownloader
-from utils.enums import SubtitlesType, SubtitlesFormat
+from utils.types import SubtitlesType, SubtitlesFormat
 from utils.exceptions import DefaultConfigNotFound, UserConfigNotFound, InvalidConfigValue
 
 DEFAULT_CONFIG_PATH = "isubrip/resources/default_config.toml"
