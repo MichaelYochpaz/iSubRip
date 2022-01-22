@@ -10,9 +10,9 @@ from bs4 import BeautifulSoup
 from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 
-from playlist_downloader import PlaylistDownloader
-from utils.types import SubtitlesType, SubtitlesFormat, MovieData, SubtitlesData
-from utils.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
+from isubrip.playlist_downloader import PlaylistDownloader
+from isubrip.types import SubtitlesType, SubtitlesFormat, MovieData, SubtitlesData
+from isubrip.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
 
 class iSubRip:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""

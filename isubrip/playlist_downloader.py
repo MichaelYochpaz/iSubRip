@@ -2,8 +2,8 @@ import os
 import shutil
 import subprocess
 
-from utils.types import SubtitlesFormat
-from utils.exceptions import FFmpegNotFound
+from isubrip.types import SubtitlesFormat
+from isubrip.exceptions import FFmpegNotFound
 
 class PlaylistDownloader:
     """
