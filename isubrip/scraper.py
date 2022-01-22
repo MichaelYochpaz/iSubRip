@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 
+import isubrip.utils as utils
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.types import SubtitlesType, SubtitlesFormat, MovieData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
@@ -35,10 +36,8 @@ class iSubRip:
         Returns:
             MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist if the playlist is found, and None otherwise.
         """
-
         # Check whether URL is valid
-        regex_exp = r"https?://itunes.apple.com/[a-z]{2}/movie/[a-zA-Z0-9\-%]+/id[0-9]+($|(\?.*))"
-        if re.match(regex_exp, itunes_url) == None:
+        if re.match(utils.ITUNES_STORE_REGEX, itunes_url) == None:
             raise InvalidURL(f"{itunes_url} is not a valid iTunes movie URL.")
 
         site_page: BeautifulSoup = BeautifulSoup(session().get(itunes_url, headers={"User-Agent": user_agent}).text, "lxml")
