@@ -12,7 +12,7 @@ from m3u8.model import M3U8
 import isubrip.utils as utils
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.enums import SubtitlesType, SubtitlesFormat
-from isubrip.types import MovieData, SubtitlesData
+from isubrip.namedtuples import MovieData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
 
 

@@ -5,7 +5,7 @@ from typing import Union, Any
 from mergedeep import merge
 
 from isubrip.constants import *
-from isubrip.types import SubtitlesType
+from isubrip.namedtuples import SubtitlesType
 from isubrip.exceptions import DefaultConfigNotFound, UserConfigNotFound
 
 
