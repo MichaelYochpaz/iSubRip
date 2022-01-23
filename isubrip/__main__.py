@@ -26,7 +26,7 @@ def main() -> None:
 
     # Check and print and exit if an error is raised during object creation
     try:
-        playlist_downloader = PlaylistDownloader(config["downloads"]["folder"], config["ffmpeg"]["path"], config["ffmpeg"]["args"])
+        playlist_downloader = PlaylistDownloader(config["ffmpeg"]["path"], config["ffmpeg"]["args"])
 
     except Exception as e:
         print(f"Error: {e}")
