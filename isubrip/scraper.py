@@ -96,7 +96,7 @@ class iSubRip:
         return MovieData(movie_title, None)
 
     @staticmethod
-    def find_matching_subtitles(main_playlist: M3U8, subtitles_filter: list = Union[list, None]):
+    def find_matching_subtitles(main_playlist: M3U8, subtitles_filter: Union[list, None]):
         """
         Find and yield iTunes subtitles playlists within main_playlist that match the filter.
 
@@ -109,6 +109,7 @@ class iSubRip:
             SubtitlesData: A SubtitlesData (NamedTuple) object with a matching playlist, and it's metadata:
             Language Code, Language Name, SubtitlesType, Playlist URL.
         """
+        if subtitles_filter is not None:
         # Convert all filters to lower-case for case-insensitive matching
         subtitles_filter = [f.lower() for f in subtitles_filter]
 
@@ -123,7 +124,7 @@ class iSubRip:
                 sub_type: SubtitlesType = SubtitlesType.NORMAL
 
                 # Playlist does not match filter
-                if (len(subtitles_filter) != 0) and not (language_code.lower() in filter or language_name in filter):
+                if subtitles_filter is not None and not (language_code.lower() in subtitles_filter or language_name in subtitles_filter):
                     continue
 
                 # Find subtitles type (Normal / Forced / Closed Captions)
