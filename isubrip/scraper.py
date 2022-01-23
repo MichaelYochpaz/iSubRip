@@ -110,8 +110,8 @@ class iSubRip:
             Language Code, Language Name, SubtitlesType, Playlist URL.
         """
         if subtitles_filter is not None:
-        # Convert all filters to lower-case for case-insensitive matching
-        subtitles_filter = [f.lower() for f in subtitles_filter]
+            # Convert all filters to lower-case for case-insensitive matching
+            subtitles_filter = [f.lower() for f in subtitles_filter]
 
         for playlist in main_playlist.media:
             # Check whether playlist is valid and matches filter
