@@ -4,7 +4,7 @@ from typing import Any
 import isubrip.utils as utils
 from isubrip.scraper import iSubRip
 from isubrip.playlist_downloader import PlaylistDownloader
-from isubrip.types import SubtitlesType, SubtitlesFormat
+from isubrip.enums import SubtitlesType, SubtitlesFormat
 from isubrip.exceptions import InvalidConfigValue
 
 def main() -> None:

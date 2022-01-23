@@ -2,7 +2,7 @@ import os
 import shutil
 import subprocess
 
-from isubrip.types import SubtitlesFormat
+from isubrip.enums import SubtitlesFormat
 from isubrip.exceptions import FFmpegNotFound
 
 
