@@ -86,7 +86,11 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
 
     config["user-config"] = False
 
-    # If a user config file exists, load it and update default config with it's values
+    # If filter = [], change it to None
+    if not config["downloads"]["filter"]:
+        config["downloads"]["filter"] = None
+
+    # If a user config file exists, load it and update default config with its values
     if user_config_path is not None:
         # Assure config file exists
         if not os.path.isfile(user_config_path):
