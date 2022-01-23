@@ -41,7 +41,7 @@ class PlaylistDownloader:
             file_format (SubtitlesFormat, optional): Format to use for saving the subtitles. Defaults to "SubtitlesFormat.SRT".
 
         Returns:
-            str: A string with the name of the downloaded file.
+            str: A string with the path to the downloaded subtitles file
         """
         file_name += '.' + file_format.name.lower()
         path = os.path.join(output_dir, file_name)
@@ -51,4 +51,4 @@ class PlaylistDownloader:
 
         subprocess.run(ffmpeg_command, shell=False)
 
-        return file_name
+        return path
