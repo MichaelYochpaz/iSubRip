@@ -175,7 +175,7 @@ def format_file_name(title: str, language_code: str, subtitles_type: SubtitlesTy
     """
     file_name = f"{format_title(title)}.iT.WEB.{language_code}"
 
-    if type is not SubtitlesType.NORMAL:
+    if subtitles_type is not SubtitlesType.NORMAL:
         file_name += '.' + subtitles_type.name
 
     return file_name
