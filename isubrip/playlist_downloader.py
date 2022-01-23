@@ -30,7 +30,7 @@ class PlaylistDownloader:
         if shutil.which(self.ffmpeg_path) is None:
             raise FFmpegNotFound("FFmpeg could not be found.")
 
-    def download_subtitles(self, playlist_url: str, output_dir: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.SRT) -> None:
+    def download_subtitles(self, playlist_url: str, output_dir: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.SRT) -> str:
         """
         Download a subtitles playlist to a file.
 
@@ -39,6 +39,9 @@ class PlaylistDownloader:
             output_dir (str): Path to output directory (where the file will be saved).
             file_name (str): Name for the downloaded file.
             file_format (SubtitlesFormat, optional): Format to use for saving the subtitles. Defaults to "SubtitlesFormat.SRT".
+
+        Returns:
+            str: A string with the name of the downloaded file.
         """
         file_name += '.' + file_format.name.lower()
         path = os.path.join(output_dir, file_name)
@@ -47,3 +50,5 @@ class PlaylistDownloader:
         ffmpeg_command = f"{self.ffmpeg_path} " + ffmpeg_args_str + f"-i \"{playlist_url}\" \"{path}\""
 
         subprocess.run(ffmpeg_command, shell=False)
+
+        return file_name
