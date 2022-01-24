@@ -23,6 +23,10 @@ user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 # Use double backslashes in path to avoid escaping characters. Example: "C:\\Users\\<username>\\Downloads\\"
 folder = "."
 
+# Save files into a zip archive if there is more than one matching subtitles.
+# Value can be either "true" or "false".
+zip = false
+
 
 [ffmpeg]
 # Path to ffmpeg binary. 

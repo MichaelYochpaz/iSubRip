@@ -1,10 +1,12 @@
 import os
 import sys
+import shutil
+import zipfile
+import tempfile
 import tomli
 from typing import Union, Any
 from mergedeep import merge
 
-import isubrip.utils as utils
 from isubrip.scraper import iSubRip
 from isubrip.constants import *
 from isubrip.playlist_downloader import PlaylistDownloader
@@ -24,6 +26,14 @@ def main() -> None:
     if config["downloads"]["folder"][-1:] == '/':
         config["downloads"]["folder"] = config["downloads"]["folder"][:-1]
 
+    if config["downloads"]["zip"]:
+        download_path = os.path.join(tempfile.gettempdir(), 'iSubRip')
+        download_to_temp = True
+
+    else:
+        download_path = config["downloads"]["folder"]
+        download_to_temp = False
+
     # Check and print and exit if an error is raised during object creation
     try:
         playlist_downloader = PlaylistDownloader(config["ffmpeg"]["path"], config["ffmpeg"]["args"])
@@ -41,18 +51,46 @@ def main() -> None:
             if movie_data.playlist is None:
                 print(f"Error: Main m3u8 playlist could not be found / downloaded.")
                 continue
-            
-            downloaded_subtitles = 0
+
+            # Create temp folder
+            if download_to_temp:
+                current_download_path = os.path.join(download_path, f"{format_title(movie_data.name)}.iT.WEB")
+                os.makedirs(current_download_path, exist_ok=True)
+
+            else:
+                current_download_path = download_path
+
+            downloaded_subtitles = []
 
             for subtitles in iSubRip.find_matching_subtitles(movie_data.playlist, config["downloads"]["filter"]):
                 print(f"Found \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles. Downloading...")
                 file_name = format_file_name(movie_data.name, subtitles.language_code, subtitles.subtitles_type)
 
                 # Download subtitles
-                playlist_downloader.download_subtitles(subtitles.playlist_url, file_name, SubtitlesFormat.VTT)
-                downloaded_subtitles += 1
+                downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path,file_name, SubtitlesFormat.VTT))
 
-            print(f"{downloaded_subtitles} matching subtitles for \"{movie_data.name}\" were found and downloaded.")
+            if download_to_temp:
+                if len(downloaded_subtitles) == 1:
+                    shutil.move(downloaded_subtitles[0], config["downloads"]["folder"])
+
+                elif len(downloaded_subtitles) > 1:
+                    # Create zip archive
+                    print(f"Moving subtitles to archive...")
+                    archive_name = f"{format_title(movie_data.name)}.iT.WEB.zip"
+                    archive_path = os.path.join(current_download_path, archive_name)
+
+                    zf = zipfile.ZipFile(archive_path, compression=zipfile.ZIP_DEFLATED, mode='w')
+
+                    for file in downloaded_subtitles:
+                        zf.write(file, os.path.basename(file))
+
+                    zf.close()
+                    shutil.move(archive_path, config["downloads"]["folder"])
+
+                # Remove movie's temp dir
+                shutil.rmtree(current_download_path)
+
+            print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded.")
 
         except Exception as e:
             print(f"Error: {e}\nSkipping...")
