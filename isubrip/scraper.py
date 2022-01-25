@@ -11,7 +11,7 @@ from m3u8.model import M3U8
 
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.enums import SubtitlesType, SubtitlesFormat
-from constants import ITUNES_STORE_REGEX
+from isubrip.constants import ITUNES_STORE_REGEX
 from isubrip.namedtuples import MovieData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
 
