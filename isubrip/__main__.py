@@ -219,7 +219,7 @@ def format_file_name(title: str, language_code: str, subtitles_type: SubtitlesTy
 
 def print_usage() -> None:
     """Print usage information."""
-    print(f"Usage: {sys.argv[0]} <iTunes movie URL>")
+    print(f"Usage: {__package__} <iTunes movie URL>")
 
 
 if __name__ == "__main__":
