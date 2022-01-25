@@ -1,6 +1,7 @@
 import os
 from xdg import xdg_config_home
 
+PACKAGE_NAME = "isubrip"
 
 DEFAULT_CONFIG_PATH = "resources/default_config.toml"
 USER_CONFIG_PATH_WINDOWS = f"{os.getenv('appdata')}\\iSubRip\\config.toml"

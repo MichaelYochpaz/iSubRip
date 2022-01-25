@@ -1,5 +1,6 @@
 import os
 import sys
+import pkgutil
 import shutil
 import zipfile
 import tempfile
@@ -112,13 +113,15 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
     Returns:
         dict: A dictionary containing all settings.
     """
-    # Assure default config file exists
-    if not os.path.isfile(DEFAULT_CONFIG_PATH):
-        raise DefaultConfigNotFound(f"Default config file could not be found at \"{DEFAULT_CONFIG_PATH}\".")
+    try:
+        default_config_str = str(pkgutil.get_data(PACKAGE_NAME, DEFAULT_CONFIG_PATH), 'utf-8')
+
+    # Default config file not found
+    except FileNotFoundError:
+        raise DefaultConfigNotFound("Default config file could not be found at.")
 
     # Load settings from default config file
-    with open(DEFAULT_CONFIG_PATH, "r") as config_file:
-        config: Union[dict[str, Any], None] = tomli.loads(config_file.read())
+    config: Union[dict[str, Any], None] = tomli.loads(default_config_str)
 
     config["user-config"] = False
 
@@ -219,7 +222,7 @@ def format_file_name(title: str, language_code: str, subtitles_type: SubtitlesTy
 
 def print_usage() -> None:
     """Print usage information."""
-    print(f"Usage: {__package__} <iTunes movie URL>")
+    print(f"Usage: {PACKAGE_NAME} <iTunes movie URL>")
 
 
 if __name__ == "__main__":
