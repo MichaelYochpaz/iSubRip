@@ -1,9 +1,9 @@
 import os
 import sys
+import atexit
 import pkgutil
 import shutil
 import zipfile
-import tempfile
 import tomli
 from typing import Union, Any
 from mergedeep import merge
@@ -28,7 +28,7 @@ def main() -> None:
         config["downloads"]["folder"] = config["downloads"]["folder"][:-1]
 
     if config["downloads"]["zip"]:
-        download_path = os.path.join(tempfile.gettempdir(), 'iSubRip')
+        download_path = TEMP_FOLDER_PATH
         download_to_temp = True
 
     else:
@@ -57,6 +57,7 @@ def main() -> None:
             if download_to_temp:
                 current_download_path = os.path.join(download_path, f"{format_title(movie_data.name)}.iT.WEB")
                 os.makedirs(current_download_path, exist_ok=True)
+                atexit.register(shutil.rmtree, current_download_path)
 
             else:
                 current_download_path = download_path
@@ -90,6 +91,7 @@ def main() -> None:
 
                 # Remove movie's temp dir
                 shutil.rmtree(current_download_path)
+                atexit.unregister(shutil.rmtree)
 
             print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded.")
 
