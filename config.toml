@@ -8,6 +8,10 @@
 # All settings are optional. Any settings not specified in the config will result in using the default value (which are in the default_config.toml file).
 
 [downloads]
+# Subtitles format to use when downloading subtitles.
+# Value can be either "vtt" for WebVTT format, or "srt" for srt format.
+format = "vtt"
+
 # A list of subtitle languages to download.
 # List items can be either iTunes language codes (ISO 639-1) or names.
 # An empty array (like the one currently being used) will result in downloading all of the available subtitles.

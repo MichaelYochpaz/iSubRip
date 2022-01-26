@@ -69,7 +69,7 @@ def main() -> None:
                 file_name = format_file_name(movie_data.name, subtitles.language_code, subtitles.subtitles_type)
 
                 # Download subtitles
-                downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path,file_name, SubtitlesFormat.VTT))
+                downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path,file_name, config["downloads"]["format"]))
 
             if download_to_temp:
                 if len(downloaded_subtitles) == 1:
@@ -139,6 +139,15 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
         # Merge user_config with the default config, and override existing config values with values from user_config
         merge(config, user_config)
         config["user-config"] = True
+
+    # Check if subtitles format is valid, and convert it to enum
+    subtitle_formats: set = set(item.name for item in SubtitlesFormat)
+
+    if config["downloads"]["format"].upper() in subtitle_formats:
+        config["downloads"]["format"] = SubtitlesFormat[config["downloads"]["format"].upper()]
+
+    else:
+        raise InvalidConfigValue(f"{config['downloads']['format']} is an invalid format.")
 
     # If filter = [], change it to None
     if not config["downloads"]["filter"]:
