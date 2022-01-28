@@ -2,18 +2,17 @@ import re
 import html
 import json
 import m3u8
-from typing import Union
+from typing import Union, Iterator
 from requests.sessions import session
 from urllib.error import HTTPError
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 
-from isubrip.playlist_downloader import PlaylistDownloader
-from isubrip.enums import SubtitlesType, SubtitlesFormat
+from isubrip.enums import SubtitlesType
 from isubrip.constants import ITUNES_STORE_REGEX
 from isubrip.namedtuples import MovieData, SubtitlesData
-from isubrip.exceptions import InvalidURL, PageLoadError, PlaylistDownloadError
+from isubrip.exceptions import InvalidURL, PageLoadError
 
 
 class iSubRip:
@@ -96,28 +95,26 @@ class iSubRip:
         return MovieData(movie_title, None)
 
     @staticmethod
-    def find_matching_subtitles(main_playlist: M3U8, subtitles_filter: Union[list, None]):
+    def find_matching_subtitles(main_playlist: M3U8, subtitles_filter: Union[list, None]) -> Iterator[SubtitlesData]:
         """
-        Find and yield iTunes subtitles playlists within main_playlist that match the filter.
+        Find and yield playlists within main_playlist for subtitles that match a filter.
 
         Args:
             main_playlist (M3U8): an M3U8 object of the main playlist.
-            subtitles_filter (list, optional): A list of subtitles language codes (ISO 639-1) or names
-            to use as a filter. Defaults to [].
+            subtitles_filter (list, optional): A list of subtitles language codes (ISO 639-1) or names to use as a filter. Defaults to None.
 
         Yields:
-            SubtitlesData: A SubtitlesData (NamedTuple) object with a matching playlist, and it's metadata:
+            SubtitlesData: A NamedTuple with a matching playlist, and it's metadata:
             Language Code, Language Name, SubtitlesType, Playlist URL.
         """
         if subtitles_filter is not None:
-            # Convert all filters to lower-case for case-insensitive matching
+            # Convert filters to lower-case for case-insensitive matching
             subtitles_filter = [f.lower() for f in subtitles_filter]
 
         for playlist in main_playlist.media:
             # Check whether playlist is valid and matches filter
             # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
-            if ((playlist.type == "SUBTITLES") and
-                    (playlist.group_id in ("subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"))):
+            if ((playlist.type == "SUBTITLES") and (playlist.group_id in ("subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"))):
 
                 language_code: str = playlist.language
                 language_name: str = playlist.name
@@ -127,7 +124,7 @@ class iSubRip:
                 if subtitles_filter is not None and not (language_code.lower() in subtitles_filter or language_name in subtitles_filter):
                     continue
 
-                # Find subtitles type (Normal / Forced / Closed Captions)
+                # Change subtitles type to "Forced" / "Closed Captions" if needed.
                 if playlist.forced == "YES":
                     sub_type = SubtitlesType.FORCED
 
@@ -137,26 +134,14 @@ class iSubRip:
                 yield SubtitlesData(language_code, language_name, sub_type, playlist.uri)
 
     @staticmethod
-    def download_playlist(playlist_downloader: PlaylistDownloader, playlist_url: str, file_name: str) -> None:
-        """
-        Download and convert subtitles from a playlist to a subtitles file.
-
-        Args:
-            playlist_downloader (PlaylistDownloader): A PlaylistDownloader object to use for downloading.
-            playlist_url (str): URL of the subtitles playlist to use for download.
-            file_name (str): File name to use for the subtitles file.
-        """
-
-        playlist_downloader.download_subtitles(playlist_url, file_name, SubtitlesFormat.SRT)
-
-    @staticmethod
     def is_playlist_valid(playlist: m3u8.M3U8, movie_title: str) -> bool:
         """
         Check whether an iTunes M3U8 playlist title matches a movie title.
+        Used to assure the playlist is for the correct movie.
 
         Args:
-            playlist (M3U8): An M3U8 playlist to do the check on
-            movie_title (str): The title to compare the playlist's title against.
+            playlist (M3U8): An M3U8 playlist to test.
+            movie_title (str): The title to compare playlist's title against.
 
         Returns:
             bool: True if the title matches the title of the playlist, and False otherwise.

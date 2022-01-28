@@ -8,8 +8,8 @@ from isubrip.exceptions import FFmpegNotFound
 
 class PlaylistDownloader:
     """
-    A class for downloading M3U8 playlists.\n
-    The class required ffmpeg to be installed for the download to work.
+    A class for downloading M3U8 playlists.
+    The class requires FFmpeg to be installed for downloads to work.
     """
 
     def __init__(self, ffmpeg_path: str = "ffmpeg", ffmpeg_args: str = None) -> None:
@@ -21,29 +21,29 @@ class PlaylistDownloader:
             ffmpeg_args (str, optional): Argunemts to run FFmpeg commands with. Defaults to None.
 
         Raises:
-            PlaylistDownloader.FFmpegNotFound: FFmpeg executeable could not be found.
+            FFmpegNotFound: FFmpeg executeable could not be found.
         """
         self.ffmpeg_path = ffmpeg_path
         self.ffmpeg_args = ffmpeg_args
 
-        # Check whether FFmpeg is found
+        # Check whether FFmpeg is found, raise an exception if not
         if shutil.which(self.ffmpeg_path) is None:
             raise FFmpegNotFound("FFmpeg could not be found.")
 
-    def download_subtitles(self, playlist_url: str, output_dir: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.SRT) -> str:
+    def download_subtitles(self, playlist_url: str, output_dir: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.VTT) -> str:
         """
-        Download a subtitles playlist to a file.
+        Download subtitles playlist to a file.
 
         Args:
-            playlist_url (str): Link to the playlist to download.
+            playlist_url (str): URL of the playlist to download.
             output_dir (str): Path to output directory (where the file will be saved).
-            file_name (str): Name for the downloaded file.
-            file_format (SubtitlesFormat, optional): Format to use for saving the subtitles. Defaults to "SubtitlesFormat.SRT".
+            file_name (str): File name for the downloaded file.
+            file_format (SubtitlesFormat, optional): File format to use for the downloaded file. Defaults to "SubtitlesFormat.VTT".
 
         Returns:
             str: A string with the path to the downloaded subtitles file
         """
-        file_name += '.' + file_format.name.lower()
+        file_name += f".{file_format.name.lower()}"
         path = os.path.join(output_dir, file_name)
 
         ffmpeg_args_str = (self.ffmpeg_args + " ") if (self.ffmpeg_args is not None) else ''

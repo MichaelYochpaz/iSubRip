@@ -1,6 +1,6 @@
 # This is the default config for iSubRip.
 # This file should NOT be altered. For changing the settings, use a custom config file.
-# Any settings set on the config.toml file will override these settings.
+# Any settings set on the user config will override these settings.
 
 [downloads]
 format = "vtt"

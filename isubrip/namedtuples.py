@@ -11,7 +11,7 @@ class MovieData(NamedTuple):
 
 
 class SubtitlesData(NamedTuple):
-    """A named tuple containing subtitles' language code, language name, subtitles type and playlist URL."""
+    """A named tuple containing language code, language name, type and playlist URL for subtitles."""
     language_code: str
     language_name: str
     subtitles_type: SubtitlesType

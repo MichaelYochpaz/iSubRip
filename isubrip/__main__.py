@@ -9,24 +9,34 @@ from typing import Union, Any
 from mergedeep import merge
 
 from isubrip.scraper import iSubRip
-from isubrip.constants import *
 from isubrip.playlist_downloader import PlaylistDownloader
-from isubrip.enums import SubtitlesType, SubtitlesFormat
-from isubrip.exceptions import DefaultConfigNotFound, UserConfigNotFound, InvalidConfigValue
+from isubrip.exceptions import *
+from isubrip.constants import *
+from isubrip.enums import *
+from isubrip.namedtuples import *
 
 
 def main() -> None:
     # Check if at least one argument was passed
     if len(sys.argv) < 2:
         print_usage()
-        exit(0)
+        exit(1)
 
-    config: dict[str, Any] = parse_config(find_config_file())
+    try:
+        config: dict[str, Any] = parse_config(find_config_file())
+
+    except ConfigError as e:
+        print(f"Error: {e}")
+        exit(1)
 
     # Remove last char from downloads folder if it's '/'
     if config["downloads"]["folder"][-1:] == '/':
         config["downloads"]["folder"] = config["downloads"]["folder"][:-1]
 
+    download_path: str
+    download_to_temp: bool
+
+    # Set download path to temp folder "zip" setting is used
     if config["downloads"]["zip"]:
         download_path = TEMP_FOLDER_PATH
         download_to_temp = True
@@ -35,23 +45,24 @@ def main() -> None:
         download_path = config["downloads"]["folder"]
         download_to_temp = False
 
-    # Check and print and exit if an error is raised during object creation
     try:
         playlist_downloader = PlaylistDownloader(config["ffmpeg"]["path"], config["ffmpeg"]["args"])
 
-    except Exception as e:
+    except FFmpegNotFound as e:
         print(f"Error: {e}")
         exit(1)
 
     for url in sys.argv[1:]:
         try:
             print(f"\nScraping {url}...")
-            movie_data = iSubRip.find_m3u8_playlist(url, config["downloads"]["user-agent"])
-            print(f"Found movie \"{movie_data.name}\".")
+            movie_data: MovieData = iSubRip.find_m3u8_playlist(url, config["downloads"]["user-agent"])
+            print(f"Found movie: {movie_data.name}\n")
 
             if movie_data.playlist is None:
                 print(f"Error: Main m3u8 playlist could not be found / downloaded.")
                 continue
+
+            current_download_path: str
 
             # Create temp folder
             if download_to_temp:
@@ -62,10 +73,10 @@ def main() -> None:
             else:
                 current_download_path = download_path
 
-            downloaded_subtitles = []
+            downloaded_subtitles: list = []
 
             for subtitles in iSubRip.find_matching_subtitles(movie_data.playlist, config["downloads"]["filter"]):
-                print(f"Found \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles. Downloading...")
+                print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
                 file_name = format_file_name(movie_data.name, subtitles.language_code, subtitles.subtitles_type)
 
                 # Download subtitles
@@ -77,7 +88,7 @@ def main() -> None:
 
                 elif len(downloaded_subtitles) > 1:
                     # Create zip archive
-                    print(f"Moving subtitles to archive...")
+                    print(f"Creating zip archive...")
                     archive_name = f"{format_title(movie_data.name)}.iT.WEB.zip"
                     archive_path = os.path.join(current_download_path, archive_name)
 
@@ -89,11 +100,11 @@ def main() -> None:
                     zf.close()
                     shutil.move(archive_path, config["downloads"]["folder"])
 
-                # Remove movie's temp dir
+                # Remove current temp dir
                 shutil.rmtree(current_download_path)
                 atexit.unregister(shutil.rmtree)
 
-            print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded.")
+            print(f"\n{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{config['downloads']['folder']}\".")
 
         except Exception as e:
             print(f"Error: {e}\nSkipping...")
@@ -101,7 +112,7 @@ def main() -> None:
 
 
 def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
-    """Parse and config file and save settings to a dictionary.
+    """Parse default config file, with an option of an added user config, and return a dictionary with all settings.
 
     Args:
         user_config_path (str, optional): Path to an additional optional config to use for overwriting default settings.
@@ -116,20 +127,25 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
         dict: A dictionary containing all settings.
     """
     try:
-        default_config_str = str(pkgutil.get_data(PACKAGE_NAME, DEFAULT_CONFIG_PATH), 'utf-8')
+        default_config_data: Union[bytes, None] = pkgutil.get_data(PACKAGE_NAME, DEFAULT_CONFIG_PATH)
 
-    # Default config file not found
     except FileNotFoundError:
-        raise DefaultConfigNotFound("Default config file could not be found at.")
+        raise DefaultConfigNotFound("Default config file could not be found.")
+
+    if default_config_data is None:
+        raise DefaultConfigNotFound("Default config file could not be found.")
+
+    else:
+        default_config_str: str = str(default_config_data, 'utf-8')
 
     # Load settings from default config file
     config: Union[dict[str, Any], None] = tomli.loads(default_config_str)
 
     config["user-config"] = False
 
-    # If a user config file exists, load it and update default config with its values
+    # If a user config file exists, load it and update the dictionary with its values
     if user_config_path is not None:
-        # Assure config file exists
+        # Assure user config file exists
         if not os.path.isfile(user_config_path):
             raise UserConfigNotFound(f"User config file could not be found at \"{user_config_path}\".")
 
@@ -161,10 +177,10 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
 
 
 def find_config_file() -> Union[str, None]:
-    """Return the path to user's config file.
+    """Return the path to user's config file (if it exists).
 
     Returns:
-        Union[str, None]: A string with the path to user's config file if it's found, and None otherwise.
+        Union[str, None]: A string with the path to user's config file if it's found, and None otherwise
     """
     config_path = None
 
@@ -187,15 +203,15 @@ def find_config_file() -> Union[str, None]:
 
 
 def format_title(title: str) -> str:
-    """Format iTunes movie title to a standardized title.
+    """Format movie title to a standardized title that can be used as a file name.
 
     Args:
         title (str): An iTunes movie title.
 
     Returns:
-        str: A modified standardized title.
+        str: The title, in a file-name-friendly format.
     """
-    # Replacements will be done in the same order as the list
+    # Replacements will be done in the same order of this list
     replacement_pairs = [
         (': ', '.'),
         (' - ', '-'),
@@ -213,27 +229,27 @@ def format_title(title: str) -> str:
 
 
 def format_file_name(title: str, language_code: str, subtitles_type: SubtitlesType) -> str:
-    """Generate file name for subtitles.
+    """Generate file name for a subtitles file.
 
     Args:
-        title (str): A movie title
-        language_code (str): Subtitles language code
-        subtitles_type (SubtitlesType): Subtitles type
+        title (str): Movie title.
+        language_code (str): Subtitles language code.
+        subtitles_type (SubtitlesType): Subtitles type.
 
     Returns:
-        str: A formatted file name (without a file extension).
+        str: A formatted file name (does not include a file extension).
     """
     file_name = f"{format_title(title)}.iT.WEB.{language_code}"
 
     if subtitles_type is not SubtitlesType.NORMAL:
-        file_name += '.' + subtitles_type.name.lower()
+        file_name += f".{subtitles_type.name.lower()}"
 
     return file_name
 
 
 def print_usage() -> None:
     """Print usage information."""
-    print(f"Usage: {PACKAGE_NAME} <iTunes movie URL>")
+    print(f"Usage: {PACKAGE_NAME} <iTunes movie URL> [iTunes movie URL...]")
 
 
 if __name__ == "__main__":

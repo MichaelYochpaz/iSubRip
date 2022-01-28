@@ -1,4 +1,4 @@
-# -------------------- Scraping -------------------- #
+# --------------- Scraping --------------- #
 class ScrapeError(Exception):
     """An issue while scraping the page."""
     pass
@@ -19,14 +19,14 @@ class PlaylistDownloadError(ScrapeError):
     pass
 
 
-# --------------------- FFmpeg --------------------- #
+# --------------- FFmpeg --------------- #
 
 class FFmpegNotFound(Exception):
     """FFmpeg could not be found."""
     pass
 
 
-# --------------------- Config --------------------- #
+# --------------- Config --------------- #
 
 class ConfigError(Exception):
     """An issue with a config file."""
