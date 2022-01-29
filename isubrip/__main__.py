@@ -104,7 +104,7 @@ def main() -> None:
                 shutil.rmtree(current_download_path)
                 atexit.unregister(shutil.rmtree)
 
-            print(f"\n{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{config['downloads']['folder']}\".")
+            print(f"\n{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config['downloads']['folder'])}\".")
 
         except Exception as e:
             print(f"Error: {e}\nSkipping...")
