@@ -23,12 +23,13 @@ class PlaylistDownloader:
         Raises:
             FFmpegNotFound: FFmpeg executeable could not be found.
         """
-        self.ffmpeg_path = ffmpeg_path
-        self.ffmpeg_args = ffmpeg_args
 
         # Check whether FFmpeg is found, raise an exception if not
-        if shutil.which(self.ffmpeg_path) is None:
+        if shutil.which(ffmpeg_path) is None:
             raise FFmpegNotFound("FFmpeg could not be found.")
+
+        self.ffmpeg_path = ffmpeg_path
+        self.ffmpeg_args = ffmpeg_args
 
     def download_subtitles(self, playlist_url: str, output_dir: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.VTT) -> str:
         """
@@ -49,6 +50,6 @@ class PlaylistDownloader:
         ffmpeg_args_str = (self.ffmpeg_args + " ") if (self.ffmpeg_args is not None) else ''
         ffmpeg_command = f"{self.ffmpeg_path} " + ffmpeg_args_str + f"-i \"{playlist_url}\" \"{path}\""
 
-        subprocess.run(ffmpeg_command, shell=False)
+        subprocess.run(ffmpeg_command, shell=True)
 
         return path
