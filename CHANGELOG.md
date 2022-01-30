@@ -1,4 +1,22 @@
 # Changelog
+## 2.0.0 [2022-01-30]
+The script is now a Python package that can be installed using pip.
+
+### Added:
+* Added a config file for changing configurations. (Example can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml))
+* Added an options to choose subtitles format (vtt / srt).
+* Added an option to choose whether to zip subtitles files or not.
+* Multiple links can be passed in the CLI for downloading subtitles for multiple movies one after another.
+* Temporary files are automatically removed if the script stops unexpectedly.
+
+### Changes:
+* A complete code overhaul from a single python script file to a package, while utilizing OOP and classes.
+* Improved scraping algorithm for faster playlist scraping.
+* FFmpeg will now automatically overwrite existing subtitles with the same file name.
+
+### Bug Fixes:
+* Fixed a bug where in some cases, no subtitles were found since the title has HTML escaped characters, which causes bad matching when checking if a valid playlist was found.
+---
 ## 1.0.6 [2021-07-23]
 ### Bug Fixes:
 * Fixed an issue where in some cases subtitles won't download when using `DOWNLOAD_FILTER` because of letter casing not matching.
