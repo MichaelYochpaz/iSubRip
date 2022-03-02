@@ -1,4 +1,5 @@
 from typing import NamedTuple, Union
+
 from m3u8 import M3U8
 
 from isubrip.enums import SubtitlesType

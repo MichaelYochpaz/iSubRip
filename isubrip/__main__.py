@@ -1,11 +1,12 @@
-import os
-import sys
 import atexit
+import os
 import pkgutil
 import shutil
+import sys
 import zipfile
-import tomli
 from typing import Union, Any
+
+import tomli
 from mergedeep import merge
 
 from isubrip.scraper import iSubRip

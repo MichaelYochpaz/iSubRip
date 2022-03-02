@@ -1,13 +1,13 @@
-import re
-import html
 import json
-import m3u8
+import re
 from typing import Union, Iterator
-from requests.sessions import session
 from urllib.error import HTTPError
+
+import m3u8
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
+from requests.sessions import session
 
 from isubrip.enums import SubtitlesType
 from isubrip.constants import ITUNES_STORE_REGEX
