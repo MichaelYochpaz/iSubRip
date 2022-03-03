@@ -1,11 +1,11 @@
-# This is the default config for iSubRip.
-# This file should NOT be altered. For changing the settings, use a custom config file.
-# Any settings set on the user config will override these settings.
+# This is the default config.
+# This file should NOT be altered. For changing settings, use a user-config file.
+# Any settings set on the user config will override these.
 
 [downloads]
 format = "vtt"
 filter = []
-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36"
+user-agent = "iTunes-AppleTV/15.2"
 folder = "."
 zip = true
 
