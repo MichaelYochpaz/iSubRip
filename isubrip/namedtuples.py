@@ -1,14 +1,14 @@
 from typing import NamedTuple, Union
 
-from m3u8 import M3U8
-
 from isubrip.enums import SubtitlesType
 
 
 class MovieData(NamedTuple):
-    """A named tuple containing a movie name and it's main M3U8 playlist."""
+    """A named tuple containing a movie name, id, and M3U8 playlist."""
+    id: str
     name: str
-    playlist: Union[M3U8, None]
+    release_year: int
+    playlist: Union[str, None]
 
 
 class SubtitlesData(NamedTuple):

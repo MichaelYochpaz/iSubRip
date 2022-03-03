@@ -1,4 +1,5 @@
 import atexit
+import json
 import os
 import pkgutil
 import shutil
@@ -6,10 +7,12 @@ import sys
 import zipfile
 from typing import Union, Any
 
+import m3u8
 import tomli
+from m3u8 import M3U8
 from mergedeep import merge
 
-from isubrip.scraper import iSubRip
+from isubrip.scraper import Scraper
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.exceptions import *
 from isubrip.constants import *
@@ -54,34 +57,41 @@ def main() -> None:
         exit(1)
 
     for url in sys.argv[1:]:
+        print(f"\nScraping {url}...")
+        
         try:
-            print(f"\nScraping {url}...")
-            movie_data: MovieData = iSubRip.find_m3u8_playlist(url, config["downloads"]["user-agent"])
-            print(f"Found movie: {movie_data.name}\n")
+            movie_data: MovieData = Scraper.find_movie_data(url, config["downloads"]["user-agent"])
+        
+        except Exception as e:
+            print(f"Error: {e}")
+            continue
 
-            if movie_data.playlist is None:
-                print(f"Error: Main m3u8 playlist could not be found / downloaded.")
-                continue
+        print(f"Found movie: {movie_data.name}\n")
 
-            current_download_path: str
+        if movie_data.playlist is None:
+            print(f"Error: No valid playlist could be found.")
+            continue
 
-            # Create temp folder
-            if download_to_temp:
-                current_download_path = os.path.join(download_path, f"{format_title(movie_data.name)}.iT.WEB")
-                os.makedirs(current_download_path, exist_ok=True)
-                atexit.register(shutil.rmtree, current_download_path)
+        m3u8_playlist: M3U8 = m3u8.load(movie_data.playlist)
+        current_download_path: str
 
-            else:
-                current_download_path = download_path
+        # Create temp folder
+        if download_to_temp:
+            current_download_path = os.path.join(download_path, f"{format_title(movie_data.name)}.iT.WEB")
+            os.makedirs(current_download_path, exist_ok=True)
+            atexit.register(shutil.rmtree, current_download_path)
 
-            downloaded_subtitles: list = []
+        else:
+            current_download_path = download_path
 
-            for subtitles in iSubRip.find_matching_subtitles(movie_data.playlist, config["downloads"]["filter"]):
-                print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
-                file_name = format_file_name(movie_data.name, subtitles.language_code, subtitles.subtitles_type)
+        downloaded_subtitles: list = []
 
-                # Download subtitles
-                downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path,file_name, config["downloads"]["format"]))
+        for subtitles in Scraper.find_matching_subtitles(m3u8_playlist, config["downloads"]["filter"]):
+            print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
+            file_name = format_file_name(movie_data.name, movie_data.release_year, subtitles.language_code, subtitles.subtitles_type)
+
+            # Download subtitles
+            downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config["downloads"]["format"]))
 
             if download_to_temp:
                 if len(downloaded_subtitles) == 1:
@@ -107,10 +117,6 @@ def main() -> None:
 
             print(f"\n{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config['downloads']['folder'])}\".")
 
-        except Exception as e:
-            print(f"Error: {e}\nSkipping...")
-            continue
-
 
 def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
     """Parse default config file, with an option of an added user config, and return a dictionary with all settings.
@@ -130,10 +136,10 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
     try:
         default_config_data: Union[bytes, None] = pkgutil.get_data(PACKAGE_NAME, DEFAULT_CONFIG_PATH)
 
-    except FileNotFoundError:
-        raise DefaultConfigNotFound("Default config file could not be found.")
+        if default_config_data is None:
+            raise FileNotFoundError
 
-    if default_config_data is None:
+    except FileNotFoundError:
         raise DefaultConfigNotFound("Default config file could not be found.")
 
     else:
@@ -177,25 +183,34 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
     return config
 
 
+def find_appdata_path() -> str:
+    """Return the path to appdata folder.
+
+    Returns:
+        Union[str, None]: A string with the appdata folder.
+    """
+
+    # Windows
+    if sys.platform == "win32":
+        return APPDATA_PATH_WINDOWS
+
+    # Linux
+    elif sys.platform == "linux":
+        return APPDATA_PATH_LINUX
+
+    # MacOS
+    elif sys.platform == "darwin":
+        return APPDATA_PATH_MACOS
+
+
 def find_config_file() -> Union[str, None]:
     """Return the path to user's config file (if it exists).
 
     Returns:
-        Union[str, None]: A string with the path to user's config file if it's found, and None otherwise
+        Union[str, None]: A string with the path to user's config file if it's found, and None otherwise.
     """
-    config_path = None
 
-    # Windows
-    if sys.platform == "win32":
-        config_path = USER_CONFIG_PATH_WINDOWS
-
-    # Linux
-    elif sys.platform == "linux":
-        config_path = USER_CONFIG_PATH_LINUX
-
-    # MacOS
-    elif sys.platform == "darwin":
-        config_path = USER_CONFIG_PATH_MACOS
+    config_path = os.path.join(find_appdata_path(), APPDATA_FOLDER_NAME, CONFIG_FILE_NAME)
 
     if (config_path is not None) and (os.path.exists(config_path)):
         return config_path
@@ -229,18 +244,21 @@ def format_title(title: str) -> str:
     return title
 
 
-def format_file_name(title: str, language_code: str, subtitles_type: SubtitlesType) -> str:
+def format_file_name(movie_title: str, movie_release_year: int, language_code: str, subtitles_type: SubtitlesType) -> str:
     """Generate file name for a subtitles file.
 
     Args:
-        title (str): Movie title.
+        movie_title (str): Movie title.
+        movie_release_year(int): Movie release year.
         language_code (str): Subtitles language code.
         subtitles_type (SubtitlesType): Subtitles type.
 
     Returns:
         str: A formatted file name (does not include a file extension).
     """
-    file_name = f"{format_title(title)}.iT.WEB.{language_code}"
+    # Add release year only if it's not already included in the title
+    movie_release_year_str = '.' + str(movie_release_year) if str(movie_release_year) not in movie_title else ''
+    file_name = f"{format_title(movie_title)}{movie_release_year_str}.iT.WEB.{language_code}"
 
     if subtitles_type is not SubtitlesType.NORMAL:
         file_name += f".{subtitles_type.name.lower()}"

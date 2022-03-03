@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime
 from typing import Union, Iterator
 from urllib.error import HTTPError
 
@@ -15,71 +16,76 @@ from isubrip.namedtuples import MovieData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError
 
 
-class iSubRip:
+class Scraper:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""
 
     @staticmethod
-    def find_m3u8_playlist(itunes_url: str, user_agent: str = None) -> MovieData:
+    def find_movie_data(itunes_url: str, user_agent: Union[str, None] = None) -> MovieData:
         """
-        Scrape an iTunes page to find the URL of the M3U8 playlist.
+        Scrape an iTunes store page to find movie info and it's M3U8 playlist.
 
         Args:
-            itunes_url (str): URL of an iTunes movie page to scrape.
-            user_agent (str, optional): User-Agent string to use for scraping. Defaults to None.
-
+            itunes_url (str): An iTunes store movie URL.
+            user_agent (str | None, optional): A dictionary with iTunes data loaded from a JSON response. Defaults to None.
+        
         Raises:
-            InvalidURL: An inavlid iTunes URL was provided.
-            ConnectionError: A connection error occurred while trying to request the page.
-            HTTPError: An error while trying to download m3u8 playlist data.
-            PageLoadError: The page did not load properly.
+            InvalidURL: `itunes_url` is not a valid iTunes store movie URL.
+            PageLoadError: HTML page did not load properly.  
+
+        Returns:
+            MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
+            if the playlist is found. None otherwise.
+        """        
+        # Check whether URL is valid
+        if re.match(ITUNES_STORE_REGEX, itunes_url) is None:
+            raise InvalidURL(f"{itunes_url} is not a valid iTunes movie URL.")
+
+        user_agent_header = {"User-Agent": user_agent} if user_agent is not None else None
+        response = session().get(itunes_url, headers=user_agent_header)
+
+        # Response is JSON formatted
+        if "application/json" in response.headers['content-type']:
+            try:
+                json_data = json.loads(response.text)
+
+            except json.JSONDecodeError:
+                raise PageLoadError("Recieved an invalid JSON response.")
+
+            return Scraper._find_playlist_data_json_(json_data)
+
+        # Response is HTML formatted
+        else:
+            html_data = BeautifulSoup(response.text, "lxml")
+            return Scraper._find_movie_json_data_html_(html_data)
+
+    @staticmethod
+    def _find_playlist_data_json_(json_data: dict) -> MovieData:
+        """
+        Scrape an iTunes JSON response to find movie info and it's M3U8 playlist.
+
+        Args:
+            json_data (dict): A dictionary with iTunes data loaded from a JSON response.
 
         Returns:
             MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
             if the playlist is found. None otherwise.
         """
-        # Check whether URL is valid
-        if re.match(ITUNES_STORE_REGEX, itunes_url) is None:
-            raise InvalidURL(f"{itunes_url} is not a valid iTunes movie URL.")
+        movie_id = json_data["pageData"]["id"]
+        movie_data = json_data["storePlatformData"]["product-dv"]["results"][movie_id]
 
-        site_page: BeautifulSoup = BeautifulSoup(session().get(itunes_url, headers={"User-Agent": user_agent}).text, "lxml")
-        movie_metadata: Union[Tag, NavigableString, None] = site_page.find("script", attrs={"name": "schema:movie", "type": 'application/ld+json'})
+        movie_title = movie_data["nameRaw"]
+        movie_release_year = datetime.strptime(movie_data["releaseDate"], '%Y-%m-%d').year
+        
+        # Loop safely to find a matching playlist
+        for offer in movie_data["offers"]:
+            if isinstance(offer.get("type"), str) and offer["type"] in ["buy", "rent"]:
+                if isinstance(offer.get("assets"), list) and len(offer["assets"]) > 0:
+                    for asset in offer["assets"]:
+                        m3u8_url: str = asset["hlsUrl"]
 
-        if not isinstance(movie_metadata, Tag):
-            raise PageLoadError("The page did not load properly.")
-
-        # Convert to dictionary structure
-        movie_metadata_dict: dict = json.loads(str(movie_metadata.contents[0]).strip())
-
-        media_type: str = movie_metadata_dict['@type']
-        movie_title: str = html.unescape(movie_metadata_dict['name'])
-
-        if media_type != "Movie":
-            raise InvalidURL("The provided iTunes URL is not for a movie.")
-
-        # Scrape a dictionary on the webpage for playlists data
-        playlists_data_tag: Union[Tag, NavigableString, None] = site_page.find("script", attrs={"id": "shoebox-ember-data-store", "type": "fastboot/shoebox"})
-
-        # fastboot/shoebox data could not be found
-        if not isinstance(playlists_data_tag, Tag):
-            raise PageLoadError("fastboot/shoebox data could not be found.")
-
-        # Convert to dictionary structure
-        playlists_data: dict[str, dict] = json.loads(str(playlists_data_tag.contents[0]).strip())
-
-        # Loop safely over different structures to find a matching playlist
-        for key in playlists_data.keys():
-            if isinstance(playlists_data[key].get("included"), list):
-                for item in playlists_data[key]["included"]:
-                    if (isinstance(item.get("type"), str) and item["type"] == "offer" and
-                            isinstance(item.get("attributes"), dict) and
-                            isinstance(item["attributes"].get("assets"), list) and
-                            len(item["attributes"]["assets"]) > 0 and
-                            isinstance(item["attributes"]["assets"][0], dict) and
-                            isinstance(item["attributes"]["assets"][0].get("hlsUrl"), str)):
-                        m3u8_url: str = item["attributes"]["assets"][0]["hlsUrl"]
-
+                        # Assure playlist is valid
                         try:
-                            playlist: M3U8 = m3u8.load(m3u8_url)
+                            m3u8.load(m3u8_url)
 
                         # If m3u8 playlist is invalid, skip it
                         except ValueError:
@@ -87,12 +93,76 @@ class iSubRip:
 
                         except HTTPError:
                             continue
+                        
+                        return MovieData(movie_id, movie_title, movie_release_year, m3u8_url)
 
-                        # Assure playlist is for the correct movie
-                        if iSubRip.is_playlist_valid(playlist, movie_title):
-                            return MovieData(movie_title, playlist)
+        return MovieData(movie_id, movie_title, movie_release_year, None)
 
-        return MovieData(movie_title, None)
+    @staticmethod
+    def _find_movie_json_data_html_(html_data: BeautifulSoup) -> MovieData:
+        """
+        Scrape an iTunes HTML page to find movie info and it's M3U8 playlist.
+
+        Args:
+            html_data (BeautifulSoup): A BeautifulSoup object of the page.
+
+        Raises:
+            PageLoadError: HTML page did not load properly.
+
+        Returns:
+            MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
+            if the playlist is found. None otherwise.
+        """
+        # NOTE: This function is less reliable than `_find_playlist_data_json_`.
+
+        movie_id_tag: Union[Tag, NavigableString, None] = html_data.find("meta", attrs={"name": "apple:content_id"})
+        if not isinstance(movie_id_tag, Tag):
+            raise PageLoadError("HTML page did not load properly.")
+
+        movie_id: str = movie_id_tag.attrs["content"]
+
+        # Scrape a dictionary on the webpage for playlists data
+        shoebox_data_tag: Union[Tag, NavigableString, None] = html_data.find("script", attrs={"id": "shoebox-ember-data-store", "type": "fastboot/shoebox"})
+
+        # fastboot/shoebox data could not be found
+        if not isinstance(shoebox_data_tag, Tag):
+            raise PageLoadError("fastboot/shoebox data could not be found.")
+
+        # Convert to dictionary structure
+        shoebox_data: dict[str, dict] = json.loads(str(shoebox_data_tag.contents[0]).strip())
+
+        # Loop safely to find a matching playlist
+        if isinstance(shoebox_data[movie_id].get("included"), list):
+            movie_data: dict = shoebox_data[movie_id]
+            movie_title: str = movie_data["data"]["attributes"]["name"]
+            movie_release_year = datetime.strptime(movie_data["data"]["attributes"]["releaseDate"], '%Y-%m-%d').year
+
+            for item in movie_data["included"]:
+                if isinstance(item.get("type"), str) and item["type"] == "offer":
+                    if isinstance(item.get("attributes"), dict) and \
+                        isinstance(item["attributes"].get("assets"), list) and len(item["attributes"]["assets"]) > 0:
+
+                        for asset in item["attributes"]["assets"]:
+                            if isinstance(asset, dict) and isinstance(asset.get("hlsUrl"), str):
+                                m3u8_url: str = item["attributes"]["assets"][0]["hlsUrl"]
+
+                                try:
+                                    playlist: M3U8 = m3u8.load(m3u8_url)
+
+                                # If m3u8 playlist is invalid, skip it
+                                except ValueError:
+                                    continue
+
+                                except HTTPError:
+                                    continue
+
+                                # Assure playlist is for the correct movie
+                                if Scraper.is_playlist_valid(playlist, movie_title):
+                                    return MovieData(movie_id, movie_title, movie_release_year, m3u8_url)
+        else:
+            raise PageLoadError("Invalid shoebox data.")
+
+        return MovieData(movie_id, movie_title, movie_release_year, None)
 
     @staticmethod
     def find_matching_subtitles(main_playlist: M3U8, subtitles_filter: Union[list, None]) -> Iterator[SubtitlesData]:
@@ -114,7 +184,7 @@ class iSubRip:
         for playlist in main_playlist.media:
             # Check whether playlist is valid and matches filter
             # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
-            if ((playlist.type == "SUBTITLES") and (playlist.group_id in ("subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"))):
+            if (playlist.type == "SUBTITLES") and (playlist.group_id in ("subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com")):
 
                 language_code: str = playlist.language
                 language_name: str = playlist.name

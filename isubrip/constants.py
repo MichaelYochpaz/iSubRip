@@ -8,9 +8,11 @@ PACKAGE_NAME = "isubrip"
 
 # Paths
 DEFAULT_CONFIG_PATH = "resources/default_config.toml"
-USER_CONFIG_PATH_WINDOWS = f"{os.getenv('appdata')}\\iSubRip\\config.toml"
-USER_CONFIG_PATH_LINUX = f"{xdg_config_home().resolve()}/iSubRip/config.toml"
-USER_CONFIG_PATH_MACOS = r"~/Library/Application Support/isubrip/config.toml"
+APPDATA_PATH_WINDOWS = f"{os.getenv('appdata')}"
+APPDATA_PATH_LINUX = f"{xdg_config_home().resolve()}"
+APPDATA_PATH_MACOS = r"~/Library/Application Support"
+APPDATA_FOLDER_NAME = 'iSubRip'
+CONFIG_FILE_NAME = "config.toml"
 TEMP_FOLDER_PATH = os.path.join(gettempdir(), 'iSubRip')
 
 # Lists
