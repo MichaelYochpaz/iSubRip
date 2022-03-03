@@ -2,6 +2,8 @@ import os
 import shutil
 import subprocess
 
+from typing import Union
+
 from isubrip.enums import SubtitlesFormat
 from isubrip.exceptions import FFmpegNotFound
 
@@ -12,7 +14,7 @@ class PlaylistDownloader:
     The class requires FFmpeg to be installed for downloads to work.
     """
 
-    def __init__(self, ffmpeg_path: str = "ffmpeg", ffmpeg_args: str = None) -> None:
+    def __init__(self, ffmpeg_path: str = "ffmpeg", ffmpeg_args: Union[str, None] = None) -> None:
         """
         Create a new PlaylistDownloader instance.
 
