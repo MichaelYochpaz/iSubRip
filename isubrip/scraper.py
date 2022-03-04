@@ -146,19 +146,15 @@ class Scraper:
                             if isinstance(asset, dict) and isinstance(asset.get("hlsUrl"), str):
                                 m3u8_url: str = item["attributes"]["assets"][0]["hlsUrl"]
 
+                                # Try to load the playlist, to assure it's valid
                                 try:
-                                    playlist: M3U8 = m3u8.load(m3u8_url)
+                                    m3u8.load(m3u8_url)
 
                                 # If m3u8 playlist is invalid, skip it
-                                except ValueError:
+                                except (ValueError, HTTPError):
                                     continue
 
-                                except HTTPError:
-                                    continue
-
-                                # Assure playlist is for the correct movie
-                                if Scraper.is_playlist_valid(playlist, movie_title):
-                                    return MovieData(movie_id, movie_title, movie_release_year, m3u8_url)
+                                return MovieData(movie_id, movie_title, movie_release_year, m3u8_url)
         else:
             raise PageLoadError("Invalid shoebox data.")
 
@@ -202,22 +198,4 @@ class Scraper:
                     sub_type = SubtitlesType.CC
 
                 yield SubtitlesData(language_code, language_name, sub_type, playlist.uri)
-
-    @staticmethod
-    def is_playlist_valid(playlist: m3u8.M3U8, movie_title: str) -> bool:
-        """
-        Check whether an iTunes M3U8 playlist title matches a movie title.
-        Used to assure the playlist is for the correct movie.
-
-        Args:
-            playlist (M3U8): An M3U8 playlist to test.
-            movie_title (str): The title to compare playlist's title against.
-
-        Returns:
-            bool: True if the title matches the title of the playlist, and False otherwise.
-        """
-        for sessionData in playlist.session_data:
-            if sessionData.data_id == "com.apple.hls.title":
-                return movie_title == sessionData.value
-
-        return False
+                
