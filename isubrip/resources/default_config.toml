@@ -3,12 +3,13 @@
 # Any settings set on the user config will override these.
 
 [downloads]
+languages = []
 format = "vtt"
-filter = []
-user-agent = "iTunes-AppleTV/15.2"
 folder = "."
 zip = true
 
+[scraping]
+user-agent = "iTunes-AppleTV/15.2"
 
 [ffmpeg]
 path = "ffmpeg"

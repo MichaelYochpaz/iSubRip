@@ -60,7 +60,7 @@ def main() -> None:
         print(f"\nScraping {url}...")
         
         try:
-            movie_data: MovieData = Scraper.find_movie_data(url, config["downloads"]["user-agent"])
+            movie_data: MovieData = Scraper.find_movie_data(url, config["scraping"]["user-agent"])
         
         except Exception as e:
             print(f"Error: {e}")
@@ -86,7 +86,7 @@ def main() -> None:
 
         downloaded_subtitles: list = []
 
-        for subtitles in Scraper.find_matching_subtitles(m3u8_playlist, config["downloads"]["filter"]):
+        for subtitles in Scraper.find_matching_subtitles(m3u8_playlist, config["downloads"]["languages"]):
             print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
             file_name = format_file_name(movie_data.name, movie_data.release_year, subtitles.language_code, subtitles.subtitles_type)
 
@@ -172,9 +172,9 @@ def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
     else:
         raise InvalidConfigValue(f"{config['downloads']['format']} is an invalid format.")
 
-    # If filter = [], change it to None
-    if not config["downloads"]["filter"]:
-        config["downloads"]["filter"] = None
+    # If languages = [], change it to None
+    if not config["downloads"]["languages"]:
+        config["downloads"]["languages"] = None
 
     # Change config["ffmpeg"]["args"] value to None if empty
     if config["ffmpeg"]["args"] == "":
