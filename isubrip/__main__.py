@@ -1,23 +1,18 @@
 import atexit
-import json
-import os
-import pkgutil
 import shutil
 import sys
 import zipfile
-from typing import Union, Any
+from typing import Union
 
 import m3u8
-import tomli
 from m3u8 import M3U8
-from mergedeep import merge
 
-from isubrip.scraper import Scraper
-from isubrip.playlist_downloader import PlaylistDownloader
-from isubrip.exceptions import *
+from isubrip.config import Config
 from isubrip.constants import *
-from isubrip.enums import *
+from isubrip.exceptions import *
 from isubrip.namedtuples import *
+from isubrip.playlist_downloader import PlaylistDownloader
+from isubrip.scraper import Scraper
 
 
 def main() -> None:
@@ -26,31 +21,45 @@ def main() -> None:
         print_usage()
         exit(1)
 
+    # Assure default config file exists
+    default_config_path = ''
     try:
-        config: dict[str, Any] = parse_config(find_config_file())
+        default_config_path = os.path.join(os.path.dirname(sys.modules[PACKAGE_NAME].__file__), DEFAULT_CONFIG_PATH)
+        with open(default_config_path, 'r') as default_config_file:
+            default_config_data = default_config_file.read()
+
+    except (KeyError, FileNotFoundError):
+        raise DefaultConfigNotFound(f"Default config file could not be found on \"{default_config_path}\".")
+
+    config = Config()
+
+    # Load default and user (if it exists) config files
+    try:
+        config.loads(default_config_data)
+
+        user_config_path = find_config_file()
+        if user_config_path is not None:
+            with open(user_config_path, 'r') as user_config_data:
+                config.loads(user_config_data.read())
 
     except ConfigError as e:
         print(f"Error: {e}")
         exit(1)
 
-    # Remove last char from downloads folder if it's '/'
-    if config["downloads"]["folder"][-1:] == '/':
-        config["downloads"]["folder"] = config["downloads"]["folder"][:-1]
-
     download_path: str
     download_to_temp: bool
 
     # Set download path to temp folder "zip" setting is used
-    if config["downloads"]["zip"]:
+    if config.downloads["zip"]:
         download_path = TEMP_FOLDER_PATH
         download_to_temp = True
 
     else:
-        download_path = config["downloads"]["folder"]
+        download_path = config.downloads["folder"]
         download_to_temp = False
 
     try:
-        playlist_downloader = PlaylistDownloader(config["ffmpeg"]["path"], config["ffmpeg"]["args"])
+        playlist_downloader = PlaylistDownloader(config.ffmpeg["path"], config.ffmpeg["args"])
 
     except FFmpegNotFound as e:
         print(f"Error: {e}")
@@ -60,7 +69,7 @@ def main() -> None:
         print(f"\nScraping {url}...")
         
         try:
-            movie_data: MovieData = Scraper.find_movie_data(url, config["scraping"]["user-agent"])
+            movie_data: MovieData = Scraper.find_movie_data(url, config.scraping["user-agent"])
         
         except Exception as e:
             print(f"Error: {e}")
@@ -86,16 +95,16 @@ def main() -> None:
 
         downloaded_subtitles: list = []
 
-        for subtitles in Scraper.find_matching_subtitles(m3u8_playlist, config["downloads"]["languages"]):
+        for subtitles in Scraper.find_matching_subtitles(m3u8_playlist, config.downloads["languages"]):
             print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
             file_name = format_file_name(movie_data.name, movie_data.release_year, subtitles.language_code, subtitles.subtitles_type)
 
             # Download subtitles
-            downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config["downloads"]["format"]))
+            downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config.downloads["format"]))
 
             if download_to_temp:
                 if len(downloaded_subtitles) == 1:
-                    shutil.move(downloaded_subtitles[0], config["downloads"]["folder"])
+                    shutil.move(downloaded_subtitles[0], config.downloads["folder"])
 
                 elif len(downloaded_subtitles) > 1:
                     # Create zip archive
@@ -109,78 +118,13 @@ def main() -> None:
                         zf.write(file, os.path.basename(file))
 
                     zf.close()
-                    shutil.move(archive_path, config["downloads"]["folder"])
+                    shutil.move(archive_path, config.downloads["folder"])
 
                 # Remove current temp dir
                 shutil.rmtree(current_download_path)
                 atexit.unregister(shutil.rmtree)
 
             print(f"\n{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config['downloads']['folder'])}\".")
-
-
-def parse_config(user_config_path: Union[str, None] = None) -> dict[str, Any]:
-    """Parse default config file, with an option of an added user config, and return a dictionary with all settings.
-
-    Args:
-        user_config_path (str, optional): Path to an additional optional config to use for overwriting default settings.
-        Defaults to None.
-
-    Raises:
-        DefaultConfigNotFound: Default config file could not be found.
-        UserConfigNotFound: User config file could not be found.
-        InvalidConfigValue: An invalid value was used in the config file.
-
-    Returns:
-        dict: A dictionary containing all settings.
-    """
-    try:
-        default_config_data: Union[bytes, None] = pkgutil.get_data(PACKAGE_NAME, DEFAULT_CONFIG_PATH)
-
-        if default_config_data is None:
-            raise FileNotFoundError
-
-    except FileNotFoundError:
-        raise DefaultConfigNotFound("Default config file could not be found.")
-
-    else:
-        default_config_str: str = str(default_config_data, 'utf-8')
-
-    # Load settings from default config file
-    config: Union[dict[str, Any], None] = tomli.loads(default_config_str)
-
-    config["user-config"] = False
-
-    # If a user config file exists, load it and update the dictionary with its values
-    if user_config_path is not None:
-        # Assure user config file exists
-        if not os.path.isfile(user_config_path):
-            raise UserConfigNotFound(f"User config file could not be found at \"{user_config_path}\".")
-
-        with open(user_config_path, "r") as config_file:
-            user_config: Union[dict[str, Any], None] = tomli.loads(config_file.read())
-
-        # Merge user_config with the default config, and override existing config values with values from user_config
-        merge(config, user_config)
-        config["user-config"] = True
-
-    # Check if subtitles format is valid, and convert it to enum
-    subtitle_formats: set = set(item.name for item in SubtitlesFormat)
-
-    if config["downloads"]["format"].upper() in subtitle_formats:
-        config["downloads"]["format"] = SubtitlesFormat[config["downloads"]["format"].upper()]
-
-    else:
-        raise InvalidConfigValue(f"{config['downloads']['format']} is an invalid format.")
-
-    # If languages = [], change it to None
-    if not config["downloads"]["languages"]:
-        config["downloads"]["languages"] = None
-
-    # Change config["ffmpeg"]["args"] value to None if empty
-    if config["ffmpeg"]["args"] == "":
-        config["ffmpeg"]["args"] = None
-
-    return config
 
 
 def find_appdata_path() -> str:

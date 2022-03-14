@@ -1,4 +1,4 @@
-from typing import NamedTuple, Union
+from typing import NamedTuple, Type, Union
 
 from isubrip.enums import SubtitlesType
 
@@ -17,3 +17,9 @@ class SubtitlesData(NamedTuple):
     language_name: str
     subtitles_type: SubtitlesType
     playlist_url: str
+
+
+class ConfigSetting(NamedTuple):
+    category: str
+    key: str
+    type: Type

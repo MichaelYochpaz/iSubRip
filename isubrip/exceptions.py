@@ -38,8 +38,8 @@ class DefaultConfigNotFound(ConfigError):
     pass
 
 
-class UserConfigNotFound(ConfigError):
-    """User config file could not be found."""
+class ConfigValueMissing(ConfigError):
+    """A required config value is missing."""
     pass
 
 
