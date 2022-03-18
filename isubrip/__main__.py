@@ -79,7 +79,7 @@ def main() -> None:
             print(f"Error: {e}")
             continue
 
-        print(f"Found movie: {movie_data.name}\n")
+        print(f"Found movie: {movie_data.name}")
 
         if movie_data.playlist is None:
             print(f"Error: No valid playlist could be found.")
@@ -128,7 +128,7 @@ def main() -> None:
                 shutil.rmtree(current_download_path)
                 atexit.unregister(shutil.rmtree)
 
-            print(f"\n{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
+            print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
 
 
 def find_appdata_path() -> str:
