@@ -1,15 +1,33 @@
+import os
 from setuptools import setup
+
+
+def get_version(relative_path: str):
+    current_path = os.path.abspath(os.path.dirname(__file__))
+
+    with open(os.path.join(current_path, relative_path), 'r') as fp:
+        file_data: str = fp.read()
+
+    for line in file_data.splitlines():
+        if line.startswith('__version__'):
+            delim = '"' if '"' in line else "'"
+            return line.split(delim)[1]
+
+    raise RuntimeError("Unable to find version string.")
+
+
+PACKAGE_NAME: str = "isubrip"
 
 with open("README.md", "r") as file:
     long_description = file.read()
 
+
 setup(
-    name="isubrip",
-    version="2.0.0",
+    name=PACKAGE_NAME,
+    version=get_version(f"{PACKAGE_NAME}/__init__.py"),
     author="Michael Yochpaz",
     license="MIT",
-    license_files = ('LICENSE',),
-    description="A Python package for scraping and downloading subtitles from iTunes movie pages using only a URL (no account / purchase required).",
+    license_files=('LICENSE',),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/MichaelYochpaz/iSubRip",
