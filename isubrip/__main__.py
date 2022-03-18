@@ -3,8 +3,10 @@ import shutil
 import sys
 import zipfile
 from typing import Union
+from xml.etree import ElementTree
 
 import m3u8
+import requests
 from m3u8 import M3U8
 
 from isubrip.config import Config
@@ -20,6 +22,8 @@ def main() -> None:
     if len(sys.argv) < 2:
         print_usage()
         exit(1)
+
+    check_for_updates()
 
     # Assure default config file exists
     default_config_path = ''
@@ -208,6 +212,25 @@ def format_file_name(movie_title: str, movie_release_year: int, language_code: s
         file_name += f".{subtitles_type.name.lower()}"
 
     return file_name
+
+
+def check_for_updates() -> None:
+    """Check and print if a newer version of the package is available."""
+    # If anything breaks, just skip update check
+    try:
+        current_version = sys.modules[PACKAGE_NAME].__version__
+
+        response = requests.get(PYPI_RSS_URL).text
+        xml_data = ElementTree.fromstring(response)
+        latest_version = xml_data.find("channel/item/title").text
+
+        # If the latest PyPI release is different from current one, print a message
+        if latest_version != current_version:
+            print(f"Note: You are currently using version {current_version} of {PACKAGE_NAME}, however version {latest_version} is available.",
+                  f"\nConsider upgrading by running \"pip install --upgrade {PACKAGE_NAME}\".")
+
+    except:
+        return
 
 
 def print_usage() -> None:
