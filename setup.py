@@ -28,6 +28,7 @@ setup(
     author="Michael Yochpaz",
     license="MIT",
     license_files=('LICENSE',),
+    description="A Python package for scraping and downloading subtitles from iTunes movie pages.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/MichaelYochpaz/iSubRip",
