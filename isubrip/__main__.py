@@ -23,8 +23,6 @@ def main() -> None:
         print_usage()
         exit(1)
 
-    check_for_updates()
-
     # Assure default config file exists
     default_config_path = ''
     try:
@@ -68,6 +66,9 @@ def main() -> None:
     except FFmpegNotFound as e:
         print(f"Error: {e}")
         exit(1)
+
+    if (config.general["check-for-updates"]):
+        check_for_updates()
 
     for url in sys.argv[1:]:
         print(f"\nScraping {url}...")

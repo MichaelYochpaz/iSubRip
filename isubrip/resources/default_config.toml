@@ -2,6 +2,9 @@
 # This file should NOT be altered. For changing settings, use a user-config file.
 # Any settings set on the user config will override these.
 
+[general]
+check-for-updates = true
+
 [downloads]
 languages = []
 format = "vtt"

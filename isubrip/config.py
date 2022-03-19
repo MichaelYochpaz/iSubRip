@@ -100,6 +100,7 @@ class Config:
         
         # List of config values and their corresponding types
         setting_list = [
+            ConfigSetting("general", "check-for-updates", bool),
             ConfigSetting("downloads", "languages", Union[list, None]),
             ConfigSetting("downloads", "format", SubtitlesFormat),
             ConfigSetting("downloads", "folder", str),

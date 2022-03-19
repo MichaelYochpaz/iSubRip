@@ -7,6 +7,11 @@
 #
 # All settings are optional. Any settings not specified in the config will result in using the default value (which are in the default_config.toml file).
 
+[general]
+# Check for updates before running, and show a note if a new version exists.
+# Value can be either "true" or "false".
+check-for-updates = true
+
 
 [downloads]
 # A list of subtitle languages to download.
