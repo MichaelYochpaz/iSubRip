@@ -1,4 +1,18 @@
 # Changelog
+## 2.1.0 [2022-03-19]
+### Added:
+* A note will be printed if a newer version is available on PyPI (can be disabled on the config).
+* Config will now be checked for errors before running.
+
+### Changes:
+* Big improvments to scraping, which is now far more reliable.
+* Added release year to subtitles file name.
+* Config structure slightly changed.
+
+### Notes:
+* If you use a user-config, it might need to be updated to match the new config structure.
+  Example of an updated valid structure can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml).
+---
 ## 2.0.0 [2022-01-30]
 The script is now a Python package that can be installed using pip.
 
