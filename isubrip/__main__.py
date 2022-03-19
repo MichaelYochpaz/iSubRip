@@ -129,7 +129,7 @@ def main() -> None:
                 shutil.rmtree(current_download_path)
                 atexit.unregister(shutil.rmtree)
 
-            print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
+        print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
 
 
 def find_appdata_path() -> str:
