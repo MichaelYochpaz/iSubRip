@@ -5,8 +5,8 @@
 * Config will now be checked for errors before running.
 
 ### Changes:
-* Big improvments to scraping, which is now far more reliable.
-* Added release year to subtitles file name.
+* Big improvements to scraping, which is now far more reliable.
+* Added release year to subtitles file names.
 * Config structure slightly changed.
 
 ### Notes:
