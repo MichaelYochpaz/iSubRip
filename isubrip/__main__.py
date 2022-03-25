@@ -67,7 +67,7 @@ def main() -> None:
         print(f"Error: {e}")
         exit(1)
 
-    if (config.general["check-for-updates"]):
+    if config.general["check-for-updates"]:
         check_for_updates()
 
     for url in sys.argv[1:]:
@@ -100,7 +100,7 @@ def main() -> None:
 
         downloaded_subtitles: list = []
 
-        for subtitles in Scraper.find_matching_subtitles(m3u8_playlist, config.downloads["languages"]):
+        for subtitles in Scraper.find_subtitles(m3u8_playlist, config.downloads["languages"]):
             print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
             file_name = format_file_name(movie_data.name, movie_data.release_year, subtitles.language_code, subtitles.subtitles_type)
 
@@ -230,7 +230,7 @@ def check_for_updates() -> None:
             print(f"Note: You are currently using version {current_version} of {PACKAGE_NAME}, however version {latest_version} is available.",
                   f"\nConsider upgrading by running \"pip install --upgrade {PACKAGE_NAME}\".")
 
-    except:
+    except Exception:
         return
 
 

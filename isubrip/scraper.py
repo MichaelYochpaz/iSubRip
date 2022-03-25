@@ -35,7 +35,7 @@ class Scraper:
         Returns:
             MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
             if the playlist is found. None otherwise.
-        """        
+        """
         # Check whether URL is valid
         if re.match(ITUNES_STORE_REGEX, itunes_url) is None:
             raise InvalidURL(f"{itunes_url} is not a valid iTunes movie URL.")
@@ -56,7 +56,7 @@ class Scraper:
         # Response is HTML formatted
         else:
             html_data = BeautifulSoup(response.text, "lxml")
-            return Scraper._find_movie_json_data_html_(html_data)
+            return Scraper._find_playlist_data_html_(html_data)
 
     @staticmethod
     def _find_playlist_data_json_(json_data: dict) -> MovieData:
@@ -99,7 +99,7 @@ class Scraper:
         return MovieData(movie_id, movie_title, movie_release_year, None)
 
     @staticmethod
-    def _find_movie_json_data_html_(html_data: BeautifulSoup) -> MovieData:
+    def _find_playlist_data_html_(html_data: BeautifulSoup) -> MovieData:
         """
         Scrape an iTunes HTML page to find movie info and it's M3U8 playlist.
 
@@ -161,7 +161,7 @@ class Scraper:
         return MovieData(movie_id, movie_title, movie_release_year, None)
 
     @staticmethod
-    def find_matching_subtitles(main_playlist: M3U8, subtitles_filter: Union[list, None]) -> Iterator[SubtitlesData]:
+    def find_subtitles(main_playlist: M3U8, subtitles_filter: Union[list, None] = None) -> Iterator[SubtitlesData]:
         """
         Find and yield playlists within main_playlist for subtitles that match a filter.
 
@@ -179,7 +179,8 @@ class Scraper:
 
         for playlist in main_playlist.media:
             # Check whether playlist is valid and matches filter
-            # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
+            # "group_id" can be either ["subtitles_ak" / "subtitles_vod-ak-amt.tv.apple.com"] or
+            # ["subtitles_ap2" / "subtitles_ap3" / "subtitles_vod-ap-amt.tv.apple.com" / "subtitles_vod-ap1-amt.tv.apple.com" / "subtitles_vod-ap3-amt.tv.apple.com"]
             if (playlist.type == "SUBTITLES") and (playlist.group_id in ("subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com")):
 
                 language_code: str = playlist.language
@@ -198,4 +199,3 @@ class Scraper:
                     sub_type = SubtitlesType.CC
 
                 yield SubtitlesData(language_code, language_name, sub_type, playlist.uri)
-                

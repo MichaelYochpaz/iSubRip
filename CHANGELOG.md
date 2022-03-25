@@ -18,9 +18,9 @@ The script is now a Python package that can be installed using pip.
 
 ### Added:
 * Added a config file for changing configurations. (Example can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml))
-* Added an options to choose subtitles format (vtt / srt).
+* Added an option to choose subtitles format (vtt / srt).
 * Added an option to choose whether to zip subtitles files or not.
-* Multiple links can be passed in the CLI for downloading subtitles for multiple movies one after another.
+* Multiple links can be passed for downloading subtitles for multiple movies one after another.
 * Temporary files are automatically removed if the script stops unexpectedly.
 
 ### Changes:
@@ -38,7 +38,7 @@ The script is now a Python package that can be installed using pip.
 ---
 ## 1.0.5 [2021-05-27]
 ### Bug Fixes:
-* Fixed subtitles for some movies not being found after previous changes. ([Issue #8](https://github.com/MichaelYochpaz/iSubRip/issues/8))
+* Fixed subtitles for some movies not being found after previous release. ([Issue #8](https://github.com/MichaelYochpaz/iSubRip/issues/8))
 ---
 ## 1.0.4 [2021-05-25]
 ### Bug Fixes:
@@ -51,7 +51,7 @@ The script is now a Python package that can be installed using pip.
 ---
 ## 1.0.2 [2021-04-15]
 ### Added:
-* Added a User-Agent for sessions to avoid the it being blocked.
+* Added a User-Agent for sessions to avoid being blocked.
 
 ### Changes:
 * `DOWNLOAD_FILTER` is no longer case-sensitive.

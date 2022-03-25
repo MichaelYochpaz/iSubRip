@@ -5,7 +5,7 @@ from xdg import xdg_config_home
 
 # General
 PACKAGE_NAME = "isubrip"
-PYPI_RSS_URL = "https://pypi.org/rss/project/isubrip/releases.xml" # Used for checking updates
+PYPI_RSS_URL = "https://pypi.org/rss/project/isubrip/releases.xml"  # Used for checking updates
 
 # Paths
 DEFAULT_CONFIG_PATH = "resources/default_config.toml"

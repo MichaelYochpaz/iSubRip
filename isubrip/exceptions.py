@@ -1,4 +1,5 @@
 # --------------- Scraping --------------- #
+
 class ScrapeError(Exception):
     """An issue while scraping the page."""
     pass

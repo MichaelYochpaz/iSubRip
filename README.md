@@ -2,7 +2,7 @@
 A Python package for scraping and downloading subtitles from iTunes movie pages.  
 Latest version: 2.1.0 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blob/main/CHANGELOG.md))  
 
-</br>
+<br/>
   
 [![PyPI - Version](https://img.shields.io/pypi/v/isubrip)](https://python.org/pypi/isubrip)
 [![PyPI - Downloads](https://pepy.tech/badge/isubrip)](https://python.org/pypi/isubrip)
@@ -18,7 +18,7 @@ Latest version: 2.1.0 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blo
 
 ##  Requirements
 * Python 3.6+
-* [FFmpeg](https://github.com/FFmpeg/FFmpeg) (If FFmpeg is not set in [PATH](https://en.wikipedia.org/wiki/PATH_(variable)), use a config file to set it's path.)
+* [FFmpeg](https://github.com/FFmpeg/FFmpeg) (If FFmpeg is not set in [PATH](https://en.wikipedia.org/wiki/PATH_(variable)), use a config file to set its path.)
 
 ##  Installation
 ### pip:
@@ -30,18 +30,18 @@ pip3 install isubrip
 Usage: ```isubrip <iTunes movie URL> [iTunes movie URL...]```  
 
 ## Configuration
-The script uses a [TOML](https://toml.io) config file for the settings.  
+For settings configuration, a [TOML](https://toml.io) config file can be used.  
+It allows configuring settings like download path, which lanaguages to download, and which file format to use (WebVTT / SRT).  
 
-Config file locations: 
+The file should be place in one of the following paths (according to OS): 
 
 **Windows**: ```%AppData%/iSubRip/config.toml```  
 **Linux**: ```$XDG_CONFIG_HOME/iSubRip/config.toml```  
 **MacOS**: ```~/Library/Application Support/isubrip/config.toml```  
 
-An example config file with documentation can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml)
+An example config file with all the available options can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml)
 
 ### Notes
-* All settings are optional. Any settings not specified in the config will result in using the default value (set in the default.toml file).
+* All settings are optional. Not specifying a setting will result in using the default value (set in the `default.toml` file).
 
-* If you are running the script on a Linux machine and XDG_CONFIG_HOME is not set in your environment,  
-  the value will default to ~/.config.
+* If running on a Linux machine and XDG_CONFIG_HOME is not set, it's value will default to `~/.config`.

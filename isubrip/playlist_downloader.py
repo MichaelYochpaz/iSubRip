@@ -25,7 +25,6 @@ class PlaylistDownloader:
         Raises:
             FFmpegNotFound: FFmpeg executeable could not be found.
         """
-
         # Check whether FFmpeg is found, raise an exception if not
         if shutil.which(ffmpeg_path) is None:
             raise FFmpegNotFound("FFmpeg could not be found.")
