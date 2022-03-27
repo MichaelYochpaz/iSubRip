@@ -1,20 +1,20 @@
 import atexit
 import shutil
 import sys
+import os
 import zipfile
-from typing import Union
 from xml.etree import ElementTree
 
 import m3u8
 import requests
-from m3u8 import M3U8
 
 from isubrip.config import Config
-from isubrip.constants import *
-from isubrip.exceptions import *
-from isubrip.namedtuples import *
+from isubrip.constants import DEFAULT_CONFIG_PATH, PACKAGE_NAME, PYPI_RSS_URL, TEMP_FOLDER_PATH
+from isubrip.exceptions import ConfigError, DefaultConfigNotFound, FFmpegNotFound
+from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.scraper import Scraper
+from isubrip.utils import find_config_file, format_file_name, format_title
 
 
 def main() -> None:
@@ -86,7 +86,7 @@ def main() -> None:
             print(f"Error: No valid playlist could be found.")
             continue
 
-        m3u8_playlist: M3U8 = m3u8.load(movie_data.playlist)
+        m3u8_playlist: m3u8.M3U8 = m3u8.load(movie_data.playlist)
         current_download_path: str
 
         # Create temp folder
@@ -130,89 +130,6 @@ def main() -> None:
                 atexit.unregister(shutil.rmtree)
 
         print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
-
-
-def find_appdata_path() -> str:
-    """Return the path to appdata folder.
-
-    Returns:
-        Union[str, None]: A string with the appdata folder.
-    """
-
-    # Windows
-    if sys.platform == "win32":
-        return APPDATA_PATH_WINDOWS
-
-    # Linux
-    elif sys.platform == "linux":
-        return APPDATA_PATH_LINUX
-
-    # MacOS
-    elif sys.platform == "darwin":
-        return APPDATA_PATH_MACOS
-
-
-def find_config_file() -> Union[str, None]:
-    """Return the path to user's config file (if it exists).
-
-    Returns:
-        Union[str, None]: A string with the path to user's config file if it's found, and None otherwise.
-    """
-
-    config_path = os.path.join(find_appdata_path(), APPDATA_FOLDER_NAME, CONFIG_FILE_NAME)
-
-    if (config_path is not None) and (os.path.exists(config_path)):
-        return config_path
-
-    return None
-
-
-def format_title(title: str) -> str:
-    """Format movie title to a standardized title that can be used as a file name.
-
-    Args:
-        title (str): An iTunes movie title.
-
-    Returns:
-        str: The title, in a file-name-friendly format.
-    """
-    # Replacements will be done in the same order of this list
-    replacement_pairs = [
-        (': ', '.'),
-        (' - ', '-'),
-        (', ', '.'),
-        ('. ', '.'),
-        (' ', '.'),
-        ('(', ''),
-        (')', '')
-    ]
-
-    for pair in replacement_pairs:
-        title = title.replace(pair[0], pair[1])
-
-    return title
-
-
-def format_file_name(movie_title: str, movie_release_year: int, language_code: str, subtitles_type: SubtitlesType) -> str:
-    """Generate file name for a subtitles file.
-
-    Args:
-        movie_title (str): Movie title.
-        movie_release_year(int): Movie release year.
-        language_code (str): Subtitles language code.
-        subtitles_type (SubtitlesType): Subtitles type.
-
-    Returns:
-        str: A formatted file name (does not include a file extension).
-    """
-    # Add release year only if it's not already included in the title
-    movie_release_year_str = '.' + str(movie_release_year) if str(movie_release_year) not in movie_title else ''
-    file_name = f"{format_title(movie_title)}{movie_release_year_str}.iT.WEB.{language_code}"
-
-    if subtitles_type is not SubtitlesType.NORMAL:
-        file_name += f".{subtitles_type.name.lower()}"
-
-    return file_name
 
 
 def check_for_updates() -> None:
