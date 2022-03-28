@@ -107,27 +107,27 @@ def main() -> None:
             # Download subtitles
             downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config.downloads["format"]))
 
-            if download_to_temp:
-                if len(downloaded_subtitles) == 1:
-                    shutil.move(downloaded_subtitles[0], config.downloads["folder"])
+        if download_to_temp:
+            if len(downloaded_subtitles) == 1:
+                shutil.copy(downloaded_subtitles[0], config.downloads["folder"])
 
-                elif len(downloaded_subtitles) > 1:
-                    # Create zip archive
-                    print(f"Creating zip archive...")
-                    archive_name = f"{format_title(movie_data.name)}.iT.WEB.zip"
-                    archive_path = os.path.join(current_download_path, archive_name)
+            elif len(downloaded_subtitles) > 1:
+                # Create zip archive
+                print(f"Creating zip archive...")
+                archive_name = f"{format_title(movie_data.name)}.iT.WEB.zip"
+                archive_path = os.path.join(current_download_path, archive_name)
 
-                    zf = zipfile.ZipFile(archive_path, compression=zipfile.ZIP_DEFLATED, mode='w')
+                zf = zipfile.ZipFile(archive_path, compression=zipfile.ZIP_DEFLATED, mode='w')
 
-                    for file in downloaded_subtitles:
-                        zf.write(file, os.path.basename(file))
+                for file in downloaded_subtitles:
+                    zf.write(file, os.path.basename(file))
 
-                    zf.close()
-                    shutil.move(archive_path, config.downloads["folder"])
+                zf.close()
+                shutil.copy(archive_path, config.downloads["folder"])
 
-                # Remove current temp dir
-                shutil.rmtree(current_download_path)
-                atexit.unregister(shutil.rmtree)
+            # Remove current temp dir
+            shutil.rmtree(current_download_path)
+            atexit.unregister(shutil.rmtree)
 
         print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
 
