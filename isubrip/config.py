@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any
 
 import tomli
 from mergedeep import merge
@@ -101,13 +101,13 @@ class Config:
         # List of config values and their corresponding types
         setting_list = [
             ConfigSetting("general", "check-for-updates", bool),
-            ConfigSetting("downloads", "languages", Union[list, None]),
+            ConfigSetting("downloads", "languages", (list, type(None))),
             ConfigSetting("downloads", "format", SubtitlesFormat),
             ConfigSetting("downloads", "folder", str),
             ConfigSetting("downloads", "zip", bool),
             ConfigSetting("scraping", "user-agent", str),
             ConfigSetting("ffmpeg", "path", str),
-            ConfigSetting("ffmpeg", "args", Union[str, None])
+            ConfigSetting("ffmpeg", "args", (str, type(None)))
             ]
 
         # Assure each config value exists and is of the correct type
@@ -118,9 +118,9 @@ class Config:
             if setting.key in config_dict[setting.category]:
                 setting_value = config_dict[setting.category][setting.key]
 
-                if not isinstance(setting_value, setting.type):
+                if not isinstance(setting_value, setting.types):
                     raise InvalidConfigValue(f"Invalid config value type for {setting.category}.{setting.key}: \'{setting_value}\'\
-                    \nExpected {setting.type}, received: {type(setting_value)}.")
+                    \nExpected {setting.types}, received: {type(setting_value)}.")
 
             else:
                 raise ConfigValueMissing(f"Missing required config value: \'{setting.category}.{setting.key}\'")

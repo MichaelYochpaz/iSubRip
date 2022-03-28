@@ -22,4 +22,4 @@ class SubtitlesData(NamedTuple):
 class ConfigSetting(NamedTuple):
     category: str
     key: str
-    type: Type
+    types: Union[tuple, Type]
