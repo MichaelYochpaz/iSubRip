@@ -87,7 +87,6 @@ def main() -> None:
             continue
 
         m3u8_playlist: m3u8.M3U8 = m3u8.load(movie_data.playlist)
-        current_download_path: str
 
         # Create temp folder
         if download_to_temp:
@@ -98,20 +97,26 @@ def main() -> None:
         else:
             current_download_path = download_path
 
-        downloaded_subtitles: list = []
+        downloaded_subtitles_list = []
+        subtitles_count = 0
 
         for subtitles in Scraper.find_subtitles(m3u8_playlist, config.downloads["languages"]):
+            subtitles_count += 1
             print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
             file_name = format_file_name(movie_data.name, movie_data.release_year, subtitles.language_code, subtitles.subtitles_type)
 
             # Download subtitles
-            downloaded_subtitles.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config.downloads["format"]))
+            downloaded_subtitles = playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config.downloads["format"])
+
+            # Assure subtitles downloaded successfully
+            if os.path.isfile(downloaded_subtitles):
+                downloaded_subtitles_list.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config.downloads["format"]))
 
         if download_to_temp:
-            if len(downloaded_subtitles) == 1:
-                shutil.copy(downloaded_subtitles[0], config.downloads["folder"])
+            if len(downloaded_subtitles_list) == 1:
+                shutil.copy(downloaded_subtitles_list[0], config.downloads["folder"])
 
-            elif len(downloaded_subtitles) > 1:
+            elif len(downloaded_subtitles_list) > 1:
                 # Create zip archive
                 print(f"Creating zip archive...")
                 archive_name = f"{format_title(movie_data.name)}.iT.WEB.zip"
@@ -119,7 +124,7 @@ def main() -> None:
 
                 zf = zipfile.ZipFile(archive_path, compression=zipfile.ZIP_DEFLATED, mode='w')
 
-                for file in downloaded_subtitles:
+                for file in downloaded_subtitles_list:
                     zf.write(file, os.path.basename(file))
 
                 zf.close()
@@ -129,7 +134,7 @@ def main() -> None:
             shutil.rmtree(current_download_path)
             atexit.unregister(shutil.rmtree)
 
-        print(f"{len(downloaded_subtitles)} matching subtitles for \"{movie_data.name}\" were found and downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
+        print(f"{len(downloaded_subtitles_list)}/{subtitles_count} matching subtitles for \"{movie_data.name}\" successfully downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
 
 
 def check_for_updates() -> None:
