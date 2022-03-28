@@ -1,4 +1,10 @@
 # Changelog
+## 2.1.1 [2022-03-28]
+### Bug Fixes:
+* Fixed a compatibility issue with Python versions that are lower than 3.10.
+* Fixed downloading subtitles to an archive file not working properly.
+* Fixed a bug where the code continues to run if subtitles download failed, as if the download was successful.
+---
 ## 2.1.0 [2022-03-19]
 ### Added:
 * A note will be printed if a newer version is available on PyPI (can be disabled on the config).
