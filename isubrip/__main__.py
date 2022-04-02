@@ -110,7 +110,7 @@ def main() -> None:
 
             # Assure subtitles downloaded successfully
             if os.path.isfile(downloaded_subtitles):
-                downloaded_subtitles_list.append(playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config.downloads["format"]))
+                downloaded_subtitles_list.append(downloaded_subtitles)
 
         if download_to_temp:
             if len(downloaded_subtitles_list) == 1:
