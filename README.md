@@ -5,7 +5,8 @@ Latest version: 2.1.1 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blo
 <br/>
   
 [![PyPI - Version](https://img.shields.io/pypi/v/isubrip)](https://python.org/pypi/isubrip)
-[![PyPI - Downloads](https://pepy.tech/badge/isubrip)](https://python.org/pypi/isubrip)
+[![PyPI - Monthly Downloads](https://pepy.tech/badge/isubrip/month)](https://pepy.tech/project/isubrip)
+[![PyPI - Total Downloads](https://pepy.tech/badge/isubrip)](https://python.org/pypi/isubrip)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/isubrip)](https://python.org/pypi/isubrip)
 [![GitHub - License](https://img.shields.io/github/license/MichaelYochpaz/iSubRip)](https://github.com/MichaelYochpaz/iSubRip/blob/main/LICENSE)
 [![GitHub - issues](https://img.shields.io/github/issues/MichaelYochpaz/iSubRip)](https://github.com/MichaelYochpaz/iSubRip/issues)
