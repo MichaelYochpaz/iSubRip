@@ -1,4 +1,8 @@
 # Changelog
+## 2.1.2 [2022-04-03]
+### Bug Fixes:
+* Fixed subtitles being downloaded twice, which causes long (doubled) download times.
+---
 ## 2.1.1 [2022-03-28]
 ### Bug Fixes:
 * Fixed a compatibility issue with Python versions that are lower than 3.10.
