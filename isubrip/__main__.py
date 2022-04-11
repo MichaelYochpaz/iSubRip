@@ -10,7 +10,7 @@ import requests
 
 from isubrip.config import Config
 from isubrip.constants import DEFAULT_CONFIG_PATH, PACKAGE_NAME, PYPI_RSS_URL, TEMP_FOLDER_PATH
-from isubrip.exceptions import ConfigError, DefaultConfigNotFound, FFmpegNotFound
+from isubrip.exceptions import ConfigError, DefaultConfigNotFound
 from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.scraper import Scraper
@@ -60,12 +60,7 @@ def main() -> None:
         download_path = config.downloads["folder"]
         download_to_temp = False
 
-    try:
-        playlist_downloader = PlaylistDownloader(config.ffmpeg["path"], config.ffmpeg["args"])
-
-    except FFmpegNotFound as e:
-        print(f"Error: {e}")
-        exit(1)
+    playlist_downloader = PlaylistDownloader()
 
     if config.general["check-for-updates"]:
         check_for_updates()

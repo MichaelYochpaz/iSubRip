@@ -1,36 +1,23 @@
 import os
-import shutil
-import subprocess
+from requests import Session
 
-from typing import Union
+import m3u8
 
 from isubrip.enums import SubtitlesFormat
-from isubrip.exceptions import FFmpegNotFound
+from isubrip.subtitles import Subtitles
 
 
 class PlaylistDownloader:
-    """
-    A class for downloading M3U8 playlists.
-    The class requires FFmpeg to be installed for downloads to work.
-    """
-
-    def __init__(self, ffmpeg_path: str = "ffmpeg", ffmpeg_args: Union[str, None] = None) -> None:
+    """A class for downloading & converting m3u8 playlists into subtitles."""
+    def __init__(self, user_agent: str = None) -> None:
         """
         Create a new PlaylistDownloader instance.
 
         Args:
-            ffmpeg_path (str, optional): The path to FFmpeg's executeable. "ffmpeg" can be used if it's in PATH. Defaults to "ffmpeg".
-            ffmpeg_args (str, optional): Argunemts to run FFmpeg commands with. Defaults to None.
-
-        Raises:
-            FFmpegNotFound: FFmpeg executeable could not be found.
+            user_agent (str, optional): User agent to use when downloading. Uses default user-agent if not set.
         """
-        # Check whether FFmpeg is found, raise an exception if not
-        if shutil.which(ffmpeg_path) is None:
-            raise FFmpegNotFound("FFmpeg could not be found.")
-
-        self.ffmpeg_path = ffmpeg_path
-        self.ffmpeg_args = ffmpeg_args
+        self.session = Session()
+        self.user_agent = user_agent
 
     def download_subtitles(self, playlist_url: str, output_dir: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.VTT) -> str:
         """
@@ -43,14 +30,19 @@ class PlaylistDownloader:
             file_format (SubtitlesFormat, optional): File format to use for the downloaded file. Defaults to "SubtitlesFormat.VTT".
 
         Returns:
-            str: A string with the path to the downloaded subtitles file
+            str: Path to the downloaded subtitles file.
         """
         file_name += f".{file_format.name.lower()}"
         path = os.path.join(output_dir, file_name)
 
-        ffmpeg_args_str = (self.ffmpeg_args + " ") if (self.ffmpeg_args is not None) else ''
-        ffmpeg_command = f"{self.ffmpeg_path} " + ffmpeg_args_str + f"-i \"{playlist_url}\" \"{path}\""
+        subtitles_obj = Subtitles()
+        playlist = m3u8.load(playlist_url)
 
-        subprocess.run(ffmpeg_command, shell=True)
+        for segment in playlist.segments:
+            data = self.session.get(segment.absolute_uri).content.decode('utf-8')
+            subtitles_obj.append_subtitles(Subtitles.loads(data))
+
+        with open(path, 'w', encoding="utf-8") as f:
+            f.write(subtitles_obj.dumps(file_format))
 
         return path
