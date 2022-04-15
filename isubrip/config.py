@@ -97,9 +97,10 @@ class Config:
         # List of config values and their corresponding types
         setting_list = [
             ConfigSetting("general", "check-for-updates", bool),
-            ConfigSetting("downloads", "languages", (list, type(None))),
-            ConfigSetting("downloads", "format", SubtitlesFormat),
             ConfigSetting("downloads", "folder", str),
+            ConfigSetting("downloads", "format", SubtitlesFormat),
+            ConfigSetting("downloads", "languages", (list, type(None))),
+            ConfigSetting("downloads", "user-agent", str),
             ConfigSetting("downloads", "zip", bool),
             ConfigSetting("scraping", "user-agent", str),
             ]

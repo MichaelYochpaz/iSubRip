@@ -17,7 +17,7 @@ class PlaylistDownloader:
             user_agent (str, optional): User agent to use when downloading. Uses default user-agent if not set.
         """
         self.session = Session()
-        self.user_agent = user_agent
+        self.session.headers.update({"user-agent": user_agent})
 
     def download_subtitles(self, playlist_url: str, output_dir: str, file_name: str, file_format: SubtitlesFormat = SubtitlesFormat.VTT) -> str:
         """

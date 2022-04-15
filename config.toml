@@ -14,20 +14,24 @@ check-for-updates = true
 
 
 [downloads]
+# Folder to downloads files to.
+# The default "." value means it will download to the same folder the script ran from.
+# Use double backslashes in path to avoid escaping characters. Example: "C:\\Users\\<username>\\Downloads\\"
+folder = "."
+
+# Subtitles format to use when downloading subtitles.
+# Value can be either "vtt" for WebVTT format, or "srt" for srt format.
+format = "vtt"
+
 # A list of subtitle languages to download.
 # List items can be either iTunes language codes (ISO 639-1) or names.
 # An empty array (like the one currently being used) will result in downloading all of the available subtitles.
 # Example: ["en", "fr", "he"]
 languages = []
 
-# Subtitles format to use when downloading subtitles.
-# Value can be either "vtt" for WebVTT format, or "srt" for srt format.
-format = "vtt"
-
-# Folder to downloads files to.
-# The default "." value means it will download to the same folder the script ran from.
-# Use double backslashes in path to avoid escaping characters. Example: "C:\\Users\\<username>\\Downloads\\"
-folder = "."
+# User-Agent to use while downloading subtitles.
+# Don't change this unless you know what you're doing.
+user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
 
 # Save files into a zip archive if there is more than one matching subtitles.
 # Value can be either "true" or "false".
@@ -36,5 +40,5 @@ zip = false
 
 [scraping]
 # User-Agent to use while scraping.
-# Don't use this setting unless you know what you're doing.
+# Don't change this unless you know what you're doing.
 user-agent = "iTunes-AppleTV/15.2"

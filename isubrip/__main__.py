@@ -60,7 +60,7 @@ def main() -> None:
         download_path = config.downloads["folder"]
         download_to_temp = False
 
-    playlist_downloader = PlaylistDownloader()
+    playlist_downloader = PlaylistDownloader(config.downloads["user-agent"])
 
     if config.general["check-for-updates"]:
         check_for_updates()
