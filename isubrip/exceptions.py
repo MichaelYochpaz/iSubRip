@@ -20,13 +20,6 @@ class PlaylistDownloadError(ScrapeError):
     pass
 
 
-# --------------- FFmpeg --------------- #
-
-class FFmpegNotFound(Exception):
-    """FFmpeg could not be found."""
-    pass
-
-
 # --------------- Config --------------- #
 
 class ConfigError(Exception):

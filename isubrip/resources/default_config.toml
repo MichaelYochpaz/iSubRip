@@ -13,7 +13,3 @@ zip = true
 
 [scraping]
 user-agent = "iTunes-AppleTV/15.2"
-
-[ffmpeg]
-path = "ffmpeg"
-args = "-loglevel warning -hide_banner -y"

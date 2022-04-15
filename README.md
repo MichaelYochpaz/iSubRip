@@ -19,7 +19,6 @@ Latest version: 2.1.2 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blo
 
 ##  Requirements
 * Python 3.6+
-* [FFmpeg](https://github.com/FFmpeg/FFmpeg) (If FFmpeg is not set in [PATH](https://en.wikipedia.org/wiki/PATH_(variable)), use a config file to set its path.)
 
 ##  Installation
 ### pip:

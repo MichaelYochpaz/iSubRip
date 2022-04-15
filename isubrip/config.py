@@ -82,10 +82,6 @@ class Config:
         if isinstance(config_dict["downloads"]["format"], str):
             config_dict["downloads"]["folder"] = config_dict["downloads"]["folder"].rstrip(r"\/")
 
-        # Change ffmpeg-args value to None if empty
-        if config_dict["ffmpeg"]["args"] == "":
-            config_dict["ffmpeg"]["args"] = None
-
     def check_config(self, config_dict: dict) -> None:
         """Check the config for invalid values.
         Raises an error if an invalid value is found.
@@ -106,8 +102,6 @@ class Config:
             ConfigSetting("downloads", "folder", str),
             ConfigSetting("downloads", "zip", bool),
             ConfigSetting("scraping", "user-agent", str),
-            ConfigSetting("ffmpeg", "path", str),
-            ConfigSetting("ffmpeg", "args", (str, type(None)))
             ]
 
         # Assure each config value exists and is of the correct type

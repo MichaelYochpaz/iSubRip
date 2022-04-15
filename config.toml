@@ -38,16 +38,3 @@ zip = false
 # User-Agent to use while scraping.
 # Don't use this setting unless you know what you're doing.
 user-agent = "iTunes-AppleTV/15.2"
-
-
-[ffmpeg]
-# Path to ffmpeg binary. 
-# "ffmpeg" value cen be used if FFmpeg's location is set in PATH.
-#
-# To check whether FFmpeg is set on PATH type "ffmpeg" in CMD / Terminal.
-# If it's set in PATH, an output with FFmpeg's version and configuration should be printed.
-path = "ffmpeg"
-
-# Arguments to run FFmpeg commands with
-# Don't use this setting unless you know what you're doing.
-args = "-loglevel warning -hide_banner -y"
