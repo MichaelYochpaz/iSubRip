@@ -44,7 +44,6 @@ setup(
         "Intended Audience :: Developers",
         "Topic :: Utilities",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
@@ -55,7 +54,7 @@ setup(
     packages=["isubrip"],
     install_requires=["beautifulsoup4", "lxml", "m3u8", "mergedeep", "requests", "tomli", "xdg"],
     package_data={"isubrip": ["resources/*"]},
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     entry_points={
         "console_scripts":
             ["isubrip = isubrip.__main__:main"]

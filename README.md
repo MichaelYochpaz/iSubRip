@@ -18,7 +18,7 @@ Latest version: 2.1.2 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blo
 
 
 ##  Requirements
-* Python 3.6+
+* Python 3.7+
 
 ##  Installation
 ### pip:
