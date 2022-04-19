@@ -1,3 +1,4 @@
+aiohttp==3.8.1
 beautifulsoup4==4.10.0
 lxml==4.8.0
 m3u8==1.0.0
