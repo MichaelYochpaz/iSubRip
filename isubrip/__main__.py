@@ -50,6 +50,7 @@ def main() -> None:
         exit(1)
 
     # Set `Subtitles` settings from config
+    Subtitles.remove_duplicates = config.subtitles["remove-duplicates"]
     Subtitles.fix_rtl = config.subtitles["fix-rtl"]
     Subtitles.rtl_languages = config.subtitles["rtl-languages"]
 

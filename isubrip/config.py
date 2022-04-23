@@ -105,6 +105,7 @@ class Config:
             ConfigSetting("downloads", "user-agent", str),
             ConfigSetting("downloads", "zip", bool),
             ConfigSetting("scraping", "user-agent", str),
+            ConfigSetting("subtitles", "remove-duplicates", bool),
             ConfigSetting("subtitles", "fix-rtl", bool),
             ConfigSetting("subtitles", "rtl-languages", list),
             ]

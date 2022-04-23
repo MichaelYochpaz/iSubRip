@@ -9,6 +9,7 @@ from isubrip.enums import SubtitlesFormat
 
 
 class Subtitles:
+    remove_duplicates = False
     fix_rtl = False
     rtl_languages = []
 
@@ -82,11 +83,13 @@ class Subtitles:
         Args:
             paragraph (Paragraph): A paragraph object to append.
         """
-        # Fix RTL before appending if `fix-rtl` is set to true and language is an RTL language
-        if Subtitles.fix_rtl and self.language_code in Subtitles.rtl_languages:
-            paragraph.fix_rtl()
+        # Don't append if `remove-duplicates` is set to true and paragraph is same as previous one
+        if not (Subtitles.remove_duplicates and len(self.paragraphs) > 0 and self.paragraphs[-1] == paragraph):
+            # Fix RTL before appending if `fix-rtl` is set to true and language is an RTL language
+            if Subtitles.fix_rtl and self.language_code in Subtitles.rtl_languages:
+                paragraph.fix_rtl()
 
-        self.paragraphs.append(paragraph)
+            self.paragraphs.append(paragraph)
 
     def append_subtitles(self, subtitles: Subtitles) -> None:
         """
@@ -167,6 +170,19 @@ class Paragraph:
         self.start_time = start_time
         self.end_time = end_time
         self.text = text
+
+    def __eq__(self, other) -> bool:
+        """
+        Check if two Paragraph objects are equal.
+
+        Args:
+            other: A Paragraph object to compare to.
+
+        Returns:
+            bool: True if Paragraph objects are equal, False otherwise.
+        """
+        return isinstance(other, Paragraph) and \
+               self.start_time == other.start_time and self.end_time == other.end_time and self.text == other.text
 
     def fix_rtl(self) -> None:
         """Fix paragraph direction to RTL."""

@@ -16,5 +16,6 @@ zip = true
 user-agent = "iTunes-AppleTV/15.2"
 
 [subtitles]
+remove-duplicates = true
 fix-rtl = false
 rtl-languages = ["ar", "he"]
