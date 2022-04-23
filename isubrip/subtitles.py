@@ -4,15 +4,76 @@ import re
 from datetime import time
 from typing import Union
 
-from isubrip.constants import TIMESTAMP_REGEX
+from isubrip.constants import RTL_CHAR, RTL_CONTROL_CHARS, TIMESTAMP_REGEX
 from isubrip.enums import SubtitlesFormat
 
 
 class Subtitles:
+    fix_rtl = False
+    rtl_languages = []
+
     """An object representing subtitles, made out of paragraphs."""
-    def __init__(self):
+
+    def __init__(self, language_code: str = None):
         """Initalize a new Subtitles object."""
+        self.language_code = language_code
         self.paragraphs = []
+
+    def __add__(self, paragraph: Paragraph) -> Subtitles:
+        """
+        Add a new paragraph to current subtitles.
+
+        Args:
+            paragraph (Paragraph): A paragraph object to append.
+        """
+        self.add_paragraph(paragraph)
+        return self
+
+    def _dumps_vtt(self) -> str:
+        """
+        Dump subtitles to a string in VTT format.
+
+        Returns:
+            str: The subtitles formatted as a string in VTT format.
+        """
+        subtitles_str = "WEBVTT\n\n"
+
+        for paragraph in self.paragraphs:
+            subtitles_str += f"{paragraph.to_string(SubtitlesFormat.VTT)}\n\n"
+
+        return subtitles_str.rstrip('\n')
+
+    def _dumps_srt(self) -> str:
+        """
+        Dump subtitles to a string in SRT format.
+
+        Returns:
+            str: The subtitles formatted as a string in SRT format.
+        """
+        subtitles_str = ""
+
+        for idx, paragraph in enumerate(self.paragraphs):
+            subtitles_str += f"{(idx + 1)}\n{paragraph.to_string(SubtitlesFormat.SRT)}\n\n"
+
+        return subtitles_str.rstrip('\n')
+
+    @staticmethod
+    def _split_timestamp(timestamp: str) -> tuple[time, time]:
+        """
+        Splits a timestamp into start and end.
+
+        Args:
+            timestamp (str): A subtitles timestamp. For example: "00:00:00.000 --> 00:00:00.000"
+
+        Returns:
+            tuple(time, time): A tuple containing start and end times as a datetime object.
+        """
+        # Support ',' character in timestamp's milliseconds (used in srt format).
+        timestamp = timestamp.replace(',', '.')
+
+        start_time, end_time = timestamp.split(" --> ")
+        t = time.fromisoformat(start_time)
+        return time.fromisoformat(start_time), time.fromisoformat(end_time)
 
     def add_paragraph(self, paragraph: Paragraph) -> None:
         """
@@ -21,11 +82,11 @@ class Subtitles:
         Args:
             paragraph (Paragraph): A paragraph object to append.
         """
-        self.paragraphs.append(paragraph)
+        # Fix RTL before appending if `fix-rtl` is set to true and language is an RTL language
+        if Subtitles.fix_rtl and self.language_code in Subtitles.rtl_languages:
+            paragraph.fix_rtl()
 
-    def __add__(self, paragraph: Paragraph) -> Subtitles:
-        self.add_paragraph(paragraph)
-        return self
+        self.paragraphs.append(paragraph)
 
     def append_subtitles(self, subtitles: Subtitles) -> None:
         """
@@ -34,7 +95,8 @@ class Subtitles:
         Args:
             subtitles (Subtitles): Subtitles object to append to current subtitels.
         """
-        self.paragraphs.extend(subtitles.paragraphs)
+        for paragraph in subtitles.paragraphs:
+            self.add_paragraph(paragraph)
 
     @staticmethod
     def loads(subtitles_data: str) -> Subtitles:
@@ -89,55 +151,10 @@ class Subtitles:
         elif subtitles_format == SubtitlesFormat.SRT:
             return self._dumps_srt()
 
-    def _dumps_vtt(self) -> str:
-        """
-        Dump subtitles to a string in VTT format.
-
-        Returns:
-            str: The subtitles formatted as a string in VTT format.
-        """
-        subtitles_str = "WEBVTT\n\n"
-
-        for paragraph in self.paragraphs:
-            subtitles_str += f"{paragraph.to_string(SubtitlesFormat.VTT)}\n\n"
-
-        return subtitles_str.rstrip('\n')
-
-    def _dumps_srt(self) -> str:
-        """
-        Dump subtitles to a string in SRT format.
-
-        Returns:
-            str: The subtitles formatted as a string in SRT format.
-        """
-        subtitles_str = ""
-
-        for idx, paragraph in enumerate(self.paragraphs):
-            subtitles_str += f"{(idx + 1)}\n{paragraph.to_string(SubtitlesFormat.SRT)}\n\n"
-
-        return subtitles_str.rstrip('\n')
-
-    @staticmethod
-    def _split_timestamp(timestamp: str) -> tuple[time, time]:
-        """
-        Splits a timestamp into start and end.
-
-        Args:
-            timestamp (str): A subtitles timestamp. For example: "00:00:00.000 --> 00:00:00.000"
-
-        Returns:
-            tuple(time, time): A tuple containing start and end times as a datetime object.
-        """
-        # Support ',' character in timestamp's milliseconds (used in srt format).
-        timestamp = timestamp.replace(',', '.')
-
-        start_time, end_time = timestamp.split(" --> ")
-        t = time.fromisoformat(start_time)
-        return time.fromisoformat(start_time), time.fromisoformat(end_time)
-
 
 class Paragraph:
     """An object represnting a subtitles paragraph."""
+
     def __init__(self, start_time: time, end_time: time, text: str):
         """
         Create a new Paragraph object.
@@ -150,6 +167,15 @@ class Paragraph:
         self.start_time = start_time
         self.end_time = end_time
         self.text = text
+
+    def fix_rtl(self) -> None:
+        """Fix paragraph direction to RTL."""
+        # Remove previous RTL-related formatting
+        for char in RTL_CONTROL_CHARS:
+            self.text = self.text.replace(char, "")
+
+        # Add RLM char at the start and on every new line
+        self.text = RTL_CHAR + self.text.replace("\n", f"\n{RTL_CHAR}")
 
     def to_string(self, subtitles_format: SubtitlesFormat) -> str:
         """

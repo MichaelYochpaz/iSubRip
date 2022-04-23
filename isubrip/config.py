@@ -68,7 +68,8 @@ class Config:
         self.check_config(temp_config)
         self.config_dict = temp_config
 
-    def _standardize_config_(self, config_dict: dict) -> None:
+    @staticmethod
+    def _standardize_config_(config_dict: dict) -> None:
         """Standardize a config dictionary and fix issues.
 
         Args:
@@ -82,7 +83,8 @@ class Config:
         if isinstance(config_dict["downloads"]["format"], str):
             config_dict["downloads"]["folder"] = config_dict["downloads"]["folder"].rstrip(r"\/")
 
-    def check_config(self, config_dict: dict) -> None:
+    @staticmethod
+    def check_config(config_dict: dict) -> None:
         """Check the config for invalid values.
         Raises an error if an invalid value is found.
     
@@ -103,6 +105,8 @@ class Config:
             ConfigSetting("downloads", "user-agent", str),
             ConfigSetting("downloads", "zip", bool),
             ConfigSetting("scraping", "user-agent", str),
+            ConfigSetting("subtitles", "fix-rtl", bool),
+            ConfigSetting("subtitles", "rtl-languages", list),
             ]
 
         # Assure each config value exists and is of the correct type

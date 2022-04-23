@@ -22,3 +22,7 @@ VALID_ARCHIVE_FORMATS = ["zip", "tar", "gztar"]
 # RegEx
 ITUNES_STORE_REGEX = r"https?://itunes.apple.com/[a-z]{2}/movie/[a-zA-Z0-9\-%]+/id[0-9]+($|(\?.*))"
 TIMESTAMP_REGEX = r"^[0-9]{2}:[0-9]{2}:[0-9]{2}[\.,][0-9]{3} --> [0-9]{2}:[0-9]{2}:[0-9]{2}[\.,][0-9]{3}"
+
+# Unicode
+RTL_CONTROL_CHARS = ('\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e')
+RTL_CHAR = '\u202b'

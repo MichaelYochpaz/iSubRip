@@ -14,7 +14,8 @@ from isubrip.exceptions import ConfigError, DefaultConfigNotFound
 from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.scraper import Scraper
-from isubrip.utils import find_config_file, format_file_name, format_title
+from isubrip.subtitles import Subtitles
+from isubrip.utils import find_config_file, format_title
 
 
 def main() -> None:
@@ -47,6 +48,10 @@ def main() -> None:
     except ConfigError as e:
         print(f"Error: {e}")
         exit(1)
+
+    # Set `Subtitles` settings from config
+    Subtitles.fix_rtl = config.subtitles["fix-rtl"]
+    Subtitles.rtl_languages = config.subtitles["rtl-languages"]
 
     download_path: str
     download_to_temp: bool
@@ -97,10 +102,7 @@ def main() -> None:
             for subtitles in Scraper.find_subtitles(m3u8_playlist, config.downloads["languages"]):
                 subtitles_count += 1
                 print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
-                file_name = format_file_name(movie_data.name, movie_data.release_year, subtitles.language_code, subtitles.subtitles_type)
-
-                # Download subtitles
-                downloaded_subtitles = playlist_downloader.download_subtitles(subtitles.playlist_url, current_download_path, file_name, config.downloads["format"])
+                downloaded_subtitles = playlist_downloader.download_subtitles(movie_data, subtitles, current_download_path, config.downloads["format"])
 
                 # Assure subtitles downloaded successfully
                 if os.path.isfile(downloaded_subtitles):

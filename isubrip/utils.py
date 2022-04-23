@@ -63,25 +63,3 @@ def format_title(title: str) -> str:
         title = title.replace(pair[0], pair[1])
 
     return title
-
-
-def format_file_name(movie_title: str, release_year: int, language_code: str, subtitles_type: SubtitlesType) -> str:
-    """Generate file name for a subtitles file.
-
-    Args:
-        movie_title (str): Movie title.
-        release_year(int): Movie release year.
-        language_code (str): Subtitles language code.
-        subtitles_type (SubtitlesType): Subtitles type.
-
-    Returns:
-        str: A formatted file name (does not include a file extension).
-    """
-    # Add release year only if it's not already included in the title
-    movie_release_year_str = '.' + str(release_year) if str(release_year) not in movie_title else ''
-    file_name = f"{format_title(movie_title)}{movie_release_year_str}.iT.WEB.{language_code}"
-
-    if subtitles_type is not SubtitlesType.NORMAL:
-        file_name += f".{subtitles_type.name.lower()}"
-
-    return file_name
