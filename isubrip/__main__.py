@@ -103,7 +103,7 @@ def main() -> None:
             for subtitles in Scraper.find_subtitles(m3u8_playlist, config.downloads["languages"]):
                 subtitles_count += 1
                 print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
-                downloaded_subtitles = playlist_downloader.download_subtitles(movie_data, subtitles, current_download_path, config.downloads["format"])
+                downloaded_subtitles = playlist_downloader.download_subtitles_file(movie_data, subtitles, current_download_path, config.downloads["format"])
 
                 # Assure subtitles downloaded successfully
                 if os.path.isfile(downloaded_subtitles):
