@@ -9,11 +9,11 @@ from isubrip.enums import SubtitlesFormat
 
 
 class Subtitles:
+    """An object representing subtitles, made out of paragraphs."""
+
     remove_duplicates = False
     fix_rtl = False
     rtl_languages = []
-
-    """An object representing subtitles, made out of paragraphs."""
 
     def __init__(self, language_code: str = None):
         """Initalize a new Subtitles object."""
@@ -73,7 +73,6 @@ class Subtitles:
         timestamp = timestamp.replace(',', '.')
 
         start_time, end_time = timestamp.split(" --> ")
-        t = time.fromisoformat(start_time)
         return time.fromisoformat(start_time), time.fromisoformat(end_time)
 
     def add_paragraph(self, paragraph: Paragraph) -> None:
@@ -146,8 +145,6 @@ class Subtitles:
         Returns:
             str: The subtitles formatted as a string matching the specified subtitles format.
         """
-        subtitles_str = ""
-
         if subtitles_format == SubtitlesFormat.VTT:
             return self._dumps_vtt()
 
@@ -173,7 +170,7 @@ class Paragraph:
 
     def __eq__(self, other) -> bool:
         """
-        Check if two Paragraph objects are equal.
+        Check whether two Paragraph objects are equal.
 
         Args:
             other: A Paragraph object to compare to.
@@ -182,7 +179,7 @@ class Paragraph:
             bool: True if Paragraph objects are equal, False otherwise.
         """
         return isinstance(other, Paragraph) and \
-               self.start_time == other.start_time and self.end_time == other.end_time and self.text == other.text
+            self.start_time == other.start_time and self.end_time == other.end_time and self.text == other.text
 
     def fix_rtl(self) -> None:
         """Fix paragraph direction to RTL."""

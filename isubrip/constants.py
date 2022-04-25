@@ -8,7 +8,7 @@ PACKAGE_NAME = "isubrip"
 PYPI_RSS_URL = "https://pypi.org/rss/project/isubrip/releases.xml"  # Used for checking updates
 
 # Paths
-DEFAULT_CONFIG_PATH = "resources/default_config.toml"
+DEFAULT_CONFIG_PATH = os.path.join("resources", "default_config.toml")
 APPDATA_PATH_WINDOWS = f"{os.getenv('appdata')}"
 APPDATA_PATH_LINUX = f"{xdg_config_home().resolve()}"
 APPDATA_PATH_MACOS = r"~/Library/Application Support"

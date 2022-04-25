@@ -4,7 +4,6 @@ from typing import Union
 
 from isubrip.config import Config
 from isubrip.constants import CONFIG_FILE_NAME, APPDATA_FOLDER_NAME, APPDATA_PATH_LINUX, APPDATA_PATH_MACOS, APPDATA_PATH_WINDOWS
-from isubrip.namedtuples import SubtitlesType
 
 
 def find_appdata_path() -> str:

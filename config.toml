@@ -23,10 +23,9 @@ folder = "."
 # Value can be either "vtt" for WebVTT format, or "srt" for srt format.
 format = "vtt"
 
-# A list of subtitle languages to download.
-# List items can be either iTunes language codes (ISO 639-1) or names.
+# A list of iTunes language codes to download.
 # An empty array (like the one currently being used) will result in downloading all of the available subtitles.
-# Example: ["en", "fr", "he"]
+# Example: ["en-US", "fr-FR", "he"]
 languages = []
 
 # User-Agent to use while downloading subtitles.
@@ -45,15 +44,15 @@ user-agent = "iTunes-AppleTV/15.2"
 
 
 [subtitles]
-# Remove duplicate paragraphs.
+# Remove duplicate paragraphs (same text and timestamps).
 remove-duplicates = true
 
-# Fix RTL for languages set on `fix-rtl-languages` using Unicode's RLM (Right-to-Left Mark) character.
+# Fix RTL for languages set on `fix-rtl-languages`.
 # Value can be either "true" or "false".
 #
-# NOTE: This is off by default as some subtitles come with other methods to fix RTL (like writing punctuations backwards).
+# NOTE: This is off by default as some subtitles use other methods to fix RTL (like writing punctuations backwards).
 #       Using this option on these type of subtitles can break the already-fixed RTL issues.
 fix-rtl = false
 
-# List of RTL languages to fix RTL on.
+# List of iTunes language codes to fix RTL on.
 rtl-languages = ["ar", "he"]

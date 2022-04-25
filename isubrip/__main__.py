@@ -24,14 +24,11 @@ def main() -> None:
         exit(1)
 
     # Assure default config file exists
-    default_config_path = ''
     try:
         default_config_path = os.path.join(os.path.dirname(sys.modules[PACKAGE_NAME].__file__), DEFAULT_CONFIG_PATH)
-        with open(default_config_path, 'r') as default_config_file:
-            default_config_data = default_config_file.read()
 
-    except (KeyError, FileNotFoundError):
-        raise DefaultConfigNotFound(f"Default config file could not be found on \"{default_config_path}\".")
+    except KeyError:
+        raise DefaultConfigNotFound(f"Default config file could not be found.")
 
     # Load default and user (if it exists) config files
     config_files = [default_config_path]
@@ -44,8 +41,7 @@ def main() -> None:
         config = parse_config(*config_files)
 
     except (ConfigError, FileNotFoundError) as e:
-        print(f"Error: {e}")
-        exit(1)
+        raise ConfigError(e)
 
     # Set `Subtitles` settings from config
     Subtitles.remove_duplicates = config.subtitles["remove-duplicates"]
@@ -67,12 +63,15 @@ def main() -> None:
     if config.general["check-for-updates"]:
         check_for_updates()
 
-    for url in sys.argv[1:]:
-        print(f"\nScraping {url}...")
-        
+    for idx, url in enumerate(sys.argv[1:]):
+        if idx > 0:
+            print()  # Print newline between different movies
+
+        print(f"Scraping {url}...")
+
         try:
             movie_data: MovieData = Scraper.find_movie_data(url, config.scraping["user-agent"])
-        
+
         except Exception as e:
             print(f"Error: {e}")
             continue
@@ -81,6 +80,7 @@ def main() -> None:
 
         if movie_data.playlist is None:
             print(f"Error: No valid playlist could be found.")
+            print("\n--------------------------------------------------")
             continue
 
         m3u8_playlist: m3u8.M3U8 = m3u8.load(movie_data.playlist)
@@ -129,7 +129,10 @@ def main() -> None:
                 shutil.rmtree(current_download_path)
                 atexit.unregister(shutil.rmtree)
 
-        print(f"{len(downloaded_subtitles_list)}/{subtitles_count} matching subtitles for \"{movie_data.name}\" were downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
+        print(f"\n{len(downloaded_subtitles_list)}/{subtitles_count} matching subtitles for \"{movie_data.name}\" were downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
+
+        if idx < (len(sys.argv) - 2):
+            print("\n--------------------------------------------------")
 
 
 def check_for_updates() -> None:
@@ -145,7 +148,7 @@ def check_for_updates() -> None:
         # If the latest PyPI release is different from current one, print a message
         if latest_version != current_version:
             print(f"Note: You are currently using version {current_version} of {PACKAGE_NAME}, however version {latest_version} is available.",
-                  f"\nConsider upgrading by running \"pip install --upgrade {PACKAGE_NAME}\".")
+                  f"\nConsider upgrading by running \"python3 -m pip install --upgrade {PACKAGE_NAME}\"\n")
 
     except Exception:
         return

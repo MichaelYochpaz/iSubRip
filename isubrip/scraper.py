@@ -75,7 +75,7 @@ class Scraper:
 
         movie_title = movie_data["nameRaw"]
         movie_release_year = datetime.strptime(movie_data["releaseDate"], '%Y-%m-%d').year
-        
+
         # Loop safely to find a matching playlist
         for offer in movie_data["offers"]:
             if isinstance(offer.get("type"), str) and offer["type"] in ["buy", "rent"]:
@@ -93,7 +93,7 @@ class Scraper:
 
                         except HTTPError:
                             continue
-                        
+
                         return MovieData(movie_id, movie_title, movie_release_year, m3u8_url)
 
         return MovieData(movie_id, movie_title, movie_release_year, None)
@@ -140,7 +140,8 @@ class Scraper:
             for item in movie_data["included"]:
                 if isinstance(item.get("type"), str) and item["type"] == "offer":
                     if isinstance(item.get("attributes"), dict) and \
-                        isinstance(item["attributes"].get("assets"), list) and len(item["attributes"]["assets"]) > 0:
+                        isinstance(item["attributes"].get("assets"), list) and \
+                            len(item["attributes"]["assets"]) > 0:
 
                         for asset in item["attributes"]["assets"]:
                             if isinstance(asset, dict) and isinstance(asset.get("hlsUrl"), str):
