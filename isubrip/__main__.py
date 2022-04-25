@@ -8,14 +8,13 @@ from xml.etree import ElementTree
 import m3u8
 import requests
 
-from isubrip.config import Config
 from isubrip.constants import DEFAULT_CONFIG_PATH, PACKAGE_NAME, PYPI_RSS_URL, TEMP_FOLDER_PATH
 from isubrip.exceptions import ConfigError, DefaultConfigNotFound
 from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.scraper import Scraper
 from isubrip.subtitles import Subtitles
-from isubrip.utils import find_config_file, format_title
+from isubrip.utils import find_config_file, format_title, parse_config
 
 
 def main() -> None:
@@ -34,18 +33,17 @@ def main() -> None:
     except (KeyError, FileNotFoundError):
         raise DefaultConfigNotFound(f"Default config file could not be found on \"{default_config_path}\".")
 
-    config = Config()
-
     # Load default and user (if it exists) config files
+    config_files = [default_config_path]
+    user_config_path = find_config_file()
+
+    if user_config_path is not None:
+        config_files.append(find_config_file())
+
     try:
-        config.loads(default_config_data)
+        config = parse_config(*config_files)
 
-        user_config_path = find_config_file()
-        if user_config_path is not None:
-            with open(user_config_path, 'r') as user_config_data:
-                config.loads(user_config_data.read())
-
-    except ConfigError as e:
+    except (ConfigError, FileNotFoundError) as e:
         print(f"Error: {e}")
         exit(1)
 
