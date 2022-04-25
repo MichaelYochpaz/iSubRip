@@ -1,4 +1,17 @@
 # Changelog
+## 2.2.0 [2022-04-25]
+### Added:
+* Replaced FFmpeg usage for parsing with a native subtitles parser (downloads are much faster now).
+* Added a `remove-duplicates` configuration remove duplicate paragraphs. (Was previously automatically fixed by FFmpeg.)
+* Added `fix-rtl` and `rtl-languages` configuration to fix RTL in RTL-languaged subtitles (has to be enabled in the config).
+
+### Changes:
+* FFmpeg is no longer required or used, and all FFmpeg-related settings are deprecated.
+
+### Notes:
+* `fix-rtl` is off by default and has to be enabled on the config. Check the `config.toml` example file for more info.
+* Minimum supported Python version bumped to 3.7.
+---
 ## 2.1.2 [2022-04-03]
 ### Bug Fixes:
 * Fixed subtitles being downloaded twice, which causes long (doubled) download times.
