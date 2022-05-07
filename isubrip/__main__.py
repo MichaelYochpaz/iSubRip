@@ -74,6 +74,7 @@ def main() -> None:
 
         except Exception as e:
             print(f"Error: {e}")
+            print("\n--------------------------------------------------")
             continue
 
         print(f"Found movie: {movie_data.name}")

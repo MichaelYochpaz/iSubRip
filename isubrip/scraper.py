@@ -54,9 +54,14 @@ class Scraper:
             return Scraper._find_playlist_data_json_(json_data)
 
         # Response is HTML formatted
-        else:
+        elif "text/html" in response.headers['content-type'] and response.status_code != 404:
             html_data = BeautifulSoup(response.text, "lxml")
             return Scraper._find_playlist_data_html_(html_data)
+
+        # Response is neither JSON nor HTML formatted (if the URL is not found, an XML response is returned),
+        # or an HTML 404 error was received.
+        else:
+            raise PageLoadError("Recieved an invalid response. Pleas assure the URL is valid.")
 
     @staticmethod
     def _find_playlist_data_json_(json_data: dict) -> MovieData:
