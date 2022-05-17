@@ -15,11 +15,6 @@ class PageLoadError(ScrapeError):
     pass
 
 
-class PlaylistDownloadError(ScrapeError):
-    """The playlist could not be downloaded."""
-    pass
-
-
 # --------------- Config --------------- #
 
 class ConfigError(Exception):

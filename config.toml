@@ -28,6 +28,16 @@ format = "vtt"
 # Example: ["en-US", "fr-FR", "he"]
 languages = []
 
+# Treat subtitles from different iTunes IDs as if they were scraped from the same one.
+# Subtitles for languages that were found already will not be redownloaded if found on a different iTunes ID,
+# and subtitles will be saved in the same folder and not separate folders for each ID.
+#
+# NOTE: This is off by default as different IDs might have different runtimes even if they're for the same movies.
+#       Having them on separate folders helps identifying what runtime each subtitles file is for.
+#
+# Value can be either "true" or "false".
+merge-playlists = false
+
 # User-Agent to use while downloading subtitles.
 # Don't change this unless you know what you're doing.
 user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
@@ -44,9 +54,6 @@ user-agent = "iTunes-AppleTV/15.2"
 
 
 [subtitles]
-# Remove duplicate paragraphs (same text and timestamps).
-remove-duplicates = true
-
 # Fix RTL for languages set on `fix-rtl-languages`.
 # Value can be either "true" or "false".
 #
@@ -56,3 +63,6 @@ fix-rtl = false
 
 # List of iTunes language codes to fix RTL on.
 rtl-languages = ["ar", "he"]
+
+# Remove duplicate paragraphs (same text and timestamps).
+remove-duplicates = true

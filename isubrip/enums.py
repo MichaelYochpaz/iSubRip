@@ -1,6 +1,12 @@
 from enum import Enum
 
 
+class DataSource(Enum):
+    """Subtitles type (Normal / CC / Forced)."""
+    ITUNES = 1
+    APPLETV = 2
+
+
 class SubtitlesType(Enum):
     """Subtitles type (Normal / CC / Forced)."""
     NORMAL = 1

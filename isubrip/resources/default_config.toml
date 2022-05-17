@@ -9,6 +9,7 @@ check-for-updates = true
 folder = "."
 format = "vtt"
 languages = []
+merge-playlists = false
 user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
 zip = true
 
@@ -16,6 +17,6 @@ zip = true
 user-agent = "iTunes-AppleTV/15.2"
 
 [subtitles]
-remove-duplicates = true
 fix-rtl = false
 rtl-languages = ["ar", "he"]
+remove-duplicates = true

@@ -102,13 +102,14 @@ class Config:
             ConfigSetting("downloads", "folder", str),
             ConfigSetting("downloads", "format", SubtitlesFormat),
             ConfigSetting("downloads", "languages", (list, type(None))),
+            ConfigSetting("downloads", "merge-playlists", bool),
             ConfigSetting("downloads", "user-agent", str),
             ConfigSetting("downloads", "zip", bool),
             ConfigSetting("scraping", "user-agent", str),
-            ConfigSetting("subtitles", "remove-duplicates", bool),
             ConfigSetting("subtitles", "fix-rtl", bool),
             ConfigSetting("subtitles", "rtl-languages", list),
-            ]
+            ConfigSetting("subtitles", "remove-duplicates", bool),
+        ]
 
         # Assure each config value exists and is of the correct type
         for setting in setting_list:

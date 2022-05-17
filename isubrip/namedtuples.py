@@ -1,14 +1,20 @@
-from typing import NamedTuple, Type, Union
+from typing import List, NamedTuple, Type, Union
 
-from isubrip.enums import SubtitlesType
+from isubrip.enums import DataSource, SubtitlesType
+
+
+class PlaylistData(NamedTuple):
+    """A named tuple containing a playlist iTunes ID and URL."""
+    itunes_id: str
+    url: str
 
 
 class MovieData(NamedTuple):
     """A named tuple containing a movie name, id, and M3U8 playlist."""
-    id: str
+    data_source: DataSource
     name: str
     release_year: int
-    playlist: Union[str, None]
+    playlists: List[PlaylistData]
 
 
 class SubtitlesData(NamedTuple):

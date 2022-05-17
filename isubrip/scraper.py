@@ -1,7 +1,7 @@
 import json
 import re
 from datetime import datetime
-from typing import Union, Iterator
+from typing import Iterator, List, Union
 from urllib.error import HTTPError
 
 import m3u8
@@ -10,9 +10,9 @@ from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 from requests.sessions import session
 
-from isubrip.enums import SubtitlesType
+from isubrip.enums import DataSource, SubtitlesType
 from isubrip.constants import ITUNES_STORE_REGEX
-from isubrip.namedtuples import MovieData, SubtitlesData
+from isubrip.namedtuples import MovieData, PlaylistData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError
 
 
@@ -86,11 +86,11 @@ class Scraper:
             if isinstance(offer.get("type"), str) and offer["type"] in ["buy", "rent"]:
                 if isinstance(offer.get("assets"), list) and len(offer["assets"]) > 0:
                     for asset in offer["assets"]:
-                        m3u8_url: str = asset["hlsUrl"]
+                        playlist_url: str = asset["hlsUrl"]
 
                         # Assure playlist is valid
                         try:
-                            m3u8.load(m3u8_url)
+                            m3u8.load(playlist_url)
 
                         # If m3u8 playlist is invalid, skip it
                         except ValueError:
@@ -99,9 +99,9 @@ class Scraper:
                         except HTTPError:
                             continue
 
-                        return MovieData(movie_id, movie_title, movie_release_year, m3u8_url)
+                        return MovieData(DataSource.ITUNES, movie_title, movie_release_year, [PlaylistData(itunes_id, playlist_url)])
 
-        return MovieData(movie_id, movie_title, movie_release_year, None)
+        return MovieData(DataSource.ITUNES, movie_title, movie_release_year, [])
 
     @staticmethod
     def _find_playlist_data_html_(html_data: BeautifulSoup) -> MovieData:
@@ -134,7 +134,7 @@ class Scraper:
             raise PageLoadError("fastboot/shoebox data could not be found.")
 
         # Convert to dictionary structure
-        shoebox_data: dict[str, dict] = json.loads(str(shoebox_data_tag.contents[0]).strip())
+        shoebox_data: dict = json.loads(str(shoebox_data_tag.contents[0]).strip())
 
         # Loop safely to find a matching playlist
         if isinstance(shoebox_data[movie_id].get("included"), list):
@@ -150,21 +150,21 @@ class Scraper:
 
                         for asset in item["attributes"]["assets"]:
                             if isinstance(asset, dict) and isinstance(asset.get("hlsUrl"), str):
-                                m3u8_url: str = item["attributes"]["assets"][0]["hlsUrl"]
+                                playlist_url: str = item["attributes"]["assets"][0]["hlsUrl"]
 
-                                # Try to load the playlist, to assure it's valid
+                                # Try loading the playlist to assure it's working
                                 try:
-                                    m3u8.load(m3u8_url)
+                                    m3u8.load(playlist_url)
 
                                 # If m3u8 playlist is invalid, skip it
                                 except (ValueError, HTTPError):
                                     continue
 
-                                return MovieData(movie_id, movie_title, movie_release_year, m3u8_url)
+                                return MovieData(DataSource.ITUNES, movie_title, movie_release_year, [PlaylistData(itunes_id, playlist_url)])
         else:
             raise PageLoadError("Invalid shoebox data.")
 
-        return MovieData(movie_id, movie_title, movie_release_year, None)
+        return MovieData(DataSource.ITUNES, movie_title, movie_release_year, [])
 
     @staticmethod
     def find_subtitles(main_playlist: M3U8, subtitles_filter: Union[list, None] = None) -> Iterator[SubtitlesData]:

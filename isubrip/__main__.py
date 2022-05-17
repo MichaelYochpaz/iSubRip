@@ -9,6 +9,7 @@ import m3u8
 import requests
 
 from isubrip.constants import DEFAULT_CONFIG_PATH, PACKAGE_NAME, PYPI_RSS_URL, TEMP_FOLDER_PATH
+from isubrip.enums import DataSource
 from isubrip.exceptions import ConfigError, DefaultConfigNotFound
 from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
@@ -55,6 +56,8 @@ def main() -> None:
     if config.downloads["zip"]:
         download_path = TEMP_FOLDER_PATH
         download_to_temp = True
+        os.makedirs(TEMP_FOLDER_PATH, exist_ok=True)
+        atexit.register(shutil.rmtree, TEMP_FOLDER_PATH)
 
     else:
         download_path = config.downloads["folder"]
@@ -65,7 +68,7 @@ def main() -> None:
 
     for idx, url in enumerate(sys.argv[1:]):
         if idx > 0:
-            print()  # Print newline between different movies
+            print("\n--------------------------------------------------\n")  # Print between different movies
 
         print(f"Scraping {url}...")
 
@@ -74,66 +77,90 @@ def main() -> None:
 
         except Exception as e:
             print(f"Error: {e}")
-            print("\n--------------------------------------------------")
             continue
 
         print(f"Found movie: {movie_data.name}")
 
-        if movie_data.playlist is None:
+        if not movie_data.playlists:
             print(f"Error: No valid playlist could be found.")
-            print("\n--------------------------------------------------")
             continue
 
-        m3u8_playlist: m3u8.M3U8 = m3u8.load(movie_data.playlist)
-
-        # Create temp folder
-        if download_to_temp:
-            current_download_path = os.path.join(download_path, f"{format_title(movie_data.name)}.iT.WEB")
-            os.makedirs(current_download_path, exist_ok=True)
-            atexit.register(shutil.rmtree, current_download_path)
-
-        else:
-            current_download_path = download_path
-
-        downloaded_subtitles_list = []
+        multiple_playlists = len(movie_data.playlists) > 1
+        downloaded_subtitles_langs = set()
+        downloaded_subtitles_paths = []
         subtitles_count = 0
 
+        # Create temp folder if needed
+        if download_to_temp:
+            movie_download_path = os.path.join(download_path, f"{format_title(movie_data.name)}.iT.WEB")
+            os.makedirs(movie_download_path, exist_ok=True)
+
+        else:
+            movie_download_path = download_path
+
         with PlaylistDownloader(config.downloads["user-agent"]) as playlist_downloader:
-            for subtitles in Scraper.find_subtitles(m3u8_playlist, config.downloads["languages"]):
-                subtitles_count += 1
-                print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
-                downloaded_subtitles = playlist_downloader.download_subtitles_file(movie_data, subtitles, current_download_path, config.downloads["format"])
+            for idy, playlist in enumerate(movie_data.playlists):
+                # Print empty line between different playlists
+                if idy > 0:
+                    print()
 
-                # Assure subtitles downloaded successfully
-                if os.path.isfile(downloaded_subtitles):
-                    downloaded_subtitles_list.append(downloaded_subtitles)
+                if multiple_playlists:
+                    print(f"id{playlist.itunes_id}:")
 
-            if download_to_temp:
-                if len(downloaded_subtitles_list) == 1:
-                    shutil.copy(downloaded_subtitles_list[0], config.downloads["folder"])
+                m3u8_playlist: m3u8.M3U8 = m3u8.load(playlist.url)
+                separate_playlist_folder: bool = multiple_playlists and not config.downloads["merge-playlists"]
+                playlist_subtitles_count = 0
 
-                elif len(downloaded_subtitles_list) > 1:
-                    # Create zip archive
-                    print(f"Creating zip archive...")
-                    archive_name = f"{format_title(movie_data.name)}.iT.WEB.zip"
-                    archive_path = os.path.join(current_download_path, archive_name)
+                # Create folder for playlist if needed
+                if separate_playlist_folder:
+                    playlist_download_path = os.path.join(movie_download_path, f"id{playlist.itunes_id}")
+                    os.makedirs(playlist_download_path, exist_ok=True)
 
-                    zf = zipfile.ZipFile(archive_path, compression=zipfile.ZIP_DEFLATED, mode='w')
+                else:
+                    playlist_download_path = movie_download_path
 
-                    for file in downloaded_subtitles_list:
-                        zf.write(file, os.path.basename(file))
+                for subtitles in Scraper.find_subtitles(m3u8_playlist, config.downloads["languages"]):
+                    if not config.downloads["merge-playlists"] or \
+                            (config.downloads["merge-playlists"] and subtitles.language_code not in downloaded_subtitles_langs):
+                        playlist_subtitles_count += 1
+                        print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
+                        downloaded_subtitles = playlist_downloader.download_subtitles_file(movie_data, subtitles, playlist_download_path, config.downloads["format"])
 
-                    zf.close()
-                    shutil.copy(archive_path, config.downloads["folder"])
+                        # Assure subtitles downloaded successfully
+                        if os.path.isfile(downloaded_subtitles):
+                            downloaded_subtitles_paths.append(downloaded_subtitles)
 
-                # Remove current temp dir
-                shutil.rmtree(current_download_path)
-                atexit.unregister(shutil.rmtree)
+                if separate_playlist_folder:
+                    print(f"{playlist_subtitles_count} subtitles were downloaded.")
 
-        print(f"\n{len(downloaded_subtitles_list)}/{subtitles_count} matching subtitles for \"{movie_data.name}\" were downloaded to \"{os.path.abspath(config.downloads['folder'])}\".")
+                    # Remove playlist folder if it's empty
+                    if playlist_subtitles_count == 0:
+                        os.rmdir(playlist_download_path)
 
-        if idx < (len(sys.argv) - 2):
-            print("\n--------------------------------------------------")
+                subtitles_count += playlist_subtitles_count
+
+        # If files were downloaded to a temp folder ("zip" option was used)
+        if download_to_temp:
+            if len(downloaded_subtitles_paths) == 1:
+                shutil.copy(downloaded_subtitles_paths[0], config.downloads["folder"])
+
+            elif len(downloaded_subtitles_paths) > 1:
+                # Create zip archive
+                print(f"\nCreating zip archive...")
+                archive_inital_path = os.path.join(download_path, os.path.basename(movie_download_path))
+                archive_dest_path = shutil.make_archive(base_name=archive_inital_path, format="zip", root_dir=movie_download_path)
+                shutil.copy(archive_dest_path, config.downloads["folder"])
+
+        # Remove temp dir
+        shutil.rmtree(movie_download_path)
+        atexit.unregister(shutil.rmtree)
+
+        # Add playlists count only if it's more than 1
+        playlists_messgae = f"from {len(movie_data.playlists)} playlists " if len(movie_data.playlists) > 0 else ""
+
+        print(f"\n{len(downloaded_subtitles_paths)}/{subtitles_count} matching subtitles ",
+              f"for \"{movie_data.name}\" were downloaded {playlists_messgae}",
+              f"to {os.path.abspath(config.downloads['folder'])}\".", sep="")
 
 
 def check_for_updates() -> None:
