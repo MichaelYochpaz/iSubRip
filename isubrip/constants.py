@@ -20,7 +20,8 @@ TEMP_FOLDER_PATH = os.path.join(gettempdir(), 'iSubRip')
 VALID_ARCHIVE_FORMATS = ["zip", "tar", "gztar"]
 
 # RegEx
-ITUNES_STORE_REGEX = r"^https?://itunes.apple.com/[a-z]{2}/movie/(?:[a-zA-Z0-9\-%]+/)?id[0-9]+(?:$|(\?.*))"
+ITUNES_URL_REGEX = r"^https?://itunes.apple.com/[a-z]{2}/movie/(?:[a-zA-Z0-9\-%]+/)?id[0-9]+(?:$|(\?.*))"
+APPLETV_URL_REGEX = r"https?://tv.apple.com/[a-z]{2}/movie/[a-zA-Z0-9\-%]+/umc\.cmc\..*"
 TIMESTAMP_REGEX = r"^[0-9]{2}:[0-9]{2}:[0-9]{2}[\.,][0-9]{3} --> [0-9]{2}:[0-9]{2}:[0-9]{2}[\.,][0-9]{3}"
 
 # Unicode

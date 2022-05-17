@@ -11,7 +11,7 @@ from m3u8.model import M3U8
 from requests.sessions import session
 
 from isubrip.enums import DataSource, SubtitlesType
-from isubrip.constants import ITUNES_STORE_REGEX
+from isubrip.constants import ITUNES_URL_REGEX, APPLETV_URL_REGEX
 from isubrip.namedtuples import MovieData, PlaylistData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError
 
@@ -20,12 +20,12 @@ class Scraper:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""
 
     @staticmethod
-    def find_movie_data(itunes_url: str, user_agent: Union[str, None] = None) -> MovieData:
+    def find_movie_data(url: str, user_agent: Union[str, None] = None) -> MovieData:
         """
-        Scrape an iTunes store page to find movie info and it's M3U8 playlist.
+        Scrape an iTunes / AppleTV page to find movie info and it's M3U8 playlist.
 
         Args:
-            itunes_url (str): An iTunes store movie URL.
+            url (str): An iTunes store movie URL.
             user_agent (str | None, optional): A dictionary with iTunes data loaded from a JSON response. Defaults to None.
         
         Raises:
@@ -36,35 +36,44 @@ class Scraper:
             MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
             if the playlist is found. None otherwise.
         """
-        # Check whether URL is valid
-        if re.match(ITUNES_STORE_REGEX, itunes_url) is None:
-            raise InvalidURL(f"{itunes_url} is not a valid iTunes movie URL.")
-
         user_agent_header = {"User-Agent": user_agent} if user_agent is not None else None
-        response = session().get(itunes_url, headers=user_agent_header)
 
-        # Response is JSON formatted
-        if "application/json" in response.headers['content-type']:
-            try:
-                json_data = json.loads(response.text)
+        # Check whether URL is valid
+        if re.match(ITUNES_URL_REGEX, url) is not None:
+            response = session().get(url, headers=user_agent_header)
 
-            except json.JSONDecodeError:
-                raise PageLoadError("Recieved an invalid JSON response.")
+            # Response is JSON formatted
+            if "application/json" in response.headers['content-type']:
+                try:
+                    json_data = json.loads(response.text)
 
-            return Scraper._find_playlist_data_json_(json_data)
+                except json.JSONDecodeError:
+                    raise PageLoadError("Recieved an invalid JSON response.")
 
-        # Response is HTML formatted
-        elif "text/html" in response.headers['content-type'] and response.status_code != 404:
+                return Scraper._find_playlist_data_itunes_json_(json_data)
+
+            # Response is HTML formatted
+            elif "text/html" in response.headers['content-type'] and response.status_code != 404:
+                # Response is HTML formatted
+                html_data = BeautifulSoup(response.text, "lxml")
+                return Scraper._find_playlist_data_itunes_html_(html_data)
+
+            # Response is neither JSON nor HTML formatted (if the URL is not found, iTunes returns an XML response),
+            # or an HTML 404 error was received.
+            else:
+                raise PageLoadError("Recieved an invalid response. Pleas assure the URL is valid.")
+
+        elif re.match(APPLETV_URL_REGEX, url) is not None:
+            response = session().get(url, headers=user_agent_header)
+
             html_data = BeautifulSoup(response.text, "lxml")
-            return Scraper._find_playlist_data_html_(html_data)
+            return Scraper._find_playlist_data_appletv_html_(html_data)
 
-        # Response is neither JSON nor HTML formatted (if the URL is not found, an XML response is returned),
-        # or an HTML 404 error was received.
         else:
-            raise PageLoadError("Recieved an invalid response. Pleas assure the URL is valid.")
+            raise InvalidURL(f"{url} is not a valid iTunes/AppleTV movie URL.")
 
     @staticmethod
-    def _find_playlist_data_json_(json_data: dict) -> MovieData:
+    def _find_playlist_data_itunes_json_(json_data: dict) -> MovieData:
         """
         Scrape an iTunes JSON response to find movie info and it's M3U8 playlist.
 
@@ -75,8 +84,8 @@ class Scraper:
             MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
             if the playlist is found. None otherwise.
         """
-        movie_id = json_data["pageData"]["id"]
-        movie_data = json_data["storePlatformData"]["product-dv"]["results"][movie_id]
+        itunes_id = json_data["pageData"]["id"]
+        movie_data = json_data["storePlatformData"]["product-dv"]["results"][itunes_id]
 
         movie_title = movie_data["nameRaw"]
         movie_release_year = datetime.strptime(movie_data["releaseDate"], '%Y-%m-%d').year
@@ -104,7 +113,7 @@ class Scraper:
         return MovieData(DataSource.ITUNES, movie_title, movie_release_year, [])
 
     @staticmethod
-    def _find_playlist_data_html_(html_data: BeautifulSoup) -> MovieData:
+    def _find_playlist_data_itunes_html_(html_data: BeautifulSoup) -> MovieData:
         """
         Scrape an iTunes HTML page to find movie info and it's M3U8 playlist.
 
@@ -118,15 +127,15 @@ class Scraper:
             MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
             if the playlist is found. None otherwise.
         """
-        # NOTE: This function is less reliable than `_find_playlist_data_json_`.
+        # NOTE: This function is less reliable than `_find_playlist_data_itunes_json_`.
 
-        movie_id_tag: Union[Tag, NavigableString, None] = html_data.find("meta", attrs={"name": "apple:content_id"})
-        if not isinstance(movie_id_tag, Tag):
+        itunes_id_tag: Union[Tag, NavigableString, None] = html_data.find("meta", attrs={"name": "apple:content_id"})
+        if not isinstance(itunes_id_tag, Tag):
             raise PageLoadError("HTML page did not load properly.")
 
-        movie_id: str = movie_id_tag.attrs["content"]
+        itunes_id: str = itunes_id_tag.attrs["content"]
 
-        # Scrape a dictionary on the webpage for playlists data
+        # Scrape a dictionary on the webpage that has playlists data
         shoebox_data_tag: Union[Tag, NavigableString, None] = html_data.find("script", attrs={"id": "shoebox-ember-data-store", "type": "fastboot/shoebox"})
 
         # fastboot/shoebox data could not be found
@@ -137,8 +146,8 @@ class Scraper:
         shoebox_data: dict = json.loads(str(shoebox_data_tag.contents[0]).strip())
 
         # Loop safely to find a matching playlist
-        if isinstance(shoebox_data[movie_id].get("included"), list):
-            movie_data: dict = shoebox_data[movie_id]
+        if isinstance(shoebox_data[itunes_id].get("included"), list):
+            movie_data: dict = shoebox_data[itunes_id]
             movie_title: str = movie_data["data"]["attributes"]["name"]
             movie_release_year = datetime.strptime(movie_data["data"]["attributes"]["releaseDate"], '%Y-%m-%d').year
 
@@ -165,6 +174,65 @@ class Scraper:
             raise PageLoadError("Invalid shoebox data.")
 
         return MovieData(DataSource.ITUNES, movie_title, movie_release_year, [])
+
+    @staticmethod
+    def _find_playlist_data_appletv_html_(html_data: BeautifulSoup) -> MovieData:
+        """
+        Scrape an AppleTV HTML page to find movie info and it's M3U8 playlist.
+
+        Args:
+            html_data (BeautifulSoup): A BeautifulSoup object of the page.
+
+        Raises:
+            PageLoadError: HTML page did not load properly.
+
+        Returns:
+            MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
+            if the playlist is found. None otherwise.
+        """
+        # Scrape a dictionary on the webpage that has playlists data
+        shoebox_data_tag: Union[Tag, NavigableString, None] = html_data.find("script", attrs={"id": "shoebox-uts-api", "type": "fastboot/shoebox"})
+
+        # fastboot/shoebox data could not be found
+        if not isinstance(shoebox_data_tag, Tag):
+            raise PageLoadError("fastboot/shoebox data could not be found.")
+
+        try:
+            # Convert to dictionary structure
+            shoebox_data: dict = json.loads(next(iter(json.loads(str(shoebox_data_tag.contents[0])).values())))
+            data = shoebox_data["d"]["data"]
+
+            movie_title = data["content"]["title"]
+            movie_release_year = datetime.fromtimestamp(shoebox_data["d"]["data"]["content"]["releaseDate"] // 1000).year
+
+            playables_data = data["playables"]
+            playlists: List[PlaylistData] = []
+            itunes_ids_set = set()
+
+            for playable in playables_data.values():
+                if playable["isItunes"]:
+                    itunes_id = playable["externalId"]
+
+                    # Assure playlist on current offer isn't the same as another
+                    if itunes_id not in itunes_ids_set:
+                        for offer in playable["itunesMediaApiData"]["offers"]:
+                            playlist_url: str = offer["hlsUrl"]
+
+                            # Try loading the playlist to assure it's working
+                            try:
+                                m3u8.load(playlist_url)
+
+                            # If m3u8 playlist is invalid, skip it
+                            except (ValueError, HTTPError):
+                                continue
+
+                            playlists.append(PlaylistData(itunes_id, playlist_url))
+                            break
+
+        except (KeyError, TypeError):
+            raise PageLoadError("Invalid / missing data on the page.")
+
+        return MovieData(DataSource.APPLETV, movie_title, movie_release_year, playlists)
 
     @staticmethod
     def find_subtitles(main_playlist: M3U8, subtitles_filter: Union[list, None] = None) -> Iterator[SubtitlesData]:

@@ -75,6 +75,11 @@ def main() -> None:
         try:
             movie_data: MovieData = Scraper.find_movie_data(url, config.scraping["user-agent"])
 
+            # AppleTV link used, but no iTunes playlist found on page
+            if movie_data.data_source == DataSource.APPLETV and not movie_data.playlists:
+                print("An iTunes offer could not be found. Skipping...")
+                continue
+
         except Exception as e:
             print(f"Error: {e}")
             continue

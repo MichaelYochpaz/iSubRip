@@ -48,9 +48,13 @@ zip = false
 
 
 [scraping]
-# User-Agent to use while scraping.
+# User-Agent to use while scraping iTunes.
 # Don't change this unless you know what you're doing.
-user-agent = "iTunes-AppleTV/15.2"
+itunes-user-agent = "iTunes-AppleTV/15.2"
+
+# User-Agent to use while scraping AppleTV.
+# Don't change this unless you know what you're doing.
+appletv-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
 
 
 [subtitles]
