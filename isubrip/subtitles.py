@@ -4,7 +4,7 @@ import re
 from datetime import time
 from typing import Union
 
-from isubrip.constants import RTL_CHAR, RTL_CONTROL_CHARS, TIMESTAMP_REGEX
+from isubrip.constants import RTL_CHAR, RTL_CONTROL_CHARS, SUBTITLES_LINE_SPLIT_REGEX, TIMESTAMP_REGEX
 from isubrip.enums import SubtitlesFormat
 
 
@@ -113,19 +113,26 @@ class Subtitles:
         """
         subtitles_obj = Subtitles()
 
-        regex_split = re.split(rf"^(?:[0-9]+\n)?({TIMESTAMP_REGEX}).*\n", subtitles_data, flags=re.MULTILINE)
+        regex_split = re.split(SUBTITLES_LINE_SPLIT_REGEX, subtitles_data, flags=re.MULTILINE)
 
         paragraph_timestamp: Union[str, None] = None
         paragraph_text = ""
 
         for line in regex_split:
-            if re.match(TIMESTAMP_REGEX, line):
+            timestamp_regex_result = re.fullmatch(TIMESTAMP_REGEX, line)
+
+            # If the line is a timestamp
+            if timestamp_regex_result:
+                # If it's not the first timestamp
                 if paragraph_timestamp is not None:
+                    # Add paragraph to subtitles
                     timestamps = Subtitles._split_timestamp(paragraph_timestamp)
                     subtitles_obj += Paragraph(timestamps[0], timestamps[1], paragraph_text.rstrip("\n"))
-                paragraph_timestamp = line
+                # Set new timestamp and reset paragraph text
+                paragraph_timestamp = timestamp_regex_result.group(0)
                 paragraph_text = ""
 
+            # If the line is not a timestamp
             elif paragraph_timestamp is not None:
                 paragraph_text += line
 

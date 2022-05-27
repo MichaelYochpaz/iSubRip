@@ -20,9 +20,11 @@ TEMP_FOLDER_PATH = os.path.join(gettempdir(), 'iSubRip')
 VALID_ARCHIVE_FORMATS = ["zip", "tar", "gztar"]
 
 # RegEx
-ITUNES_URL_REGEX = r"^https?://itunes.apple.com/[a-z]{2}/movie/(?:[a-zA-Z0-9\-%]+/)?id[0-9]+(?:$|(\?.*))"
-APPLETV_URL_REGEX = r"https?://tv.apple.com/[a-z]{2}/movie/[a-zA-Z0-9\-%]+/umc\.cmc\..*"
-TIMESTAMP_REGEX = r"^[0-9]{2}:[0-9]{2}:[0-9]{2}[\.,][0-9]{3} --> [0-9]{2}:[0-9]{2}:[0-9]{2}[\.,][0-9]{3}"
+ITUNES_URL_REGEX = r"^(https?://itunes\.apple\.com/[a-z]{2}/movie/)(?:[\w\-%]+/)?(id\d{9,10})(?:$|\?.*)"
+APPLETV_URL_REGEX = r"^(https?://tv.apple.com/[a-z]{2}/movie/)[\w\-]+/(umc\.cmc\.[a-z\d]{24,25})(?:$|\?.*)"
+
+TIMESTAMP_REGEX = r"((?:[0-5][0-9]:)?[0-5][0-9]:[0-5][0-9][\.,]\d{3} --> (?:[0-5][0-9]:)?[0-5][0-9]:[0-5][0-9][\.,]\d{3}).*"  # Match group matches timestamp
+SUBTITLES_LINE_SPLIT_REGEX = rf"^(?:\d+\n)?{TIMESTAMP_REGEX}\n"
 
 # Unicode
 RTL_CONTROL_CHARS = ('\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e')

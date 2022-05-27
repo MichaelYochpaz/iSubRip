@@ -38,8 +38,14 @@ class Scraper:
         """
         user_agent_header = {"User-Agent": user_agent} if user_agent is not None else None
 
-        # Check whether URL is valid
-        if re.match(ITUNES_URL_REGEX, url) is not None:
+        site_type: Union[DataSource, None] = None
+
+        itunes_regex = re.fullmatch(ITUNES_URL_REGEX, url)
+        appletv_regex = re.fullmatch(APPLETV_URL_REGEX, url)
+
+        # Check whether URL is for iTunes or AppleTV
+        if itunes_regex is not None:
+            url = ''.join(itunes_regex.groups())  # Recreate url from regex capture groups
             response = session().get(url, headers=user_agent_header)
 
             # Response is JSON formatted
@@ -54,7 +60,6 @@ class Scraper:
 
             # Response is HTML formatted
             elif "text/html" in response.headers['content-type'] and response.status_code != 404:
-                # Response is HTML formatted
                 html_data = BeautifulSoup(response.text, "lxml")
                 return Scraper._find_playlist_data_itunes_html_(html_data)
 
@@ -63,7 +68,8 @@ class Scraper:
             else:
                 raise PageLoadError("Recieved an invalid response. Pleas assure the URL is valid.")
 
-        elif re.match(APPLETV_URL_REGEX, url) is not None:
+        elif appletv_regex is not None:
+            url = ''.join(appletv_regex.groups())  # Recreate url from regex capture groups
             response = session().get(url, headers=user_agent_header)
 
             html_data = BeautifulSoup(response.text, "lxml")
