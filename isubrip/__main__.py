@@ -2,7 +2,7 @@ import atexit
 import shutil
 import sys
 import os
-import zipfile
+
 from xml.etree import ElementTree
 
 import m3u8
@@ -73,7 +73,7 @@ def main() -> None:
         print(f"Scraping {url}...")
 
         try:
-            movie_data: MovieData = Scraper.find_movie_data(url, config.scraping["user-agent"])
+            movie_data: MovieData = Scraper.get_movie_data(url, config.scraping["user-agent"])
 
             # AppleTV link used, but no iTunes playlist found on page
             if movie_data.data_source == DataSource.APPLETV and not movie_data.playlists:
@@ -129,7 +129,7 @@ def main() -> None:
                             (config.downloads["merge-playlists"] and subtitles.language_code not in downloaded_subtitles_langs):
                         playlist_subtitles_count += 1
                         print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
-                        downloaded_subtitles = playlist_downloader.download_subtitles_file(movie_data, subtitles, playlist_download_path, config.downloads["format"])
+                        downloaded_subtitles = playlist_downloader.download_subtitles(movie_data, subtitles, playlist_download_path, config.downloads["format"])
 
                         # Assure subtitles downloaded successfully
                         if os.path.isfile(downloaded_subtitles):

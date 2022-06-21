@@ -75,15 +75,15 @@ class PlaylistDownloader:
         close_task = async_loop.create_task(self.session.close())
         async_loop.run_until_complete(asyncio.gather(close_task))
 
-    def download_subtitles(self, subtitles_data: SubtitlesData) -> Subtitles:
+    def get_subtitles(self, subtitles_data: SubtitlesData) -> Subtitles:
         """
-        Get subtitles playlist.
+        Get a subtitles object parsed from a playlist.
 
         Args:
             subtitles_data (SubtitlesData): A SubtitlesData namedtuple with information about the subtitles.
 
         Returns:
-            Subtitles: A Subtitles object representing the downloaded subtitles.
+            Subtitles: A Subtitles object representing the subtitles.
         """
         subtitles = Subtitles(subtitles_data.language_code)
         playlist = m3u8.load(subtitles_data.playlist_url)
@@ -97,9 +97,9 @@ class PlaylistDownloader:
 
         return subtitles
 
-    def download_subtitles_file(self, movie_data: MovieData, subtitles_data: SubtitlesData, output_dir: str, file_format: SubtitlesFormat = SubtitlesFormat.VTT) -> str:
+    def download_subtitles(self, movie_data: MovieData, subtitles_data: SubtitlesData, output_dir: str, file_format: SubtitlesFormat = SubtitlesFormat.VTT) -> str:
         """
-        Download subtitles playlist to a file.
+        Download a subtitles file from a playlist.
 
         Args:
             movie_data (MovieData): A MovieData namedtuple with information about the movie.
@@ -119,6 +119,6 @@ class PlaylistDownloader:
         path = os.path.join(output_dir, file_name)
 
         with open(path, 'w', encoding="utf-8") as f:
-            f.write(self.download_subtitles(subtitles_data).dumps(file_format))
+            f.write(self.get_subtitles(subtitles_data).dumps(file_format))
 
         return path

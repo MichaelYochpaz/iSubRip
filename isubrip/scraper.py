@@ -20,7 +20,7 @@ class Scraper:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""
 
     @staticmethod
-    def find_movie_data(url: str, user_agent: Union[str, None] = None) -> MovieData:
+    def get_movie_data(url: str, user_agent: Union[str, None] = None) -> MovieData:
         """
         Scrape an iTunes / AppleTV page to find movie info and it's M3U8 playlist.
 
@@ -37,8 +37,6 @@ class Scraper:
             if the playlist is found. None otherwise.
         """
         user_agent_header = {"User-Agent": user_agent} if user_agent is not None else None
-
-        site_type: Union[DataSource, None] = None
 
         itunes_regex = re.fullmatch(ITUNES_URL_REGEX, url)
         appletv_regex = re.fullmatch(APPLETV_URL_REGEX, url)

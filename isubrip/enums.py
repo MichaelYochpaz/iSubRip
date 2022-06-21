@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class DataSource(Enum):
-    """Subtitles type (Normal / CC / Forced)."""
+    """Subtitles source."""
     ITUNES = 1
     APPLETV = 2
 
