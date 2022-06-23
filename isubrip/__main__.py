@@ -156,9 +156,9 @@ def main() -> None:
                 archive_dest_path = shutil.make_archive(base_name=archive_inital_path, format="zip", root_dir=movie_download_path)
                 shutil.copy(archive_dest_path, config.downloads["folder"])
 
-        # Remove temp dir
-        shutil.rmtree(movie_download_path)
-        atexit.unregister(shutil.rmtree)
+            # Remove temp dir
+            shutil.rmtree(movie_download_path)
+            atexit.unregister(shutil.rmtree)
 
         # Add playlists count only if it's more than 1
         playlists_messgae = f"from {len(movie_data.playlists)} playlists " if len(movie_data.playlists) > 0 else ""
