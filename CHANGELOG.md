@@ -1,4 +1,17 @@
 # Changelog
+## 2.3.0 [2022-06-23]
+### Added:
+* AppleTV movie URLs are now supported.
+* Added a `merge-playlists` config option to treat multiple playlists that can be found on AppleTV pages as one (more info on the example config).
+
+### Changes:
+* Improved subtitles parser to perserve additional WebVTT data.
+* The config value `user-agent` under `scraping` is now separated to 2 different values: `itunes-user-agent`, and `appletv-user-agent`.
+
+### Bug Fixes:
+* Fixed movie titles with invalid Windows file-name characters (example: '?') causing a crash. ([Issue #14](https://github.com/MichaelYochpaz/iSubRip/issues/14))
+* Fixed iTunes store URLs without a movie title not working. ([Issue #13](https://github.com/MichaelYochpaz/iSubRip/issues/13))
+---
 ## 2.2.0 [2022-04-25]
 ### Added:
 * Replaced FFmpeg usage for parsing with a native subtitles parser (downloads are much faster now).
