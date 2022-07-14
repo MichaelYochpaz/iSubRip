@@ -20,6 +20,7 @@ TEMP_FOLDER_PATH = os.path.join(gettempdir(), 'iSubRip')
 VALID_ARCHIVE_FORMATS = ["zip", "tar", "gztar"]
 
 # Scraping
+APPLETV_MOVIE_API_URL = "https://tv.apple.com/api/uts/v3/movies/"
 APPLETV_API_PARAMS = {
     "utscf": "OjAAAAAAAAA~",
     "utsk": "6e3013c6d6fae3c2::::::235656c069bb0efb",

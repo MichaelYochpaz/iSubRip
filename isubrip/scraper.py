@@ -11,7 +11,7 @@ from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 
 from isubrip.enums import DataSource, SubtitlesType
-from isubrip.constants import APPLETV_API_PARAMS, APPLETV_URL_REGEX, ITUNES_URL_REGEX
+from isubrip.constants import APPLETV_API_PARAMS, APPLETV_MOVIE_API_URL, APPLETV_URL_REGEX, ITUNES_URL_REGEX
 from isubrip.namedtuples import MovieData, PlaylistData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError
 
@@ -66,7 +66,7 @@ class Scraper:
 
         elif appletv_regex is not None:
             appletv_id = appletv_regex.group(2)
-            request = requests.get(f"https://tv.apple.com/api/uts/v3/movies/{appletv_id}", headers=headers, params=APPLETV_API_PARAMS)
+            request = requests.get(APPLETV_MOVIE_API_URL + appletv_id, headers=headers, params=APPLETV_API_PARAMS)
             json_data = request.json()
 
             return Scraper._find_playlist_data_appletv_json_(json_data)
