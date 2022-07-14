@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from typing import Union
 
@@ -67,6 +68,8 @@ def format_title(title: str) -> str:
 
     for pair in replacement_pairs:
         title = title.replace(pair[0], pair[1])
+
+    title = re.sub(r"\.+", ".", title)  # Replace multiple dots with a single dot
 
     return title
 
