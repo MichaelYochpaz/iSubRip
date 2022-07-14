@@ -1,7 +1,7 @@
 import atexit
+import os
 import shutil
 import sys
-import os
 
 from xml.etree import ElementTree
 
@@ -10,7 +10,7 @@ import requests
 
 from isubrip.constants import DEFAULT_CONFIG_PATH, PACKAGE_NAME, PYPI_RSS_URL, TEMP_FOLDER_PATH
 from isubrip.enums import DataSource
-from isubrip.exceptions import ConfigError, DefaultConfigNotFound
+from isubrip.exceptions import ConfigError
 from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.scraper import Scraper
@@ -24,12 +24,14 @@ def main() -> None:
         print_usage()
         exit(1)
 
-    # Assure default config file exists
-    try:
-        default_config_path = os.path.join(os.path.dirname(sys.modules[PACKAGE_NAME].__file__), DEFAULT_CONFIG_PATH)
+    current_module = sys.modules.get(PACKAGE_NAME)
 
-    except KeyError:
-        raise DefaultConfigNotFound(f"Default config file could not be found.")
+    if current_module is not None:
+        default_config_path = os.path.join(os.path.dirname(current_module.__file__), DEFAULT_CONFIG_PATH)
+
+    if (current_module is None) or (not os.path.isfile(default_config_path)):
+        print("Error: Default config file could not be found.")
+        exit(1)
 
     # Load default and user (if it exists) config files
     config_files = [default_config_path]

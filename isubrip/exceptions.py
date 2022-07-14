@@ -22,11 +22,6 @@ class ConfigError(Exception):
     pass
 
 
-class DefaultConfigNotFound(ConfigError):
-    """Default config file could not be found."""
-    pass
-
-
 class ConfigValueMissing(ConfigError):
     """A required config value is missing."""
     pass
