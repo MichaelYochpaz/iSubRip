@@ -33,7 +33,7 @@ APPLETV_API_PARAMS = {
 # RegEx
 # - Urls (Match groups result in a URL without movie's title, which is a valid URL)
 ITUNES_URL_REGEX = r"^(https?://itunes\.apple\.com/[a-z]{2}/movie/)(?:[\w\-%]+/)?(id\d{9,10})(?:$|\?.*)"
-APPLETV_URL_REGEX = r"^(https?://tv.apple.com/[a-z]{2}/movie/)[\w\-]+/(umc\.cmc\.[a-z\d]{24,25})(?:$|\?.*)"
+APPLETV_URL_REGEX = r"^(https?://tv.apple.com/[a-z]{2}/movie/)[\w\-%]+/(umc\.cmc\.[a-z\d]{24,25})(?:$|\?.*)"
 
 # - WEBVTT
 WEBVTT_PERCENTAGE_REGEX = r"\d{1,3}(?:.\d+)?%"
