@@ -30,7 +30,8 @@ class Scraper:
         
         Raises:
             InvalidURL: `itunes_url` is not a valid iTunes store movie URL.
-            PageLoadError: HTML page did not load properly.  
+            PageLoadError: HTML page did not load properly.
+            HTTPError: HTTP request failed.
 
         Returns:
             MovieData: A MovieData (NamedTuple) object with movie's name, and an M3U8 object of the playlist
@@ -42,12 +43,13 @@ class Scraper:
         # Check whether URL is for iTunes or AppleTV
         if itunes_regex is not None:
             url = ''.join(itunes_regex.groups())  # Recreate url from regex capture groups
-            response = requests.get(url, headers=headers)
+            request = requests.get(url, headers=headers)
+            request.raise_for_status()
 
             # Response is JSON formatted
-            if "application/json" in response.headers['content-type']:
+            if "application/json" in request.headers['content-type']:
                 try:
-                    json_data = json.loads(response.text)
+                    json_data = json.loads(request.content)
 
                 except json.JSONDecodeError:
                     raise PageLoadError("Recieved an invalid JSON response.")
@@ -55,8 +57,8 @@ class Scraper:
                 return Scraper._find_playlist_data_itunes_json_(json_data)
 
             # Response is HTML formatted
-            elif "text/html" in response.headers['content-type'] and response.status_code != 404:
-                html_data = BeautifulSoup(response.text, "lxml")
+            elif "text/html" in request.headers['content-type'] and request.status_code != 404:
+                html_data = BeautifulSoup(request.content, "lxml")
                 return Scraper._find_playlist_data_itunes_html_(html_data)
 
             # Response is neither JSON nor HTML formatted (if the URL is not found, iTunes returns an XML response),
@@ -67,6 +69,7 @@ class Scraper:
         elif appletv_regex is not None:
             appletv_id = appletv_regex.group(2)
             request = requests.get(APPLETV_MOVIE_API_URL + appletv_id, headers=headers, params=APPLETV_API_PARAMS)
+            request.raise_for_status()
             json_data = request.json()
 
             return Scraper._find_playlist_data_appletv_json_(json_data)
