@@ -19,6 +19,17 @@ TEMP_FOLDER_PATH = os.path.join(gettempdir(), 'iSubRip')
 # Lists
 VALID_ARCHIVE_FORMATS = ["zip", "tar", "gztar"]
 
+# Scraping
+APPLETV_API_PARAMS = {
+    "utscf": "OjAAAAAAAAA~",
+    "utsk": "6e3013c6d6fae3c2::::::235656c069bb0efb",
+    "caller": "web",
+    "sf": "143441",
+    "v": "58",
+    "pfm": "web",
+    "locale": "en-US"
+}
+
 # RegEx
 # - Urls (Match groups result in a URL without movie's title, which is a valid URL)
 ITUNES_URL_REGEX = r"^(https?://itunes\.apple\.com/[a-z]{2}/movie/)(?:[\w\-%]+/)?(id\d{9,10})(?:$|\?.*)"

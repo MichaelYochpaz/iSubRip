@@ -73,7 +73,7 @@ def main() -> None:
         print(f"Scraping {url}...")
 
         try:
-            movie_data: MovieData = Scraper.get_movie_data(url, config.scraping["user-agent"])
+            movie_data: MovieData = Scraper.get_movie_data(url, {"User-Agent": config.scraping["user-agent"]})
 
             # AppleTV link used, but no iTunes playlist found on page
             if movie_data.data_source == DataSource.APPLETV and not movie_data.playlists:
