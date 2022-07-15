@@ -1,4 +1,11 @@
 # Changelog
+## 2.3.1 [2022-07-15]
+### Changes:
+* Improved AppleTV scraping to utilize AppleTV's API instead of scraping HTML.
+
+### Bug Fixes:
+* Fixed HTML escaped (for non-English) characters not matching AppleTV's URL RegEx. ([Issue #15](https://github.com/MichaelYochpaz/iSubRip/issues/15))
+---
 ## 2.3.0 [2022-06-23]
 ### Added:
 * AppleTV movie URLs are now supported.
