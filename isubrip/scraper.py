@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Iterator, List, Union
 from urllib.error import HTTPError
 
@@ -195,7 +195,14 @@ class Scraper:
         # Scrape a dictionary on the webpage that has playlists data
 
         movie_title = json_data["data"]["content"]["title"]
-        movie_release_year = datetime.fromtimestamp(json_data["data"]["content"]["releaseDate"] // 1000).year
+        release_epoch = json_data["data"]["content"]["releaseDate"] // 1000
+
+        # Release date epoch is not negative (After 01/01/1970)
+        if release_epoch > 0:
+            movie_release_year = datetime.fromtimestamp(release_epoch).year
+
+        else:
+            movie_release_year = (datetime(1970, 1, 1) + timedelta(seconds=release_epoch)).year
 
         playables_data = json_data["data"]["playables"]
         playlists: List[PlaylistData] = []
