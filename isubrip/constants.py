@@ -12,9 +12,6 @@ USER_CONFIG_FILE_NAME = "config.toml"
 USER_CONFIG_FILE = DATA_FOLDER_PATH / USER_CONFIG_FILE_NAME
 TEMP_FOLDER_PATH = Path(gettempdir()) / PACKAGE_NAME
 
-# Lists
-VALID_ARCHIVE_FORMATS = ["zip", "tar", "gztar"]
-
 # Scraping
 APPLETV_MOVIE_API_URL = "https://tv.apple.com/api/uts/v3/movies/"
 APPLETV_API_PARAMS = {
