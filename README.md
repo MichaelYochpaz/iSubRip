@@ -40,9 +40,13 @@ isubrip <iTunes movie URL> [iTunes movie URL...]
 It's possible to configure different options and enable / disable different features using a [TOML](https://toml.io) config file.   
 A config file will be looked for in one of the following paths according to OS: 
 
-**Windows**: ```%AppData%/iSubRip/config.toml```  
-**Linux**: ```$XDG_CONFIG_HOME/iSubRip/config.toml```  
-**MacOS**: ```~/Library/Application Support/isubrip/config.toml```  
+**Windows**: `%USERPROFILE%\.isubrip\config.json`  
+**Linux / macOS**: `$HOME/.isubrip/config.toml`  
+
+### Path Examples:
+**Windows**: `C:\Users\Michael\.isubrip\config.toml`  
+**Linux**: `/home/Michael/.isubrip/config.toml`  
+**macOS**: `/Users/Michael/.isubrip/config.toml`  
 
 ---
 
@@ -61,5 +65,4 @@ fix-rtl = true
 A complete config with all the available options and explanations for each configuration can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml)
 
 ### Notes
-* All settings are optional. Not specifying a setting will result in using the default value (set in the `default_config.toml` file).
-* If running on a Linux machine and `XDG_CONFIG_HOME` is not set, the value of `XDG_CONFIG_HOME` will default to `~/.config`.
+* All settings are optional. Not specifying a setting will result in using the default value.

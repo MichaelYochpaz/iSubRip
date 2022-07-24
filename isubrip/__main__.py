@@ -3,42 +3,61 @@ import os
 import shutil
 import sys
 
+from pathlib import Path
 from xml.etree import ElementTree
 
 import m3u8
 import requests
 
-from isubrip.constants import DEFAULT_CONFIG_PATH, PACKAGE_NAME, PYPI_RSS_URL, TEMP_FOLDER_PATH
+from isubrip.constants import DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, PACKAGE_NAME, PYPI_RSS_URL, TEMP_FOLDER_PATH, USER_CONFIG_FILE
 from isubrip.enums import DataSource
 from isubrip.exceptions import ConfigError
 from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.scraper import Scraper
 from isubrip.subtitles import Subtitles
-from isubrip.utils import find_config_file, format_title, parse_config
+from isubrip.utils import format_title, parse_config
 
 
 def main() -> None:
-    # Check if at least one argument was passed
+    # Load default and user (if it exists) config files
+    config_files = [DEFAULT_CONFIG_PATH]
+
+    ### DEPRECATED ###
+    deprecated_config_file = None
+
+    # Windows
+    if sys.platform == "win32":
+        deprecated_config_file = Path(os.environ['APPDATA']) / "iSubRip" / "config.toml"
+
+    # Linux
+    elif sys.platform == "linux":
+        deprecated_config_file = Path.home() / ".config" / "iSubRip" / "config.toml"
+
+    if deprecated_config_file and deprecated_config_file.is_file():
+        config_files.append(deprecated_config_file)
+        print("Warning: A config file was found in a deprecated location that will be unsupported in future versions.\n"
+              f"Please move the config file to \"{USER_CONFIG_FILE}\" to avoid future issues.\n")
+    ### END DEPRECATED ###
+
+    # If data folder doesn't exist, create it
+    if not DATA_FOLDER_PATH.is_dir():
+        DATA_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
+
+    else:
+        # If a user config file exists, add it
+        if USER_CONFIG_FILE.is_file():
+            config_files.append(USER_CONFIG_FILE)
+
+    # Check if at least one argument was passed, exit if not
     if len(sys.argv) < 2:
         print_usage()
         exit(1)
 
-    current_module = sys.modules.get(PACKAGE_NAME)
-
-    if current_module is not None:
-        default_config_path = os.path.join(os.path.dirname(current_module.__file__), DEFAULT_CONFIG_PATH)
-
-    if (current_module is None) or (not os.path.isfile(default_config_path)):
+    # Exit if default config file is missing for some reason
+    if not DEFAULT_CONFIG_PATH.is_file():
         print("Error: Default config file could not be found.")
         exit(1)
-
-    # Load default and user (if it exists) config files
-    config_files = [default_config_path]
-    user_config_path = find_config_file()
-
-    if user_config_path is not None:
-        config_files.append(find_config_file())
 
     try:
         config = parse_config(*config_files)
@@ -58,7 +77,7 @@ def main() -> None:
     if config.downloads["zip"]:
         download_path = TEMP_FOLDER_PATH
         download_to_temp = True
-        os.makedirs(TEMP_FOLDER_PATH, exist_ok=True)
+        TEMP_FOLDER_PATH.mkdir(exist_ok=True)
         atexit.register(shutil.rmtree, TEMP_FOLDER_PATH)
 
     else:

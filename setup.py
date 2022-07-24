@@ -52,7 +52,7 @@ setup(
 
     keywords=["iTunes", "movies", "subtitles", "scrape", "scraper", "download", "m3u8"],
     packages=["isubrip"],
-    install_requires=["aiohttp", "beautifulsoup4", "lxml", "m3u8", "mergedeep", "requests", "tomli", "xdg"],
+    install_requires=["aiohttp", "beautifulsoup4", "lxml", "m3u8", "mergedeep", "requests", "tomli"],
     package_data={"isubrip": ["resources/*"]},
     python_requires=">=3.7",
     entry_points={
