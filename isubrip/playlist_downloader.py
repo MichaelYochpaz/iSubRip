@@ -1,8 +1,11 @@
 import asyncio
-import os
+from pathlib import Path
 
 import aiohttp
 import m3u8
+
+from os import PathLike
+from typing import Union
 
 from isubrip.enums import SubtitlesFormat
 from isubrip.namedtuples import SubtitlesData, SubtitlesType, MovieData
@@ -97,14 +100,14 @@ class PlaylistDownloader:
 
         return subtitles
 
-    def download_subtitles(self, movie_data: MovieData, subtitles_data: SubtitlesData, output_dir: str, file_format: SubtitlesFormat = SubtitlesFormat.VTT) -> str:
+    def download_subtitles(self, movie_data: MovieData, subtitles_data: SubtitlesData, output_dir: Union[str, PathLike], file_format: SubtitlesFormat = SubtitlesFormat.VTT) -> Path:
         """
         Download a subtitles file from a playlist.
 
         Args:
             movie_data (MovieData): A MovieData namedtuple with information about the movie.
             subtitles_data (SubtitlesData): A SubtitlesData namedtuple with information about the subtitles.
-            output_dir (str): Path to output directory (where the file will be saved).
+            output_dir (str | PathLike): Path to output directory (where the file will be saved).
             file_format (SubtitlesFormat, optional): File format to use for the downloaded file. Defaults to `VTT`.
 
         Returns:
@@ -116,7 +119,12 @@ class PlaylistDownloader:
             subtitles_data.language_code,
             subtitles_data.subtitles_type,
             file_format)
-        path = os.path.join(output_dir, file_name)
+
+        # Convert to Path object if necessary
+        if isinstance(output_dir, str):
+            output_dir = Path(output_dir)
+
+        path = output_dir / file_name
 
         with open(path, 'w', encoding="utf-8") as f:
             f.write(self.get_subtitles(subtitles_data).dumps(file_format))

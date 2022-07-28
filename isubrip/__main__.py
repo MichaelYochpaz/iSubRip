@@ -70,7 +70,7 @@ def main() -> None:
     Subtitles.fix_rtl = config.subtitles["fix-rtl"]
     Subtitles.rtl_languages = config.subtitles["rtl-languages"]
 
-    download_path: str
+    download_path: Path
     download_to_temp: bool
 
     # Set download path to temp folder "zip" setting is used
@@ -81,7 +81,7 @@ def main() -> None:
         atexit.register(shutil.rmtree, TEMP_FOLDER_PATH)
 
     else:
-        download_path = config.downloads["folder"]
+        download_path = Path(config.downloads["folder"])
         download_to_temp = False
 
     if config.general["check-for-updates"]:
@@ -118,8 +118,8 @@ def main() -> None:
 
         # Create temp folder if needed
         if download_to_temp:
-            movie_download_path = os.path.join(download_path, f"{format_title(movie_data.name)}.iT.WEB")
-            os.makedirs(movie_download_path, exist_ok=True)
+            movie_download_path = download_path / f"{format_title(movie_data.name)}.iT.WEB"
+            movie_download_path.mkdir(exist_ok=True)
 
         else:
             movie_download_path = download_path
@@ -139,8 +139,8 @@ def main() -> None:
 
                 # Create folder for playlist if needed
                 if separate_playlist_folder:
-                    playlist_download_path = os.path.join(movie_download_path, f"id{playlist.itunes_id}")
-                    os.makedirs(playlist_download_path, exist_ok=True)
+                    playlist_download_path = movie_download_path / f"id{playlist.itunes_id}"
+                    playlist_download_path.mkdir(exist_ok=True)
 
                 else:
                     playlist_download_path = movie_download_path
@@ -153,7 +153,7 @@ def main() -> None:
                         downloaded_subtitles = playlist_downloader.download_subtitles(movie_data, subtitles, playlist_download_path, config.downloads["format"])
 
                         # Assure subtitles downloaded successfully
-                        if os.path.isfile(downloaded_subtitles):
+                        if downloaded_subtitles.is_file():
                             downloaded_subtitles_paths.append(downloaded_subtitles)
 
                 if separate_playlist_folder:
@@ -161,7 +161,7 @@ def main() -> None:
 
                     # Remove playlist folder if it's empty
                     if playlist_subtitles_count == 0:
-                        os.rmdir(playlist_download_path)
+                        playlist_download_path.rmdir()
 
                 subtitles_count += playlist_subtitles_count
 
@@ -173,8 +173,8 @@ def main() -> None:
             elif len(downloaded_subtitles_paths) > 1:
                 # Create zip archive
                 print(f"\nCreating zip archive...")
-                archive_inital_path = os.path.join(download_path, os.path.basename(movie_download_path))
-                archive_dest_path = shutil.make_archive(base_name=archive_inital_path, format="zip", root_dir=movie_download_path)
+                archive_inital_path = download_path / movie_download_path.stem
+                archive_dest_path = shutil.make_archive(base_name=str(archive_inital_path), format="zip", root_dir=movie_download_path)
                 shutil.copy(archive_dest_path, config.downloads["folder"])
 
             # Remove temp dir
@@ -186,7 +186,7 @@ def main() -> None:
 
         print(f"\n{len(downloaded_subtitles_paths)}/{subtitles_count} matching subtitles ",
               f"for \"{movie_data.name}\" were downloaded {playlists_messgae}",
-              f"to {os.path.abspath(config.downloads['folder'])}\".", sep="")
+              f"to {Path(config.downloads['folder']).absolute()}\".", sep="")
 
 
 def check_for_updates() -> None:

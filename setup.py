@@ -1,11 +1,14 @@
-import os
+from os import PathLike
+from pathlib import Path
+from typing import Union
+
 from setuptools import setup
 
 
-def get_version(relative_path: str):
-    current_path = os.path.abspath(os.path.dirname(__file__))
+def get_version(relative_path: Union[str, PathLike]) -> str:
+    current_path = Path(__file__).parent.absolute()
 
-    with open(os.path.join(current_path, relative_path), 'r') as fp:
+    with open(current_path / relative_path, 'r') as fp:
         file_data: str = fp.read()
 
     for line in file_data.splitlines():
@@ -24,7 +27,7 @@ with open("README.md", "r") as file:
 
 setup(
     name=PACKAGE_NAME,
-    version=get_version(f"{PACKAGE_NAME}/__init__.py"),
+    version=get_version(Path(PACKAGE_NAME) / "__init__.py"),
     author="Michael Yochpaz",
     license="MIT",
     license_files=('LICENSE',),
