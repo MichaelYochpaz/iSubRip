@@ -7,6 +7,7 @@ PYPI_RSS_URL = "https://pypi.org/rss/project/isubrip/releases.xml"  # Used for c
 
 # Paths
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "resources" / "default_config.toml"
+APPLETV_STOREFRONTS_PATH = Path(__file__).parent / "resources" / "atv_storefronts.json"
 DATA_FOLDER_PATH = Path.home() / f".{PACKAGE_NAME}"
 USER_CONFIG_FILE_NAME = "config.toml"
 USER_CONFIG_FILE = DATA_FOLDER_PATH / USER_CONFIG_FILE_NAME
@@ -14,11 +15,10 @@ TEMP_FOLDER_PATH = Path(gettempdir()) / PACKAGE_NAME
 
 # Scraping
 APPLETV_MOVIE_API_URL = "https://tv.apple.com/api/uts/v3/movies/"
-APPLETV_API_PARAMS = {
+APPLETV_API_BASE_PARAMS = {
     "utscf": "OjAAAAAAAAA~",
     "utsk": "6e3013c6d6fae3c2::::::235656c069bb0efb",
     "caller": "web",
-    "sf": "143441",
     "v": "58",
     "pfm": "web",
     "locale": "en-US"
@@ -26,8 +26,8 @@ APPLETV_API_PARAMS = {
 
 # RegEx
 # - Urls (Match groups result in a URL without movie's title, which is a valid URL)
-ITUNES_URL_REGEX = r"^(https?://itunes\.apple\.com/[a-z]{2}/movie/)(?:[\w\-%]+/)?(id\d{9,10})(?:$|\?.*)"
-APPLETV_URL_REGEX = r"^(https?://tv\.apple\.com/[a-z]{2}/movie/)[\w\-%]+/(umc\.cmc\.[a-z\d]{24,25})(?:$|\?.*)"
+ITUNES_URL_REGEX = r"^(https?://itunes\.apple\.com/[a-z]{2}/movie/(?:[\w\-%]+/)?(id\d{9,10}))(?:$|\?.*)"
+APPLETV_URL_REGEX = r"^(https?://tv\.apple\.com/([a-z]{2})/movie/[\w\-%]+/(umc\.cmc\.[a-z\d]{24,25}))(?:$|\?.*)"
 
 # - WEBVTT
 WEBVTT_PERCENTAGE_REGEX = r"\d{1,3}(?:.\d+)?%"

@@ -11,13 +11,16 @@ from bs4.element import NavigableString, Tag
 from m3u8.model import M3U8
 
 from isubrip.enums import DataSource, SubtitlesType
-from isubrip.constants import APPLETV_API_PARAMS, APPLETV_MOVIE_API_URL, APPLETV_URL_REGEX, ITUNES_URL_REGEX
+from isubrip.constants import APPLETV_API_BASE_PARAMS, APPLETV_MOVIE_API_URL, APPLETV_STOREFRONTS_PATH, APPLETV_URL_REGEX, ITUNES_URL_REGEX
 from isubrip.namedtuples import MovieData, PlaylistData, SubtitlesData
 from isubrip.exceptions import InvalidURL, PageLoadError
 
 
 class Scraper:
     """A class for scraping and downloading subtitles off of iTunes movie pages."""
+
+    _atv_storefronts = None
+
 
     @staticmethod
     def get_movie_data(url: str, headers: Union[dict, None] = None) -> MovieData:
@@ -42,7 +45,7 @@ class Scraper:
 
         # Check whether URL is for iTunes or AppleTV
         if itunes_regex is not None:
-            url = ''.join(itunes_regex.groups())  # Recreate url from regex capture groups
+            url = itunes_regex.group(1)
             request = requests.get(url, headers=headers)
             request.raise_for_status()
 
@@ -67,8 +70,16 @@ class Scraper:
                 raise PageLoadError("Recieved an invalid response. Pleas assure the URL is valid.")
 
         elif appletv_regex is not None:
-            appletv_id = appletv_regex.group(2)
-            request = requests.get(APPLETV_MOVIE_API_URL + appletv_id, headers=headers, params=APPLETV_API_PARAMS)
+            if not Scraper._atv_storefronts:
+                with open(APPLETV_STOREFRONTS_PATH, "r") as storefronts_file:
+                    Scraper._atv_storefronts = json.load(storefronts_file)
+
+            request_params = APPLETV_API_BASE_PARAMS
+
+            # Add storefront ID to params
+            request_params["sf"] = Scraper._atv_storefronts[appletv_regex.group(2).upper()]
+
+            request = requests.get(APPLETV_MOVIE_API_URL + appletv_regex.group(3), headers=headers, params=request_params)
             request.raise_for_status()
             json_data = request.json()
 
