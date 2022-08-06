@@ -1,4 +1,20 @@
 # Changelog
+## 2.3.2 [2022-08-06]
+### Changes:
+* Changed config paths to the following locations:  
+Windows: `%USERPROFILE%\.isubrip\config.json`  
+Linux / macOS: `$HOME/.isubrip/config.json`  
+More info under Notes (and examples on the [README](https://github.com/MichaelYochpaz/iSubRip#configuration) file).
+
+### Bug Fixes:
+* Fixed an error with AppleTV links for movies released before 1970 (Epoch time). ([Issue #21](https://github.com/MichaelYochpaz/iSubRip/issues/21))
+* Fixed config file not being loaded on macOS. ([Issue #22](https://github.com/MichaelYochpaz/iSubRip/issues/22))
+* Fixed AppleTV scraping from the same storefront. ([Issue #24](https://github.com/MichaelYochpaz/iSubRip/issues/24))
+
+### Notes:
+* Running iSubRip with a config file in the previous locations will still work, but support for them will be dropped in the future.  
+* `xdg` package is no longer required or used.
+---
 ## 2.3.1 [2022-07-15]
 ### Changes:
 * Improved AppleTV scraping to utilize AppleTV's API instead of scraping HTML.
