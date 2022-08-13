@@ -1,3 +1,4 @@
+import os.path
 from typing import Any
 
 import tomli
@@ -120,8 +121,13 @@ class Config:
                 setting_value = config_dict[setting.category][setting.key]
 
                 if not isinstance(setting_value, setting.types):
-                    raise InvalidConfigValue(f"Invalid config value type for {setting.category}.{setting.key}: \'{setting_value}\'\
-                    \nExpected {setting.types}, received: {type(setting_value)}.")
+                    raise InvalidConfigValue(f"Invalid config value type for {setting.category}.{setting.key}: \'{setting_value}\'"
+                                             f"\nExpected {setting.types}, received: {type(setting_value)}.")
 
             else:
                 raise ConfigValueMissing(f"Missing required config value: \'{setting.category}.{setting.key}\'")
+
+        # Assure path is valid
+        if not os.path.isdir(config_dict["downloads"]["folder"]):
+            raise InvalidConfigValue(f"Invalid config value for downloads.folder:"
+                                     f"\nPath \'{config_dict['downloads']['folder']}\' is invalid or does not exist.")

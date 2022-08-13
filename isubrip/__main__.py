@@ -63,7 +63,8 @@ def main() -> None:
         config = parse_config(*config_files)
 
     except (ConfigError, FileNotFoundError) as e:
-        raise ConfigError(e)
+        print(f"Error: {e}")
+        exit(1)
 
     # Set `Subtitles` settings from config
     Subtitles.remove_duplicates = config.subtitles["remove-duplicates"]
