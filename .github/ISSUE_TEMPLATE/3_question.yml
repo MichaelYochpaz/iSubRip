@@ -1,0 +1,17 @@
+name: Ask a question
+description: Ask a question regarding iSubRip.
+title: "[Question]: "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please use this template only for questions.
+        For issue / bug reports and feature requests, use one of the other templates.**
+  - type: textarea
+    id: description
+    attributes:
+      label: Question
+      description: The question you want to ask.
+    validations:
+      required: true

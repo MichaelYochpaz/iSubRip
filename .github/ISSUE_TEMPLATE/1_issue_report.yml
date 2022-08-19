@@ -1,0 +1,106 @@
+name: Bug / Issue Report
+description: Report a bug or an issue.
+title: "[Issue]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        **Before opening an issue, please make sure you are running the latest version of iSubRip,
+        and that there isn't an already-existing open issue for your issue under the [issues tab](https://github.com/MichaelYochpaz/iSubRip/labels/bug).**
+  - type: checkboxes
+    id: check-confirmation
+    attributes:
+      label: Confirmations
+      options:
+        - label: "I confirm that I checked the issues tab and couldn't find an existing open issue for the issue I want to report."
+          required: true
+  - type: dropdown
+    id: os-type
+    attributes:
+      label: OS Type
+      description: The operation system that's being used to run iSubRip.
+      options:
+        - Windows
+        - MacOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python Version
+      description: |
+        The Python version that's being used to run iSubRip.
+        Can be checked by running `python --version`.
+      placeholder: |
+        Example: "3.10.6".
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package Version
+      description: |
+        iSubRip's version that's being used.
+        Can be checked by running `python -m pip show isubrip`.
+      placeholder: |
+        Example: "2.3.2".
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: |
+        A summary of the issue.
+        Please try to include as much information as possible, and steps to reproduce (if they're known).
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Config
+      description: |
+        The config that was used to run iSubRip when the issue occurred.
+        Leave empty if no config was used.
+      render: TOML
+      placeholder: |
+        Example:
+
+        [downloads]
+        format = "srt"
+        languages = ["en"]
+        zip = true
+
+        [subtitles]
+        fix-rtl = true
+    validations:
+      required: false
+  - type: textarea
+    id: output-log
+    attributes:
+      label: Output Log
+      description: |
+        iSubRip's output when the issue occurred.
+        Please include the command that was used to run iSubRip.
+      render: Text
+      placeholder: |
+        Example:
+
+        isubrip https://itunes.apple.com/us/movie/can-you-hear-us-now/id1617191490
+        Scraping https://itunes.apple.com/us/movie/can-you-hear-us-now/id1617191490...
+        Found movie: Can You Hear Us Now?
+        Traceback (most recent call last):
+          File "%appdata%\local\programs\python\python38-32\lib\runpy.py", line 193, in _run_module_as_main
+            return _run_code(code, main_globals, None,
+          File "%appdata%\local\programs\python\python38-32\lib\runpy.py", line 86, in _run_code
+            exec(code, run_globals)
+          File "%appdata%\local\programs\python\python38-32\scripts\isubrip.exe\__main__.py", line 7, in <module>
+          File "%appdata%\local\programs\python\python38-32\lib\site-packages\isubrip\__main__.py", line 91, in main
+            os.makedirs(current_download_path, exist_ok=True)
+          File "%appdata%\local\programs\python\python38-32\lib\os.py", line 221, in makedirs
+            mkdir(name, mode)
+        OSError: [WinError 123] The filename, directory name, or volume label syntax is incorrect: 'C:\\%appdata%\\Local\\Temp\\iSubRip\\Can.You.Hear.Us.Now?.iT.WEB'
+    validations:
+      required: false

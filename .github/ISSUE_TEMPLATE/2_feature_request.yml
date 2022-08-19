@@ -1,0 +1,24 @@
+name: Feature Request
+description: Request a new feature or improvement to an existing one.
+title: "[Feature Request]: "
+labels: [feature-request]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        **Before opening an issue, please make sure there  isn't an already-existing issue, open or closed,
+        for this feature request under the [issues tab](https://github.com/MichaelYochpaz/iSubRip/issues?q=label%3Afeature-request).**
+  - type: checkboxes
+    id: check-confirmation
+    attributes:
+      label: Confirmations
+      options:
+        - label: "I confirm that I checked the issues tab and couldn't find an existing issue with a request for the feature I want to requst."
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A summary of the feature you want to request.
+    validations:
+      required: true
