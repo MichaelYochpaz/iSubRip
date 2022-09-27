@@ -30,7 +30,7 @@ ITUNES_URL_REGEX = r"^(https?://itunes\.apple\.com/[a-z]{2}/movie/(?:[\w\-%]+/)?
 APPLETV_URL_REGEX = r"^(https?://tv\.apple\.com/([a-z]{2})/movie/(?:[\w\-%]+/)?(umc\.cmc\.[a-z\d]{24,25}))(?:$|\?.*)"
 
 # - WEBVTT
-WEBVTT_PERCENTAGE_REGEX = r"\d{1,3}(?:.\d+)?%"
+WEBVTT_PERCENTAGE_REGEX = r"\d{1,3}(?:\.\d+)?%"
 WEBVTT_CAPTION_TIMINGS_REGEX = r"(?:[0-5]\d:)?[0-5]\d:[0-5]\d[\.,]\d{3}[ \t]+-->[ \t]+(?:[0-5]\d:)?[0-5]\d:[0-5]\d[\.,]\d{3}"
 
 WEBVTT_CAPTION_SETTING_ALIGNMENT_REGEX = r"align:(?:start|center|middle|end|left|right)"
