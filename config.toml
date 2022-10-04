@@ -1,11 +1,12 @@
 # This is an example config for iSubRip using the default settings.
 #
-# The script looks for a config in the following locations, according to the OS:
-# Windows: %AppData%/iSubRip/config.toml  
-# Linux: $XDG_CONFIG_HOME/iSubRip/config.toml  
-# MacOS: ~/Library/Application Support/isubrip/config.toml  
+# A config file will be looked for in one of the following paths according to OS:
+#  - Windows: %USERPROFILE%\.isubrip\config.toml
+#  - Linux / macOS: $HOME/.isubrip/config.toml
 #
-# All settings are optional. Any settings not specified in the config will result in using the default value (which are in the default_config.toml file).
+# All settings are optional. Any settings not specified in the config will result in using the default value.
+# Settings that aren't changed from their default value should be removed from the config as they will override future changes to default values.
+# ------------------------------------------------------------
 
 [general]
 # Check for updates before running, and show a note if a new version exists.

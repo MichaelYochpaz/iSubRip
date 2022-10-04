@@ -40,10 +40,10 @@ isubrip <iTunes movie URL> [iTunes movie URL...]
 It's possible to configure different options and enable / disable different features using a [TOML](https://toml.io) config file.   
 A config file will be looked for in one of the following paths according to OS: 
 
-**Windows**: `%USERPROFILE%\.isubrip\config.json`  
+**Windows**: `%USERPROFILE%\.isubrip\config.toml`  
 **Linux / macOS**: `$HOME/.isubrip/config.toml`  
 
-### Path Examples:
+### Examples:
 **Windows**: `C:\Users\Michael\.isubrip\config.toml`  
 **Linux**: `/home/Michael/.isubrip/config.toml`  
 **macOS**: `/Users/Michael/.isubrip/config.toml`  
