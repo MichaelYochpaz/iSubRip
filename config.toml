@@ -26,6 +26,11 @@ format = "vtt"
 # A list of iTunes language codes to download.
 # An empty array (like the one currently being used) will result in downloading all of the available subtitles.
 # Example: ["en-US", "fr-FR", "he"]
+#
+# NOTE: For isubrip to download properly the languages settings must include both short and long language codes, i.e. "en" & "en-US", as iTunes'
+#       metadata only includes one of them.
+#       If your languages setting is "en" but iTunes' metadata is "en-US", isubrip will return "0/0 matching subtitles", same other way around.
+#       Example: languages = ["en", "en-US", "sv", "sv-SE", "da", "da-DK", "no", "no-NO", "fi", "fi-FI"]
 languages = []
 
 # Treat subtitles from different iTunes IDs as if they were scraped from the same one.
