@@ -16,7 +16,7 @@ from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.scraper import Scraper
 from isubrip.subtitles import Subtitles
-from isubrip.utils import format_title, parse_config
+from isubrip.utils import generate_release_name, parse_config
 
 
 def main() -> None:
@@ -119,7 +119,12 @@ def main() -> None:
 
         # Create temp folder if needed
         if download_to_temp:
-            movie_download_path = download_path / f"{format_title(movie_data.name)}.iT.WEB"
+            temp_folder_name = generate_release_name(
+                title=movie_data.name,
+                release_year=movie_data.release_year,
+                media_source="iT"
+            )
+            movie_download_path = download_path / temp_folder_name
             movie_download_path.mkdir(exist_ok=True)
 
         else:

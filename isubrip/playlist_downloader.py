@@ -8,9 +8,9 @@ from os import PathLike
 from typing import Union
 
 from isubrip.enums import SubtitlesFormat
-from isubrip.namedtuples import SubtitlesData, SubtitlesType, MovieData
+from isubrip.namedtuples import SubtitlesData, MovieData
 from isubrip.subtitles import Subtitles
-from isubrip.utils import format_title
+from isubrip.utils import generate_release_name
 
 
 class PlaylistDownloader:
@@ -46,31 +46,6 @@ class PlaylistDownloader:
         data = await self.session.get(segment_url)
         content = await data.read()
         return content.decode('utf-8')
-
-    @staticmethod
-    def _format_file_name(movie_title: str, release_year: int, language_code: str, subtitles_type: SubtitlesType, file_format: SubtitlesFormat) -> str:
-        """Generate file name for a subtitles file.
-
-        Args:
-            movie_title (str): Movie title.
-            release_year(int): Movie release year.
-            language_code (str): Subtitles language code.
-            subtitles_type (SubtitlesType): Subtitles type.
-
-        Returns:
-            str: A formatted file name (does not include a file extension).
-        """
-        # Add release year only if it's not already included in the title
-        movie_release_year_str = '.' + str(release_year) if str(release_year) not in movie_title else ''
-        file_name = f"{format_title(movie_title)}{movie_release_year_str}.iT.WEB.{language_code}"
-
-        # Add subtitles type to file name if it's not `NORMAL` (ex: `FORCED`)
-        if subtitles_type is not SubtitlesType.NORMAL:
-            file_name += f".{subtitles_type.name.lower()}"
-
-        # Add file format to file name (ex: ".vtt")
-        file_name += f".{file_format.name.lower()}"
-        return file_name
 
     def close(self) -> None:
         """Close aiohttp session."""
@@ -113,12 +88,13 @@ class PlaylistDownloader:
         Returns:
             str: Path to the downloaded subtitles file.
         """
-        file_name = self._format_file_name(
-            movie_data.name,
-            movie_data.release_year,
-            subtitles_data.language_code,
-            subtitles_data.subtitles_type,
-            file_format)
+        file_name = generate_release_name(
+            title=movie_data.name,
+            release_year=movie_data.release_year,
+            media_source="iT",
+            subtitles_info=(subtitles_data.language_code, subtitles_data.subtitles_type),
+            file_format=file_format
+        )
 
         # Convert to Path object if necessary
         if isinstance(output_dir, str):
