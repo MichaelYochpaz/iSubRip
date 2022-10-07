@@ -16,7 +16,7 @@ from isubrip.namedtuples import MovieData
 from isubrip.playlist_downloader import PlaylistDownloader
 from isubrip.scraper import Scraper
 from isubrip.subtitles import Subtitles
-from isubrip.utils import generate_release_name, parse_config
+from isubrip.utils import generate_non_conflicting_path, generate_release_name, parse_config
 
 
 def main() -> None:
@@ -176,12 +176,20 @@ def main() -> None:
             if len(downloaded_subtitles_paths) == 1:
                 shutil.copy(downloaded_subtitles_paths[0], config.downloads["folder"])
 
+            # If multiple files were downloaded, create a zip file
             elif len(downloaded_subtitles_paths) > 1:
-                # Create zip archive
                 print(f"\nCreating zip archive...")
-                archive_inital_path = download_path / movie_download_path.stem
-                archive_dest_path = shutil.make_archive(base_name=str(archive_inital_path), format="zip", root_dir=movie_download_path)
-                shutil.copy(archive_dest_path, config.downloads["folder"])
+
+                archive_path = Path(shutil.make_archive(
+                    base_name=str(download_path / movie_download_path),
+                    format="zip",
+                    root_dir=movie_download_path,
+                ))
+
+                destination_path = Path(config.downloads["folder"]) / archive_path.name
+                destination_path = generate_non_conflicting_path(destination_path)
+
+                shutil.copy(archive_path, destination_path)
 
             # Remove temp dir
             shutil.rmtree(movie_download_path)

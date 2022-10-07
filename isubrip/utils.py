@@ -1,6 +1,7 @@
 import re
 
 from os import PathLike
+from pathlib import Path
 from typing import Optional, Union, Tuple, List
 
 from isubrip.config import Config
@@ -114,8 +115,8 @@ def parse_config(file_path: Union[str, PathLike], *file_paths: Union[str, PathLi
     Parse config files by order and return a Config object.
 
     Args:
-        file_path (str): A config file to parse.
-        *file_paths (str, optional): Additional config files to parse (will override previous settings).
+        file_path (str): Path to a config file to parse.
+        *file_paths (str, optional): Paths to dditional config files to parse (will override previous settings).
 
     Returns:
         Config: A parsed Config object.
@@ -128,3 +129,33 @@ def parse_config(file_path: Union[str, PathLike], *file_paths: Union[str, PathLi
             config.loads(data.read())
 
     return config
+
+
+def generate_non_conflicting_path(file_path: Union[str, PathLike], has_extension: bool = True) -> Path:
+    """
+    Generate a non-conflicting path for a file.
+    If the file already exists, a number will be added to the end of the file name.
+
+    Args:
+        file_path (str | PathLike): Path to a file.
+        has_extension (bool, optional): Whether the file has an extension. Defaults to True.
+
+    Returns:
+        Path: A non-conflicting file path.
+    """
+    file_path = Path(file_path)
+    if not file_path.exists():
+        return file_path
+
+    i = 1
+    while True:
+        if has_extension:
+            new_file_path = file_path.parent / f'{file_path.stem}-{i}{file_path.suffix}'
+
+        else:
+            new_file_path = file_path.parent / f'{file_path}-{i}'
+
+        if not new_file_path.exists():
+            return new_file_path
+
+        i += 1
