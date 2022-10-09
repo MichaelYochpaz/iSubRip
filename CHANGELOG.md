@@ -1,4 +1,13 @@
 # Changelog
+## 2.3.3 [2022-10-09]
+### Changes:
+* Added release year to zip file names. ([Issue #31](https://github.com/MichaelYochpaz/iSubRip/issues/31))
+* If the generated path for a zip file is already taken, a number will be appended at the end of the file's name to avoid overwriting. ([Issue #34](https://github.com/MichaelYochpaz/iSubRip/issues/34))
+### Bug Fixes:
+* Fixed an exception being thrown if the path to downloads folder on the config is invalid.
+* Fixed AppleTV URLs without a movie title not working. ([Issue #29](https://github.com/MichaelYochpaz/iSubRip/issues/29))
+* Fixed issues for movies with specific characters (`/`, `:`), and Windows reserved names in their title. ([Issue #30](https://github.com/MichaelYochpaz/iSubRip/issues/30))
+---
 ## 2.3.2 [2022-08-06]
 ### Changes:
 * Changed config paths to the following locations:  
