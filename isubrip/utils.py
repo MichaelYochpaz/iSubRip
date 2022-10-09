@@ -1,4 +1,5 @@
 import re
+import sys
 
 from os import PathLike
 from pathlib import Path
@@ -21,6 +22,7 @@ def standardize_title(title: str) -> str:
     # Replacements will be done in the same order of this list
     replacement_pairs = [
         (': ', '.'),
+        (':', '.'),
         (' - ', '-'),
         (', ', '.'),
         ('. ', '.'),
@@ -40,6 +42,19 @@ def standardize_title(title: str) -> str:
         title = title.replace(pair[0], pair[1])
 
     title = re.sub(r"\.+", ".", title)  # Replace multiple dots with a single dot
+
+    # If running on Windows, renamed Windows reserved names to avoid exceptions
+    if sys.platform == 'win32':
+        split_title = title.split('.')
+
+        if split_title[0].upper() in ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4",
+                                      "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2",
+                                      "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"]:
+            if len(split_title) > 1:
+                return split_title[0] + split_title[1] + '.'.join(split_title[2:])
+
+            elif len(split_title) == 1:
+                return "_" + title
 
     return title
 
