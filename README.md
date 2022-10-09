@@ -13,7 +13,7 @@ Latest version: 2.3.2 ([changelog](https://github.com/MichaelYochpaz/iSubRip/blo
 [![GitHub - Repo stars](https://img.shields.io/github/stars/MichaelYochpaz/iSubRip.svg?color=yellow)](https://github.com/MichaelYochpaz/iSubRip)
 
 <p align="center">
-  <a href="#"><img src="https://user-images.githubusercontent.com/8832013/151677574-0539aa8b-7f88-4ae8-a85d-948c5338c873.png" width="800"></a>
+  <a href="#"><img src="https://user-images.githubusercontent.com/8832013/194750946-8b4d4d4e-0230-4653-bede-3ec191df161b.gif" width="800"></a>
 </p>
 
 
