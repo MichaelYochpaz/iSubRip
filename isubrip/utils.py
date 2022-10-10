@@ -85,7 +85,7 @@ def generate_release_name(title: str, release_year: Optional[int] = None,
     """
     file_name = standardize_title(title)
 
-    if release_year is not None:
+    if release_year is not None and str(release_year) not in file_name:
         file_name += f'.{release_year}'
 
     if season_number is not None:
