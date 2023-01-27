@@ -23,23 +23,6 @@ def main() -> None:
     # Load default and user (if it exists) config files
     config_files = [DEFAULT_CONFIG_PATH]
 
-    ### DEPRECATED ###
-    deprecated_config_file = None
-
-    # Windows
-    if sys.platform == "win32":
-        deprecated_config_file = Path(os.environ['APPDATA']) / "iSubRip" / "config.toml"
-
-    # Linux
-    elif sys.platform == "linux":
-        deprecated_config_file = Path.home() / ".config" / "iSubRip" / "config.toml"
-
-    if deprecated_config_file and deprecated_config_file.is_file():
-        config_files.append(deprecated_config_file)
-        print("Warning: A config file was found in a deprecated location that will be unsupported in future versions.\n"
-              f"Please move the config file to \"{USER_CONFIG_FILE}\" to avoid future issues.\n")
-    ### END DEPRECATED ###
-
     # If data folder doesn't exist, create it
     if not DATA_FOLDER_PATH.is_dir():
         DATA_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
