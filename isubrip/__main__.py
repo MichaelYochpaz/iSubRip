@@ -61,7 +61,12 @@ def main() -> None:
     if config.downloads["zip"]:
         download_path = TEMP_FOLDER_PATH
         download_to_temp = True
-        TEMP_FOLDER_PATH.mkdir(exist_ok=True)
+
+        # Remove temp folder if it already exists
+        if TEMP_FOLDER_PATH.is_dir():
+            shutil.rmtree(TEMP_FOLDER_PATH)
+
+        TEMP_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
         atexit.register(shutil.rmtree, TEMP_FOLDER_PATH)
 
     else:
