@@ -7,16 +7,20 @@ check-for-updates = true
 
 [downloads]
 folder = "."
-format = "vtt"
-languages = []
 merge-playlists = false
-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
+overwrite-existing = false
 zip = true
-
-[scraping]
-user-agent = "iTunes-AppleTV/15.2"
 
 [subtitles]
 fix-rtl = false
-rtl-languages = ["ar", "he"]
 remove-duplicates = true
+convert-to-srt = false
+
+[scrapers]
+user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
+
+[scrapers.itunes]
+user-agent = "iTunes-AppleTV/15.2"
+
+[scrapers.itunes.playlist-filters]
+group-id = ["subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"]

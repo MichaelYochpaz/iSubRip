@@ -1,27 +1,95 @@
+from __future__ import annotations
+
 import os.path
-from typing import Any
+import typing
+from copy import deepcopy
+from enum import Enum
+from typing import Any, NamedTuple, Type
 
 import tomli
 from mergedeep import merge
 
-from isubrip.enums import SubtitlesFormat
-from isubrip.exceptions import ConfigValueMissing, InvalidConfigValue
-from isubrip.namedtuples import ConfigSetting
+from isubrip.utils import check_type, single_to_list
+
+
+class DuplicateBehavior(Enum):
+    """
+    An Enum representing optional behaviors for when a duplicate config key is found.
+
+    Attributes:
+        OVERWRITE: Overwrite the existing value with the new value.
+        IGNORE: Ignore the new value and keep the existing value.
+        RAISE_ERROR: Raise an error.
+    """
+    OVERWRITE = 1
+    IGNORE = 2
+    RAISE_ERROR = 3
+
+
+class SpecialConfigType(Enum):
+    """
+    An Enum representing special config value properties to validate.
+
+    Attributes:
+        EXISTING_FILE_PATH: The value must be of a path to an existing file.
+        EXISTING_FOLDER_PATH: The value must be of a path to an existing folder.
+    """
+    EXISTING_FILE_PATH = 1
+    EXISTING_FOLDER_PATH = 2
+
+
+class ConfigSetting(NamedTuple):
+    """
+    A NamedTuple representing a config setting.
+
+    Attributes:
+        key (str): Dictionary key used to access the setting.
+        type (type): Variable type of the value of the setting. Used for validation.
+        category (str | list[str], optional): A category that the setting is under.
+            Categories are used to group related settings' keys together in a sub-dictionary.
+            A list can be used to nest categories (first item is the top-level category). Defaults to None.
+        required (bool, optional): Whether the setting is required. Defaults to False.
+        enum_type (type[Enum], optional): An Enum that the settings values will be converted to. Defaults to None.
+        special_type (SpecialConfigType | list[SpecialConfigType], optional): A special property of the setting's value
+            to validate, represented by a SpecialConfigType value. Defaults to None.
+    """
+    key: str
+    # Using typing._UnionGenericAlias as a replacement for types.UnionType, which is available only on  Python 3.10+
+    type: type | typing._UnionGenericAlias  # type: ignore[name-defined]
+    category: str | list[str] | None = None
+    required: bool = False
+    enum_type: Type[Enum] | None = None
+    special_type: SpecialConfigType | list[SpecialConfigType] | None = None
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, ConfigSetting):
+            return self.key == other.key and self.category == other.category
+        return False
 
 
 class Config:
     """A class for managing iSubRip config files."""
+    def __init__(self, config_settings: list[ConfigSetting] | None = None, config_data: dict | None = None):
+        """
+        Create a new Config instance.
 
-    def __init__(self) -> None:
-        """Create a new ConfigManager instance."""
-        self.config_dict: dict = {}
-        self.config_loaded: bool = False
+        Args:
+            config_settings (list[ConfigSetting], optional): A list of ConfigSettings objects
+                that will be used for validations. Defaults to None.
+            config_data (dict, optional): A dict of config data to add to the config. Defaults to None.
+        """
+        self._config_settings: list = []
+        self._config_data: dict = {}
 
-        # List of valid subtitle formats as strings
-        self._valid_subtitle_formats: set = set(item.name.upper() for item in SubtitlesFormat)
+        if config_settings:
+            self.add_settings(config_settings, check_config=False)
+
+        if config_data:
+            self._config_data = deepcopy(config_data)
 
     def __getattr__(self, key: str) -> Any:
-        """Allow access to config settings using attributes.
+        """
+        Allow access to config settings using attributes.
 
         Args:
             key (str): Config key to get.
@@ -29,105 +97,217 @@ class Config:
         Returns:
             Any: The corresponding value for the key in the config.
         """
-        if key in self.config_dict:
-            return self.config_dict[key]
+        if self._config_data and key in self._config_data:
+            return self._config_data[key]
 
-    def loads(self, config_data: str) -> None:
-        """Parse a tomli iSubRip config from a string.
+        else:
+            raise AttributeError(f"Attribute \'{key}\' does not exist.")
+
+    def __getitem__(self, key: str) -> Any:
+        """
+        Allow access to config settings using dict-like syntax.
+
+        Args:
+            key (str): Config key to get.
+
+        Returns:
+            Any: The corresponding value for the key in the config.
+        """
+        return self._config_data[key]
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Get a config value.
+
+        Args:
+            key (str): Config key to get.
+            default (Any, optional): Default value to return if the key does not exist. Defaults to None.
+
+        Returns:
+            Any: The corresponding value for the key in the config or the default value if the key does not exist.
+        """
+        return self._config_data.get(key, default)
+
+    @property
+    def data(self):
+        return self._config_data
+
+    def add_settings(self, config_settings: list[ConfigSetting],
+                     duplicate_behavior: DuplicateBehavior = DuplicateBehavior.OVERWRITE,
+                     check_config: bool = True) -> None:
+        """
+        Add new config settings to the config.
+
+        Args:
+            config_settings (list[ConfigSetting]): A list of ConfigSettings objects to add to the config.
+            duplicate_behavior (DuplicateBehavior, optional): Behaviour to apply if a duplicate is found.
+                Defaults to DuplicateBehavior.OVERWRITE.
+            check_config (bool, optional): Whether to check the config after loading it. Defaults to True.
+        """
+        config_settings_copy = deepcopy(config_settings)
+
+        for config_setting in config_settings_copy:
+            if config_setting in self._config_settings:
+                if duplicate_behavior == DuplicateBehavior.OVERWRITE:
+                    self._config_settings.remove(config_setting)
+                    self._config_settings.append(config_setting)
+
+                elif duplicate_behavior == DuplicateBehavior.RAISE_ERROR:
+                    raise ValueError(f"Duplicate config setting: {config_setting}")
+
+            else:
+                self._config_settings.append(config_setting)
+
+        if check_config:
+            self.check()
+
+    def loads(self, config_data: str, check_config: bool = True) -> None:
+        """
+        Parse a tomli config from a string.
 
         Args:
             config_data (str): Config file data as a string.
+            check_config (bool, optional): Whether to check the config after loading it. Defaults to True.
 
         Raises:
             FileNotFoundError: Config file could not be found in the specified path.
             TOMLDecodeError: Config file is not a valid TOML file.
             ConfigValueMissing: A required config value is missing.
             InvalidConfigValue: An invalid value was used in the config file.
-
-        Returns:
-            dict: A dictionary containing all settings.
         """
-
         # Load settings from default config file
         loaded_data: dict = tomli.loads(config_data)
 
-        if not self.config_loaded:
-            temp_config: dict = loaded_data
-            self.config_loaded = True
+        if self._config_data:
+            temp_config = dict(merge(self._config_data, loaded_data))
 
         else:
-            temp_config: dict = dict(merge(self.config_dict, loaded_data))
+            temp_config = loaded_data
 
-        # Convert download format from string to SubtitlesFormat enum
-        if isinstance(temp_config["downloads"]["format"], str) and temp_config["downloads"]["format"].upper() in self._valid_subtitle_formats:
-            temp_config["downloads"]["format"] = SubtitlesFormat[temp_config["downloads"]["format"].upper()]
+        self._config_data = temp_config
 
-        elif not isinstance(temp_config["downloads"]["format"], SubtitlesFormat):
-            raise InvalidConfigValue(f"Invalid config value for downloads.format: {temp_config['downloads']['format']}")
-
-        self._standardize_config_(temp_config)
-        self.check_config(temp_config)
-        self.config_dict = temp_config
+        if check_config and self._config_settings:
+            self.check()
 
     @staticmethod
-    def _standardize_config_(config_dict: dict) -> None:
-        """Standardize a config dictionary and fix issues.
+    def _map_config_settings(settings: list[ConfigSetting], data: dict) -> dict[ConfigSetting, Any]:
+        """
+        Map config settings to their values.
+        This function wil also unflatten data.
 
         Args:
-            config_dict (dict): Config dictionary to standardize.
+            settings (list[ConfigSetting]): A list or tuple of ConfigSettings objects.
+            data (dict): A dictionary containing the config data.
+
+        Returns:
+            dict[ConfigSetting, Any]: A dictionary mapping config settings to their values.
         """
-        # If languages list is empty, change it to None
-        if not config_dict["downloads"]["languages"]:
-            config_dict["downloads"]["languages"] = None
+        mapped_settings: dict = {}
 
-        # Remove a trialing slash / backslash from path
-        if isinstance(config_dict["downloads"]["format"], str):
-            config_dict["downloads"]["folder"] = config_dict["downloads"]["folder"].rstrip(r"\/")
+        for setting in settings:
+            if setting.category:
+                setting_categories = single_to_list(setting.category)
+                config_dict_iter: dict = data
 
-    @staticmethod
-    def check_config(config_dict: dict) -> None:
-        """Check the config for invalid values.
-        Raises an error if an invalid value is found.
-    
-        Args:
-            config_dict (dict): Config dictionary to check.
+                for setting_category in setting_categories:
+                    if setting_category not in config_dict_iter:
+                        mapped_settings[setting] = None
+                        break
 
-        Raises:
-            ConfigValueMissing: A required config value is missing.
-            InvalidConfigValue: An invalid value was used in the config file.
-        """
-        
-        # List of config values and their corresponding types
-        setting_list = [
-            ConfigSetting("general", "check-for-updates", bool),
-            ConfigSetting("downloads", "folder", str),
-            ConfigSetting("downloads", "format", SubtitlesFormat),
-            ConfigSetting("downloads", "languages", (list, type(None))),
-            ConfigSetting("downloads", "merge-playlists", bool),
-            ConfigSetting("downloads", "user-agent", str),
-            ConfigSetting("downloads", "zip", bool),
-            ConfigSetting("scraping", "user-agent", str),
-            ConfigSetting("subtitles", "fix-rtl", bool),
-            ConfigSetting("subtitles", "rtl-languages", list),
-            ConfigSetting("subtitles", "remove-duplicates", bool),
-        ]
-
-        # Assure each config value exists and is of the correct type
-        for setting in setting_list:
-            if setting.category not in config_dict:
-                raise ConfigValueMissing(f"Config category \'{setting.category}\' with required settings is missing.")
-
-            if setting.key in config_dict[setting.category]:
-                setting_value = config_dict[setting.category][setting.key]
-
-                if not isinstance(setting_value, setting.types):
-                    raise InvalidConfigValue(f"Invalid config value type for {setting.category}.{setting.key}: \'{setting_value}\'"
-                                             f"\nExpected {setting.types}, received: {type(setting_value)}.")
+                    config_dict_iter = config_dict_iter[setting_category]
 
             else:
-                raise ConfigValueMissing(f"Missing required config value: \'{setting.category}.{setting.key}\'")
+                config_dict_iter = data
 
-        # Assure path is valid
-        if not os.path.isdir(config_dict["downloads"]["folder"]):
-            raise InvalidConfigValue(f"Invalid config value for downloads.folder:"
-                                     f"\nPath \'{config_dict['downloads']['folder']}\' is invalid or does not exist.")
+            if setting.key not in config_dict_iter:
+                mapped_settings[setting] = None
+
+            else:
+                value = config_dict_iter[setting.key]
+                enum_type = setting.enum_type
+
+                if enum_type is not None:
+                    try:
+                        value = enum_type(value)
+
+                    except ValueError:
+                        setting_path = '.'.join(single_to_list(setting.category))
+                        enum_options = ', '.join([f"\'{option.name}\'" for option in enum_type])
+
+                        raise InvalidConfigValue(
+                            f"Invalid config value for {setting_path}.{setting.key}: \'{value}\'.\n"
+                            f"Expected one of: {enum_options}.")
+
+                if type(value) in (list, tuple) and len(value) == 0:
+                    value = None
+
+                special_types = single_to_list(setting.special_type)
+
+                if SpecialConfigType.EXISTING_FILE_PATH in special_types:
+                    value = value.rstrip(r"\/")
+
+                mapped_settings[setting] = value
+
+        return mapped_settings
+
+    def check(self) -> None:
+        """
+            Check whether the config is valid by comparing config's data to the config settings.
+            Raises an error if an invalid value is found.
+
+        Raises:
+            MissingConfigValue: A required config value is missing.
+            InvalidConfigValue: An invalid value was used in the config file.
+        """
+        if self._config_data is None or not self._config_settings:
+            return
+
+        mapped_config = Config._map_config_settings(self._config_settings, self._config_data)
+
+        for setting, value in mapped_config.items():
+            if isinstance(setting.category, (list, tuple)):
+                setting_path = '.'.join(setting.category) + f".{setting.key}"
+
+            elif isinstance(setting.category, str):
+                setting_path = setting.category + f".{setting.key}"
+
+            else:
+                setting_path = setting.key
+
+            if value is None:
+                if setting.required:
+                    raise MissingConfigValue(f"Missing required config value: '{setting_path}'")
+
+                else:
+                    continue
+
+            if setting.enum_type is None and not check_type(value, setting.type):
+                raise InvalidConfigValue(
+                    f"Invalid config value type for '{setting_path}': '{value}'.\n"
+                    f"Expected {setting.type}, received: {type(value)}.")
+
+            special_types = single_to_list(setting.special_type)
+
+            if SpecialConfigType.EXISTING_FILE_PATH in special_types:
+                if not os.path.isfile(value):
+                    raise InvalidConfigValue(f"Invalid config value type for '{setting_path}'.\n"
+                                             f"File '{value}' not found.")
+
+            elif SpecialConfigType.EXISTING_FOLDER_PATH in special_types:
+                if not os.path.isdir(value):
+                    raise InvalidConfigValue(f"Invalid config value type for '{setting_path}'.\n"
+                                             f"Folder '{value}' not found.")
+
+
+class ConfigException(Exception):
+    pass
+
+
+class MissingConfigValue(ConfigException):
+    """A required config value is missing."""
+    pass
+
+
+class InvalidConfigValue(ConfigException):
+    """An invalid value has been used."""
+    pass

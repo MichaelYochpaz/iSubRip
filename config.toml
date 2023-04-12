@@ -1,11 +1,11 @@
-# This is an example config for iSubRip using the default settings.
+# This is an example config file using the default settings.
 #
-# A config file will be looked for in one of the following paths according to OS:
+# All settings in this file are optional. If a setting is not defined, its default value will be used.
+# Define only settings that you want to change from their default values (which are the values specified in this file).
+#
+# A config file will be looked for in one of the following paths (according to OS):
 #  - Windows: %USERPROFILE%\.isubrip\config.toml
 #  - Linux / macOS: $HOME/.isubrip/config.toml
-#
-# All settings are optional. Any settings not specified in the config will result in using the default value.
-# Settings that aren't changed from their default value should be removed from the config as they will override future changes to default values.
 # ------------------------------------------------------------
 
 [general]
@@ -20,42 +20,19 @@ check-for-updates = true
 # Use double backslashes in path to avoid escaping characters. Example: "C:\\Users\\<username>\\Downloads\\"
 folder = "."
 
-# Subtitles format to use when downloading subtitles.
-# Value can be either "vtt" for WebVTT format, or "srt" for srt format.
-format = "vtt"
-
 # A list of iTunes language codes to download.
 # An empty array (like the one currently being used) will result in downloading all of the available subtitles.
 # Example: ["en-US", "fr-FR", "he"]
 languages = []
 
-# Treat subtitles from different iTunes IDs as if they were scraped from the same one.
-# Subtitles for languages that were found already will not be redownloaded if found on a different iTunes ID,
-# and subtitles will be saved in the same folder and not separate folders for each ID.
-#
-# NOTE: This is off by default as different IDs might have different runtimes even if they're for the same movies.
-#       Having them on separate folders helps identifying what runtime each subtitles file is for.
-#
+# Whether to overwrite existing subtitles files.
+# If set to false, names of existing subtitles will have a number appended to them to avoid overwriting.
 # Value can be either "true" or "false".
-merge-playlists = false
-
-# User-Agent to use while downloading subtitles.
-# Don't change this unless you know what you're doing.
-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
+overwrite-existing = false
 
 # Save files into a zip archive if there is more than one matching subtitles.
 # Value can be either "true" or "false".
 zip = false
-
-
-[scraping]
-# User-Agent to use while scraping iTunes.
-# Don't change this unless you know what you're doing.
-itunes-user-agent = "iTunes-AppleTV/15.2"
-
-# User-Agent to use while scraping AppleTV.
-# Don't change this unless you know what you're doing.
-appletv-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
 
 
 [subtitles]
@@ -67,7 +44,32 @@ appletv-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
 fix-rtl = false
 
 # List of iTunes language codes to fix RTL on.
+# This setting is optional, and is used for overriding the default list of languages to fix RTL on.
+# This setting is not used by default.
 rtl-languages = ["ar", "he"]
 
 # Remove duplicate paragraphs (same text and timestamps).
 remove-duplicates = true
+
+# Whether to convert subtitles to SRT format.
+# NOTE: This can cause loss of subtitles metadata that is not supported by SRT format.
+convert-to-srt = false
+
+
+[scrapers]
+# User-Agent to use by default for all HTTP requests.
+# Will be overridden by scraper-specific user-agent (if set).
+default-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
+
+
+[scrapers.itunes]
+# User-Agent to use while scraping iTunes.
+# Changing this setting is not recommended.
+user-agent = "iTunes-AppleTV/15.2"
+
+
+[scrapers.appletv]
+# User-Agent to use while scraping AppleTV.
+# Changing this setting is not recommended.
+# This setting is not used by default.
+user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"

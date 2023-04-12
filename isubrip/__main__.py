@@ -1,213 +1,323 @@
+from __future__ import annotations
+
 import atexit
-import os
 import shutil
 import sys
-
 from pathlib import Path
-from xml.etree import ElementTree
 
 import m3u8
 import requests
+from requests.utils import default_user_agent
 
-from isubrip.constants import DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, PACKAGE_NAME, PYPI_RSS_URL, TEMP_FOLDER_PATH, USER_CONFIG_FILE
-from isubrip.enums import DataSource
-from isubrip.exceptions import ConfigError
-from isubrip.namedtuples import MovieData
-from isubrip.playlist_downloader import PlaylistDownloader
-from isubrip.scraper import Scraper
-from isubrip.subtitles import Subtitles
-from isubrip.utils import generate_non_conflicting_path, generate_release_name, parse_config
+from isubrip.config import Config, ConfigException
+from isubrip.constants import ARCHIVE_FORMAT, DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, DEFAULT_CONFIG_SETTINGS, \
+    PACKAGE_NAME, TEMP_FOLDER_PATH, USER_CONFIG_FILE
+from isubrip.data_structures import EpisodeData,  MediaData, MovieData, SubtitlesDownloadResults, SubtitlesData
+from isubrip.scrapers.scraper import Scraper, ScraperFactory
+from isubrip.utils import download_subtitles_to_file, generate_non_conflicting_path, generate_release_name, \
+    single_to_list
 
 
-def main() -> None:
-    # Load default and user (if it exists) config files
+def main():
+    scraper_factory = None
+
+    try:
+        # Assure at least one argument was passed
+        if len(sys.argv) < 2:
+            print_usage()
+            exit(1)
+
+        config = generate_config()
+        update_settings(config)
+
+        if config.general.get("check-for-updates", True):
+            check_for_updates()
+
+        scraper_factory = ScraperFactory()
+
+        multiple_urls = len(sys.argv) > 2
+
+        for idx, url in enumerate(sys.argv[1:]):
+            if idx > 0:
+                print("\n--------------------------------------------------\n")  # Print between different movies
+
+            print(f"Scraping {url}")
+
+            try:
+                scraper = scraper_factory.get_scraper_instance_by_url(url=url,
+                                                                      scrapers_config_data=config.data.get("scrapers"),
+                                                                      raise_error=True)
+
+                atexit.register(scraper.close)
+                scraper.config.check()
+
+                media_data = scraper.get_data(url=url)
+
+                if not media_data:
+                    print(f"Error: No supported media data was found for {url}.")
+                    continue
+
+                download_media_subtitles_args = {
+                    "download_path": Path(config.downloads["folder"]),
+                    "language_filter": config.downloads.get("languages"),
+                    "convert_to_srt": config.subtitles.get("convert-to-srt", False),
+                    "overwrite_existing": config.downloads.get("overwrite-existing", False),
+                    "zip_files": config.downloads.get("zip", False),
+                }
+
+                media_items: list[MediaData] = single_to_list(media_data)
+                multiple_media_items = len(media_items) > 1
+                if multiple_media_items:
+                    print(f"{len(media_items)} media items were found.")
+
+                for media_item in media_items:
+                    try:
+                        if multiple_media_items:
+                            print(f"{media_item.id if media_item.id else media_item.name}:")
+
+                        if not media_item.playlist:
+                            print("Error: No valid playlist were found.")
+                            continue
+
+                        results = download_subtitles(media_data=media_item,
+                                                     **download_media_subtitles_args)
+
+                        success_count = len(results.successful_subtitles)
+
+                        if not success_count:
+                            print("No matching subtitles were found.")
+                            continue
+
+                        else:
+                            failed_count = len(results.failed_subtitles)
+                            print(f"\n{success_count}/{success_count + failed_count} matching subtitles "
+                                  f"have been successfully downloaded.", sep='')
+
+                    except Exception as e:
+                        if multiple_media_items:
+                            print(f"Error: Encountered an error while scraping playlist "
+                                  f"{media_item.id if media_item.id else media_item.name}: {e}")
+                            continue
+
+                        else:
+                            raise e
+
+            except Exception as e:
+                if multiple_urls:
+                    print(f"Error: Encountered an error while scraping {url}: {e}")
+                    continue
+
+                else:
+                    raise e
+
+    except Exception as e:
+        print(f"Error: {e}")
+        exit(1)
+
+    finally:
+        # Note: This will only close scrapers that were initialized using the ScraperFactory.
+        if scraper_factory:
+            for scraper in scraper_factory.get_initialized_scrapers():
+                scraper.close()
+
+
+def check_for_updates() -> None:
+    """Check and print if a newer version of the package is available."""
+    api_url = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"  # Used for checking updates
+
+    try:
+        current_version = sys.modules[PACKAGE_NAME].__version__
+
+        response = requests.get(
+            url=api_url,
+            headers={"Accept": "application/json"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        response_data = response.json()
+
+        if latest_version := response_data["info"]["version"]:
+            if latest_version != current_version:
+                print(f"Note: You are currently using version {current_version} of {PACKAGE_NAME}, "
+                      f"however version {latest_version} is available.",
+                      f"\nConsider upgrading by running \"python3 -m pip install --upgrade {PACKAGE_NAME}\"\n")
+
+    except Exception:
+        return
+
+
+def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
+                       language_filter: list[str] | None = None, convert_to_srt: bool = False,
+                       overwrite_existing: bool = True, zip_files: bool = False) -> SubtitlesDownloadResults:
+    """
+    Download subtitles for the given media data.
+
+    Args:
+        media_data (MovieData | EpisodeData): A MovieData or an EpisodeData object of the media.
+        download_path (Path): Path to a folder where the subtitles will be downloaded to.
+        language_filter (list[str] | None): List of specific languages to download subtitles for.
+            None for all languages (no filter). Defaults to None.
+        convert_to_srt (bool, optional): Whether to convert the subtitles to SRT format. Defaults to False.
+        overwrite_existing (bool, optional): Whether to overwrite existing subtitles. Defaults to True.
+        zip_files (bool, optional): Whether to unite the subtitles into a single zip file
+            (only if there are multiple subtitles).
+
+    Returns:
+        Path: Path to the parent folder of the downloaded subtitles files / zip file.
+    """
+    temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH, media_data=media_data)
+    atexit.register(shutil.rmtree, TEMP_FOLDER_PATH, ignore_errors=False, onerror=None)
+
+    if media_data.playlist is None:
+        raise ValueError("No playlist data was found for the given media data.")
+
+    successful_downloads: list[SubtitlesData] = []
+    failed_downloads: list[SubtitlesData] = []
+    temp_downloads: list[Path] = []
+
+    m3u8_playlist = m3u8.load(media_data.playlist)
+
+    for subtitles_data in media_data.scraper.get_subtitles(main_playlist=m3u8_playlist,
+                                                           language_filter=language_filter,
+                                                           subrip_conversion=convert_to_srt):
+        try:
+            temp_downloads.append(download_subtitles_to_file(
+                media_data=media_data,
+                subtitles_data=subtitles_data,
+                output_path=temp_download_path,
+                overwrite=overwrite_existing,
+            ))
+
+            successful_downloads.append(subtitles_data)
+            language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
+
+            if subtitles_data.special_type:
+                language_data += f" [{subtitles_data.special_type.value}]"
+
+            print(f"{language_data} subtitles were successfully downloaded.")
+
+        except Exception:
+            failed_downloads.append(subtitles_data)
+            continue
+
+    if not zip_files or len(temp_downloads) == 1:
+        for file_path in temp_downloads:
+            if overwrite_existing:
+                file_path.replace(download_path / file_path.name)
+
+            else:
+                file_path.replace(generate_non_conflicting_path(download_path / file_path.name))
+
+    else:
+        archive_path = Path(shutil.make_archive(
+            base_name=str(temp_download_path.parent / temp_download_path.name),
+            format=ARCHIVE_FORMAT,
+            root_dir=temp_download_path,
+        ))
+
+        file_name = generate_media_folder_name(media_data=media_data) + f".{ARCHIVE_FORMAT}"
+
+        if overwrite_existing:
+            destination_path = download_path / file_name
+
+        else:
+            destination_path = generate_non_conflicting_path(download_path / file_name)
+
+        archive_path.replace(destination_path)
+
+    shutil.rmtree(temp_download_path)
+    atexit.unregister(shutil.rmtree)
+
+    return SubtitlesDownloadResults(
+        media_data=media_data,
+        successful_subtitles=successful_downloads,
+        failed_subtitles=failed_downloads,
+        is_zip=zip_files,
+    )
+
+
+def generate_config() -> Config:
+    """
+    Generate a config object using config files, and validate it.
+
+    Returns:
+        Config: A config object.
+
+    Raises:
+        ConfigException: If there is a general config error.
+        MissingConfigValue: If a required config value is missing.
+        InvalidConfigValue: If a config value is invalid.
+    """
     config_files = [DEFAULT_CONFIG_PATH]
+
+    if not DEFAULT_CONFIG_PATH.is_file():
+        raise ConfigException("Default config file could not be found.")
 
     # If data folder doesn't exist, create it
     if not DATA_FOLDER_PATH.is_dir():
         DATA_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
 
     else:
-        # If a user config file exists, add it
+        # If a user config file exists, add it to config_files
         if USER_CONFIG_FILE.is_file():
             config_files.append(USER_CONFIG_FILE)
 
-    # Check if at least one argument was passed, exit if not
-    if len(sys.argv) < 2:
-        print_usage()
-        exit(1)
+    config = Config(config_settings=DEFAULT_CONFIG_SETTINGS)
 
-    # Exit if default config file is missing for some reason
-    if not DEFAULT_CONFIG_PATH.is_file():
-        print("Error: Default config file could not be found.")
-        exit(1)
+    for file_path in config_files:
+        with open(file_path, 'r') as data:
+            config.loads(config_data=data.read(), check_config=True)
 
-    try:
-        config = parse_config(*config_files)
-
-    except (ConfigError, FileNotFoundError) as e:
-        print(f"Error: {e}")
-        exit(1)
-
-    # Set `Subtitles` settings from config
-    Subtitles.remove_duplicates = config.subtitles["remove-duplicates"]
-    Subtitles.fix_rtl = config.subtitles["fix-rtl"]
-    Subtitles.rtl_languages = config.subtitles["rtl-languages"]
-
-    download_path: Path
-    download_to_temp: bool
-
-    # Set download path to temp folder "zip" setting is used
-    if config.downloads["zip"]:
-        download_path = TEMP_FOLDER_PATH
-        download_to_temp = True
-
-        # Remove temp folder if it already exists
-        if TEMP_FOLDER_PATH.is_dir():
-            shutil.rmtree(TEMP_FOLDER_PATH)
-
-        TEMP_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
-        atexit.register(shutil.rmtree, TEMP_FOLDER_PATH)
-
-    else:
-        download_path = Path(config.downloads["folder"])
-        download_to_temp = False
-
-    if config.general["check-for-updates"]:
-        check_for_updates()
-
-    for idx, url in enumerate(sys.argv[1:]):
-        if idx > 0:
-            print("\n--------------------------------------------------\n")  # Print between different movies
-
-        print(f"Scraping {url}...")
-
-        try:
-            movie_data: MovieData = Scraper.get_movie_data(url, {"User-Agent": config.scraping["user-agent"]})
-
-            # AppleTV link used, but no iTunes playlist found on page
-            if movie_data.data_source == DataSource.APPLETV and not movie_data.playlists:
-                print("An iTunes offer could not be found. Skipping...")
-                continue
-
-        except Exception as e:
-            print(f"Error: {e}")
-            continue
-
-        print(f"Found movie: {movie_data.name}")
-
-        if not movie_data.playlists:
-            print(f"Error: No valid playlist could be found.")
-            continue
-
-        multiple_playlists = len(movie_data.playlists) > 1
-        downloaded_subtitles_langs = set()
-        downloaded_subtitles_paths = []
-        subtitles_count = 0
-
-        # Create temp folder if needed
-        if download_to_temp:
-            temp_folder_name = generate_release_name(
-                title=movie_data.name,
-                release_year=movie_data.release_year,
-                media_source="iT"
-            )
-            movie_download_path = download_path / temp_folder_name
-            movie_download_path.mkdir(exist_ok=True)
-
-        else:
-            movie_download_path = download_path
-
-        with PlaylistDownloader(config.downloads["user-agent"]) as playlist_downloader:
-            for idy, playlist in enumerate(movie_data.playlists):
-                # Print empty line between different playlists
-                if idy > 0:
-                    print()
-
-                if multiple_playlists:
-                    print(f"id{playlist.itunes_id}:")
-
-                m3u8_playlist: m3u8.M3U8 = m3u8.load(playlist.url)
-                separate_playlist_folder: bool = multiple_playlists and not config.downloads["merge-playlists"]
-                playlist_subtitles_count = 0
-
-                # Create folder for playlist if needed
-                if separate_playlist_folder:
-                    playlist_download_path = movie_download_path / f"id{playlist.itunes_id}"
-                    playlist_download_path.mkdir(exist_ok=True)
-
-                else:
-                    playlist_download_path = movie_download_path
-
-                for subtitles in Scraper.find_subtitles(m3u8_playlist, config.downloads["languages"]):
-                    if not config.downloads["merge-playlists"] or \
-                            (config.downloads["merge-playlists"] and subtitles.language_code not in downloaded_subtitles_langs):
-                        playlist_subtitles_count += 1
-                        print(f"Downloading \"{subtitles.language_name}\" ({subtitles.language_code}) subtitles...")
-                        downloaded_subtitles = playlist_downloader.download_subtitles(movie_data, subtitles, playlist_download_path, config.downloads["format"])
-
-                        # Assure subtitles downloaded successfully
-                        if downloaded_subtitles.is_file():
-                            downloaded_subtitles_paths.append(downloaded_subtitles)
-
-                if separate_playlist_folder:
-                    print(f"{playlist_subtitles_count} subtitles were downloaded.")
-
-                    # Remove playlist folder if it's empty
-                    if playlist_subtitles_count == 0:
-                        playlist_download_path.rmdir()
-
-                subtitles_count += playlist_subtitles_count
-
-        # If files were downloaded to a temp folder ("zip" option was used)
-        if download_to_temp:
-            if len(downloaded_subtitles_paths) == 1:
-                shutil.copy(downloaded_subtitles_paths[0], config.downloads["folder"])
-
-            # If multiple files were downloaded, create a zip file
-            elif len(downloaded_subtitles_paths) > 1:
-                print(f"\nCreating zip archive...")
-
-                archive_path = Path(shutil.make_archive(
-                    base_name=str(download_path / movie_download_path),
-                    format="zip",
-                    root_dir=movie_download_path,
-                ))
-
-                destination_path = Path(config.downloads["folder"]) / archive_path.name
-                destination_path = generate_non_conflicting_path(destination_path)
-
-                shutil.copy(archive_path, destination_path)
-
-            # Remove temp dir
-            shutil.rmtree(movie_download_path)
-            atexit.unregister(shutil.rmtree)
-
-        # Add playlists count only if it's more than 1
-        playlists_messgae = f"from {len(movie_data.playlists)} playlists " if len(movie_data.playlists) > 0 else ""
-
-        print(f"\n{len(downloaded_subtitles_paths)}/{subtitles_count} matching subtitles ",
-              f"for \"{movie_data.name}\" were downloaded {playlists_messgae}",
-              f"to {Path(config.downloads['folder']).absolute()}\".", sep="")
+    config.check()
+    return config
 
 
-def check_for_updates() -> None:
-    """Check and print if a newer version of the package is available."""
-    # If anything breaks, just skip update check
-    try:
-        current_version = sys.modules[PACKAGE_NAME].__version__
+def generate_media_folder_name(media_data: MediaData) -> str:
+    """
+    Generate a folder name for media data.
 
-        response = requests.get(PYPI_RSS_URL).text
-        xml_data = ElementTree.fromstring(response)
-        latest_version = xml_data.find("channel/item/title").text
+    Args:
+        media_data (MediaData): A media data object.
 
-        # If the latest PyPI release is different from current one, print a message
-        if latest_version != current_version:
-            print(f"Note: You are currently using version {current_version} of {PACKAGE_NAME}, however version {latest_version} is available.",
-                  f"\nConsider upgrading by running \"python3 -m pip install --upgrade {PACKAGE_NAME}\"\n")
+    Returns:
+        str: A folder name for the media data.
+    """
+    return generate_release_name(
+        title=media_data.name,
+        release_year=media_data.release_year,
+        media_source=media_data.source.abbreviation,
+    )
 
-    except Exception:
-        return
+
+def generate_media_path(base_path: Path, media_data: MediaData) -> Path:
+    """
+    Generate a temporary folder for downloading media data.
+
+    Args:
+        base_path (Path): A base path to generate the folder in.
+        media_data (MediaData): A media data object.
+
+    Returns:
+        Path: A path to the temporary folder.
+    """
+    temp_folder_name = generate_media_folder_name(media_data=media_data)
+    path = generate_non_conflicting_path(base_path / temp_folder_name, has_extension=False)
+    path.mkdir(parents=True, exist_ok=True)
+
+    return path
+
+
+def update_settings(config: Config) -> None:
+    """
+    Update settings according to config.
+
+    Args:
+        config (Config): An instance of a config to set settings according to.
+    """
+    Scraper.subtitles_fix_rtl = config.subtitles["fix-rtl"]
+    Scraper.subtitles_fix_rtl_languages = config.subtitles.get("rtl-languages")
+    Scraper.subtitles_remove_duplicates = config.subtitles["remove-duplicates"]
+    Scraper.default_user_agent = config.scrapers.get("user-agent", default_user_agent())
 
 
 def print_usage() -> None:

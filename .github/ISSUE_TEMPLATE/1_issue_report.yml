@@ -13,7 +13,7 @@ body:
     attributes:
       label: Confirmations
       options:
-        - label: "I confirm that I checked the issues tab and couldn't find an existing open issue for the issue I want to report."
+        - label: "I have checked the issues tab, and couldn't find an existing open issue for the issue I want to report."
           required: true
   - type: dropdown
     id: os-type

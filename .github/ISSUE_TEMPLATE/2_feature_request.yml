@@ -13,7 +13,7 @@ body:
     attributes:
       label: Confirmations
       options:
-        - label: "I confirm that I checked the issues tab and couldn't find an existing issue with a request for the feature I want to requst."
+        - label: "I have checked the issues tab, and couldn't find an existing issue with my feature request."
           required: true
   - type: textarea
     id: description
