@@ -71,9 +71,11 @@ def main():
                     print(f"{len(media_items)} media items were found.")
 
                 for media_item in media_items:
+                    media_id = media_item.id or media_item.alt_id or media_item.name
+
                     try:
                         if multiple_media_items:
-                            print(f"{media_item.id if media_item.id else media_item.name}:")
+                            print(f"{media_id}:")
 
                         if not media_item.playlist:
                             print("Error: No valid playlist were found.")
@@ -95,8 +97,8 @@ def main():
 
                     except Exception as e:
                         if multiple_media_items:
-                            print(f"Error: Encountered an error while scraping playlist "
-                                  f"{media_item.id if media_item.id else media_item.name}: {e}")
+                            print(f"Error: Encountered an error while scraping playlist for "
+                                  f"{media_id}: {e}")
                             continue
 
                         else:
@@ -284,7 +286,7 @@ def generate_media_folder_name(media_data: MediaData) -> str:
     """
     return generate_release_name(
         title=media_data.name,
-        release_year=media_data.release_year,
+        release_year=media_data.release_date.year,
         media_source=media_data.source.abbreviation,
     )
 

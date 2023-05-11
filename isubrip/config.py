@@ -54,7 +54,7 @@ class ConfigSetting(NamedTuple):
             to validate, represented by a SpecialConfigType value. Defaults to None.
     """
     key: str
-    # Using typing._UnionGenericAlias as a replacement for types.UnionType, which is available only on  Python 3.10+
+    # TODO: Use `types.UnionType` instead of `typing._UnionGenericAlias`, once minimum Python version >= 3.10
     type: type | typing._UnionGenericAlias  # type: ignore[name-defined]
     category: str | list[str] | None = None
     required: bool = False

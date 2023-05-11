@@ -102,11 +102,11 @@ class Scraper(ABC, metaclass=SingletonMeta):
             ValueError: If the URL doesn't match the regex and raise_error is True.
         """
         if isinstance(cls.url_regex, str):
-            return re.fullmatch(cls.url_regex, url)
+            return re.fullmatch(pattern=cls.url_regex, string=url, flags=re.IGNORECASE)
 
         else:  # isinstance(cls.url_regex, (list, tuple)):
-            for regex in cls.url_regex:
-                if result := re.fullmatch(regex, url):
+            for url_regex_item in cls.url_regex:
+                if result := re.fullmatch(pattern=url_regex_item, string=url, flags=re.IGNORECASE):
                     return result
 
         if raise_error:

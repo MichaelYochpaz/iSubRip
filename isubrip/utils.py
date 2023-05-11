@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import datetime as dt
 import os
 import re
 import sys
-from abc import ABCMeta
 
-from datetime import time
+from abc import ABCMeta
 from os import PathLike
 from pathlib import Path
 from typing import Any, Iterable, Union, get_args, get_origin
@@ -91,14 +91,14 @@ def download_subtitles_to_file(media_data: MovieData | EpisodeData, subtitles_da
 
     if isinstance(media_data, MovieData):
         file_name = generate_release_name(title=media_data.name,
-                                          release_year=media_data.release_year,
+                                          release_year=media_data.release_date.year,
                                           media_source=media_data.source.abbreviation,
                                           language_code=subtitles_data.language_code,
                                           subtitles_type=subtitles_data.special_type,
                                           file_format=subtitles_data.subtitles_format)
     elif isinstance(media_data, EpisodeData):
         file_name = generate_release_name(title=media_data.name,
-                                          release_year=media_data.release_year,
+                                          release_year=media_data.release_date.year,
                                           season_number=media_data.season_number,
                                           episode_number=media_data.episode_number,
                                           episode_name=media_data.episode_name,
@@ -275,7 +275,7 @@ def single_to_list(obj) -> list:
     return [obj]
 
 
-def split_subtitles_timestamp(timestamp: str) -> tuple[time, time]:
+def split_subtitles_timestamp(timestamp: str) -> tuple[dt.time, dt.time]:
     """
     Split a subtitles timestamp into start and end.
 
@@ -289,7 +289,7 @@ def split_subtitles_timestamp(timestamp: str) -> tuple[time, time]:
     timestamp = timestamp.replace(',', '.')
 
     start_time, end_time = timestamp.split(" --> ")
-    return time.fromisoformat(start_time), time.fromisoformat(end_time)
+    return dt.time.fromisoformat(start_time), dt.time.fromisoformat(end_time)
 
 
 def standardize_title(title: str) -> str:

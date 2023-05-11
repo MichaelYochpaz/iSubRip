@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+import datetime as dt
 
 import m3u8
 from bs4 import BeautifulSoup, Tag, NavigableString
@@ -73,7 +73,7 @@ class iTunesScraper(M3U8Scraper, MovieScraper):
         movie_data = json_data["storePlatformData"]["product-dv"]["results"][itunes_id]
 
         movie_title = movie_data["nameRaw"]
-        movie_release_year = datetime.strptime(movie_data["releaseDate"], '%Y-%m-%d').year
+        movie_release_date = dt.datetime.strptime(movie_data["releaseDate"], "%Y-%m-%d")
 
         # Loop safely to find a matching main_playlist
         for offer in movie_data["offers"]:
@@ -92,20 +92,24 @@ class iTunesScraper(M3U8Scraper, MovieScraper):
 
                         return MovieData(
                             id=itunes_id,
+                            alt_id=None,
                             name=movie_title,
-                            release_year=movie_release_year,
+                            release_date=movie_release_date,
                             playlist=playlist_url,
                             source=self.service_data,
                             scraper=self,
+                            original_data=json_data,
                         )
 
         return MovieData(
             id=itunes_id,
+            alt_id=None,
             name=movie_title,
-            release_year=movie_release_year,
+            release_date=movie_release_date,
             playlist=None,
             source=self.service_data,
             scraper=self,
+            original_data=json_data,
         )
 
     def _find_playlist_data_html(self, html_data: BeautifulSoup) -> MovieData:
@@ -147,7 +151,7 @@ class iTunesScraper(M3U8Scraper, MovieScraper):
         if isinstance(shoebox_data[itunes_id].get("included"), list):
             movie_data: dict = shoebox_data[itunes_id]
             movie_title: str = movie_data["data"]["attributes"]["name"]
-            movie_release_year = datetime.strptime(movie_data["data"]["attributes"]["releaseDate"], '%Y-%m-%d').year
+            movie_release_date = dt.datetime.strptime(movie_data["data"]["attributes"]["releaseDate"], "%Y-%m-%d")
 
             for item in movie_data["included"]:
                 if isinstance(item.get("type"), str) and item["type"] == "offer":
@@ -169,20 +173,24 @@ class iTunesScraper(M3U8Scraper, MovieScraper):
 
                                 return MovieData(
                                     id=itunes_id,
+                                    alt_id=None,
                                     name=movie_title,
-                                    release_year=movie_release_year,
+                                    release_date=movie_release_date,
                                     playlist=playlist_url,
                                     source=self.service_data,
                                     scraper=self,
+                                    original_data=movie_data,
                                 )
         else:
             raise ScraperException("Invalid shoebox data.")
 
         return MovieData(
             id=itunes_id,
+            alt_id=None,
             name=movie_title,
-            release_year=movie_release_year,
+            release_date=movie_release_date,
             playlist=None,
             source=self.service_data,
             scraper=self,
+            original_data=movie_data,
         )

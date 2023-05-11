@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import datetime as dt
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
-from typing import NamedTuple, TYPE_CHECKING
+from typing import List, NamedTuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from isubrip.scrapers.scraper import Scraper
@@ -97,6 +98,25 @@ class SubtitlesData:
         self.language_name = self.language_name.strip()
 
 
+# TODO: Use `kw_only` on dataclasses, and set default values of None for optional arguments once min version => 3.10
+
+@dataclass
+class TrailerData:
+    """
+    A named tuple containing trailer metadata.
+
+    Attributes:
+        id (str | None): ID of the trailer.
+        name (str | None): Name of the trailer.
+        playlist (str | None): URL to the playlist.
+        duration (timedelta | None): Duration of the trailer.
+    """
+    playlist: str
+    id: str | None = None
+    name: str | None = None
+    duration: dt.timedelta | None = None
+
+
 @dataclass
 class MediaData(ABC):
     """
@@ -104,18 +124,22 @@ class MediaData(ABC):
 
     Attributes:
         id (str | None): ID of the media.
+        alt_id (str | None): Alternative ID of the media.
         name (str): Name of the media. (movie or series name)
-        release_year (int): Release year of the media.
+        release_date (datetime): Release date of the media.
         playlist (str | None): URL to the playlist.
         source (MediaSourceData): Source of the media.
         scraper (Scraper): A reference to the scraper that was used to get the data.
+        original_data (dict): Original data that was used to create the object.
     """
     id: str | None
+    alt_id: str | None
     name: str
-    release_year: int
+    release_date: dt.datetime
     playlist: str | None
     source: MediaSourceData
     scraper: Scraper
+    original_data: dict
 
 
 @dataclass
@@ -123,13 +147,19 @@ class MovieData(MediaData):
     """A named tuple containing movie metadata.
 
     Attributes:
-        id (str | None): ID of the movie.
+        id (str | None): ID of the movie. Defaults to None.
+        alt_id (str | None): Alternative ID of the media. Defaults to None.
         name (str): Name of the movie.
-        release_year (int): Release year of the movie.
-        playlist (str | None): URL to the playlist.
+        release_date (datetime): Release date of the movie.
+        playlist (str | None): URL to the playlist. Defaults to None.
         source (MediaSourceData): Source of the media.
+        scraper (Scraper): A reference to the scraper that was used to get the data.
+        preorder_availability_date (datetime | None, optional): Date when the movie will be available for preorder.
+            None if not a preorder. Defaults to None.\
+        trailer (TrailerData | List[TrailerData] | None, optional): Trailer(s) of the movie. Defaults to None.
     """
-    pass
+    preorder_availability_date: dt.datetime | None = None
+    trailer: TrailerData | List[TrailerData] | None = None
 
 
 @dataclass
@@ -138,19 +168,23 @@ class EpisodeData(MediaData):
     A named tuple containing episode metadata.
 
     Attributes:
-        id (str | None): ID of the episode.
+        id (str | None): ID of the episode. Defaults to None.
+        alt_id (str | None): Alternative ID of the media. Defaults to None.
         name (str): Name of the movie.
-        release_year (int): Release year of the series.
-        playlist (str | None): URL to the playlist.
+        release_date (datetime): Release date of the series.
+        playlist (str | None): URL to the playlist. Defaults to None.
         source (MediaSourceData): Source of the media.
+        scraper (Scraper): A reference to the scraper that was used to get the data.
         episode_number (int): Episode number.
         season_number (int): Season number.
         episode_name (str | None, optional): Episode name. Defaults to None.
         season_name (str | None, optional): Season name. Defaults to None.
+        episode_release_date (datetime | None): Release date of the episode. Defaults to None.
     """
     episode_number: int
+    episode_name: str
     season_number: int
-    episode_name: str | None = None
+    episode_release_date: dt.datetime | None = None
     season_name: str | None = None
 
 
@@ -160,17 +194,21 @@ class SeasonData(MediaData):
     A named tuple containing season metadata.
 
     Attributes:
-        id (str | None): ID of the season.
+        id (str | None): ID of the season. Defaults to None.
+        alt_id (str | None): Alternative ID of the media. Defaults to None.
         name (str): Name of the series.
-        release_year (int): Release year of the series.
-        playlist (str | None): URL to the playlist.
+        release_date (datetime): Release date of the series.
+        playlist (str | None): URL to the playlist. Defaults to None.
         source (MediaSourceData): Source of the media.
+        scraper (Scraper): A reference to the scraper that was used to get the data.
         season_number (int): Season number.
-        season_episodes (list[EpisodeData]): Episodes that belong to the season.
         season_name (str | None, optional): Season name. Defaults to None.
+        season_episodes (list[EpisodeData]): Episodes that belong to the season.
+        season_release_date (datetime | None, optional): Release date of the season. Defaults to None.
     """
     season_number: int
     season_episodes: list[EpisodeData]
+    season_release_date: dt.datetime | None = None
     season_name: str | None = None
 
 
@@ -180,11 +218,13 @@ class SeriesData(MediaData):
     A named tuple containing series metadata.
 
     Attributes:
-        id (str | None): ID of the series.
+        id (str | None): ID of the series. Defaults to None.
+        alt_id (str | None): Alternative ID of the media. Defaults to None.
         name (str): Name of the series.
-        release_year (int): Release year of the series.
-        playlist (str | None): URL to the playlist.
+        release_date (datetime): Release date of the series.
+        playlist (str | None): URL to the playlist. Defaults to None.
         source (MediaSourceData): Source of the media.
+        scraper (Scraper): A reference to the scraper that was used to get the data.
         series_seasons (list[SeasonData]): Seasons that belong to the series.
     """
     series_seasons: list[SeasonData]
