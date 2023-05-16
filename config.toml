@@ -45,7 +45,7 @@ fix-rtl = false
 
 # List of iTunes language codes to fix RTL on.
 # This setting is optional, and is used for overriding the default list of languages to fix RTL on.
-# This setting is not used by default.
+# This setting is not set by default.
 rtl-languages = ["ar", "he"]
 
 # Remove duplicate paragraphs (same text and timestamps).
@@ -63,13 +63,14 @@ default-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
 
 
 [scrapers.itunes]
-# User-Agent to use while scraping iTunes.
+# User-Agent to use while scraping from iTunes.
 # Changing this setting is not recommended.
+# This setting is not set by default.
 user-agent = "iTunes-AppleTV/15.2"
 
 
 [scrapers.appletv]
-# User-Agent to use while scraping AppleTV.
+# User-Agent to use while scraping from AppleTV.
 # Changing this setting is not recommended.
-# This setting is not used by default.
+# This setting is not set by default.
 user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"

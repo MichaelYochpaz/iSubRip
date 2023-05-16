@@ -10,7 +10,7 @@ from abc import abstractmethod, ABC
 from enum import Enum
 from glob import glob
 from pathlib import Path
-from typing import ClassVar, Iterator, Literal, overload, Union, List, TypeVar
+from typing import Any, ClassVar, Iterator, List, Literal, overload, Union, TypeVar
 
 import aiohttp
 import m3u8
@@ -19,7 +19,7 @@ from m3u8 import M3U8, Media, Segment, SegmentList
 
 from isubrip.config import Config, ConfigSetting
 from isubrip.constants import PACKAGE_NAME, SCRAPER_MODULES_SUFFIX
-from isubrip.data_structures import MediaSourceData, SubtitlesData, SubtitlesFormat, SubtitlesType
+from isubrip.data_structures import SubtitlesData, SubtitlesFormat, SubtitlesType
 from isubrip.subtitle_formats.subtitles import Subtitles
 from isubrip.utils import merge_dict_values, SingletonMeta
 
@@ -34,12 +34,20 @@ class Scraper(ABC, metaclass=SingletonMeta):
     Attributes:
         default_user_agent (str): [Class Attribute]
             Default user agent to use if no other user agent is specified when making requests.
-        url_regex: [Class Attribute] A RegEx pattern to find URLs matching the service.
-        service_data: [Class Attribute] A MediaSourceData object containing the service's name and abbreviation.
-        subtitles_class: [Class Attribute] Class of the subtitles format returned by the scraper.
-        is_movie_scraper: [Class Attribute] Whether the scraper is for movies.
-        is_series_scraper: [Class Attribute] Whether the scraper is for series.
-        uses_scrapers: [Class Attribute] A list of other scraper classes that this scraper uses.
+        subtitles_fix_rtl (bool): [Class Attribute] Whether to fix RTL from downloaded subtitles.
+        subtitles_fix_rtl_languages (list[str] | None): [Class Attribute]
+            A list of languages to fix RTL on. If None, a default list will be used.
+        subtitles_remove_duplicates (bool): [Class Attribute]
+            Whether to remove duplicate lines from downloaded subtitles.
+
+        id (str): [Class Attribute] ID of the scraper.
+        name (str): [Class Attribute] Name of the scraper.
+        abbreviation (str): [Class Attribute] Abbreviation of the scraper.
+        url_regex (str): [Class Attribute] A RegEx pattern to find URLs matching the service.
+        subtitles_class (type[Subtitles]): [Class Attribute] Class of the subtitles format returned by the scraper.
+        is_movie_scraper (bool): [Class Attribute] Whether the scraper is for movies.
+        is_series_scraper (bool): [Class Attribute] Whether the scraper is for series.
+        uses_scrapers (list[str]): [Class Attribute] A list of IDs for other scraper classes that this scraper uses.
             This assures that the config data for the other scrapers is passed as well.
         _session (requests.Session): A requests session to use for making requests.
         config (Config): A Config object containing the scraper's configuration.
@@ -49,12 +57,14 @@ class Scraper(ABC, metaclass=SingletonMeta):
     subtitles_fix_rtl_languages: ClassVar[list | None]
     subtitles_remove_duplicates: ClassVar[bool]
 
+    id: ClassVar[str]
+    name: ClassVar[str]
+    abbreviation: ClassVar[str]
     url_regex: ClassVar[str | list[str]]
-    service_data: ClassVar[MediaSourceData]
     subtitles_class: ClassVar[type[Subtitles]]
     is_movie_scraper: ClassVar[bool] = False
     is_series_scraper: ClassVar[bool] = False
-    uses_scrapers: ClassVar[list[type[Scraper]]] = []
+    uses_scrapers: ClassVar[list[str]] = []
 
     def __init__(self, config_data: dict | None = None):
         """
@@ -64,7 +74,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
             config_data (dict | None, optional): A dictionary containing scraper's configuration data. Defaults to None.
         """
         self._session = requests.Session()
-        self.config = Config(config_data=config_data.get(self.service_data.id) if config_data else None)
+        self.config = Config(config_data=config_data.get(self.id) if config_data else None)
 
         self.config.add_settings([
             ConfigSetting(
@@ -110,7 +120,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
                     return result
 
         if raise_error:
-            raise ValueError(f"URL '{url}' doesn't match the URL regex of {cls.service_data.name}.")
+            raise ValueError(f"URL '{url}' doesn't match the URL regex of {cls.name}.")
 
         return None
 
@@ -244,6 +254,25 @@ class M3U8Scraper(AsyncScraper, ABC):
         async with self.async_session.get(url) as response:
             return await response.read()
 
+    def _map_session_data(self, playlist_data: M3U8) -> dict[str, Any]:
+        """
+        Create and return a dictionary of session data from an M3U8 playlist.
+
+        Args:
+            playlist_data (m3u8.M3U8): M3U8 playlist to map session data from.
+
+        Returns:
+            dict[str, Any]: Dictionary of session data.
+        """
+        session_data = {}
+
+        if playlist_data.session_data:
+            for session_data_item in playlist_data.session_data:
+                session_data[session_data_item.data_id] = session_data_item.value
+
+        return session_data
+
+
     @staticmethod
     def detect_subtitles_type(subtitles_media: Media) -> SubtitlesType | None:
         """
@@ -368,6 +397,7 @@ class ScraperFactory(metaclass=SingletonMeta):
     def __init__(self):
         self._scraper_classes_cache: list[type[Scraper]] | None = None
         self._scraper_instances_cache: dict[type[Scraper], Scraper] = {}
+        self._currently_initializing: list[type[Scraper]] = []  # Used to prevent infinite recursion
 
     def get_initialized_scrapers(self) -> list[Scraper]:
         """
@@ -378,19 +408,17 @@ class ScraperFactory(metaclass=SingletonMeta):
         """
         return list(self._scraper_instances_cache.values())
 
-    def get_scraper_classes(self) -> list[type[Scraper]]:
+    def get_scraper_classes(self) -> Iterator[type[Scraper]]:
         """
-        Get a list of all scraper classes.
+        Iterate over all scraper classes.
 
-        Returns:
-            list[type[Scraper]]: A list of scraper classes.
+        Yields:
+            type[Scraper]: A Scraper subclass.
         """
         if self._scraper_classes_cache is not None:
             return self._scraper_classes_cache
 
         else:
-            scrapers_list: list[type[Scraper]] = []
-
             scraper_modules_paths = glob(os.path.dirname(__file__) + f"/*{SCRAPER_MODULES_SUFFIX}.py")
 
             for scraper_module_path in scraper_modules_paths:
@@ -398,56 +426,18 @@ class ScraperFactory(metaclass=SingletonMeta):
 
                 module = importlib.import_module(f"{PACKAGE_NAME}.scrapers.{Path(scraper_module_path).stem}")
 
-                # find Scraper subclasses
-                for name, obj in inspect.getmembers(module,
-                                                    predicate=lambda x: inspect.isclass(x) and issubclass(x, Scraper)):
+                # Find all 'Scraper' subclasses
+                for _, obj in inspect.getmembers(module,
+                                                 predicate=lambda x: inspect.isclass(x) and issubclass(x, Scraper)):
                     # Skip object if it's an abstract or imported from another module
                     if not inspect.isabstract(obj) and obj.__module__ == module.__name__:
                         if any((obj.is_movie_scraper, obj.is_series_scraper)):
-                            scrapers_list.append(obj)
+                            yield obj
 
-            return scrapers_list
+            return
 
-    @overload
-    def get_scraper_instance_by_url(self, url: str, scrapers_config_data: dict | None = ...,
-                                    raise_error: Literal[True] = ...) -> Scraper:
-        ...
-
-    @overload
-    def get_scraper_instance_by_url(self, url: str, scrapers_config_data: dict | None = ...,
-                                    raise_error: Literal[False] = ...) -> Scraper | None:
-        ...
-
-    def get_scraper_instance_by_url(self, url: str, scrapers_config_data: dict | None = None,
-                                    raise_error: bool = False) -> Scraper | None:
-        """
-        Find, initialize and return a scraper that matches the given URL.
-
-        Args:
-            url (str): A URL to match a scraper for.
-            scrapers_config_data (dict, optional): A dictionary containing scrapers config data to use
-                when creating a new scraper. Defaults to None.
-            raise_error (bool, optional): Whether to raise an error if no scraper was found. Defaults to False.
-
-        Returns:
-            Scraper | None: An instance of a scraper that matches the given URL,
-                None otherwise (if raise_error is False).
-
-        Raises:
-            ValueError: If no scraper was found and raise_error is True.
-        """
-        for scraper in self.get_scraper_classes():
-            if url and scraper.match_url(url) is not None:
-                return self.get_scraper_instance_by_scraper(scraper_class=scraper,
-                                                            scrapers_config_data=scrapers_config_data)
-
-        if raise_error:
-            raise ValueError(f"No matching scraper was found for {url}")
-
-        return None
-
-    def get_scraper_instance_by_scraper(self, scraper_class: type[ScraperT],
-                                        scrapers_config_data: dict | None = None) -> ScraperT:
+    def _get_scraper_instance(self, scraper_class: type[ScraperT],
+                              scrapers_config_data: dict | None = None) -> ScraperT:
         """
         Initialize and return a scraper instance.
 
@@ -460,19 +450,88 @@ class ScraperFactory(metaclass=SingletonMeta):
             Scraper: An instance of the given scraper class.
         """
         if scraper_class not in self._scraper_instances_cache:
+            if scraper_class in self._currently_initializing:
+                raise ScraperException(f"Scraper '{scraper_class.id}' is already being initialized.\n"
+                                       f"Make sure there are no circular dependencies between scrapers.")
+
+            self._currently_initializing.append(scraper_class)
+
+            # Set config data for the scraper and its dependencies, if any
             if not scrapers_config_data:
                 config_data = None
 
             else:
-                required_scrapers_ids = [scraper_class.service_data.id] + \
-                                        [s.service_data.id for s in scraper_class.uses_scrapers]
+                required_scrapers_ids = [scraper_class.id] + scraper_class.uses_scrapers
                 config_data = \
                     {scraper_id: scrapers_config_data[scraper_id] for scraper_id in required_scrapers_ids
                      if scrapers_config_data.get(scraper_id)}
 
             self._scraper_instances_cache[scraper_class] = scraper_class(config_data=config_data)
+            self._currently_initializing.remove(scraper_class)
 
         return self._scraper_instances_cache[scraper_class]  # type: ignore[return-value]
+
+    @overload
+    def get_scraper_instance(self, scraper_class: type[ScraperT], scraper_id: str | None = ...,
+                             url: str | None = ..., config_data: dict | None = ...,
+                             raise_error: Literal[True] = ...) -> ScraperT:
+        ...
+
+    @overload
+    def get_scraper_instance(self, scraper_class: type[ScraperT], scraper_id: str | None = ...,
+                             url: str | None = ..., config_data: dict | None = ...,
+                             raise_error: Literal[False] = ...) -> ScraperT | None:
+        ...
+
+    @overload
+    def get_scraper_instance(self, scraper_class: None = ..., scraper_id: str | None = ...,
+                             url: str | None = ..., config_data: dict | None = ...,
+                             raise_error: Literal[True] = ...) -> Scraper:
+        ...
+
+    @overload
+    def get_scraper_instance(self, scraper_class: None = ..., scraper_id: str | None = ...,
+                             url: str | None = ..., config_data: dict | None = ...,
+                             raise_error: Literal[False] = ...) -> Scraper | None:
+        ...
+
+    def get_scraper_instance(self, scraper_class: type[Scraper] | None = None, scraper_id: str | None = None,
+                             url: str | None = None, config_data: dict | None = None,
+                             raise_error: bool = True) -> Scraper | None:
+        """
+        Find, initialize and return a scraper that matches the given URL or ID.
+
+        Args:
+            scraper_class (type[ScraperT] | None, optional): A scraper class to initialize. Defaults to None.
+            scraper_id (str | None, optional): ID of a scraper to initialize. Defaults to None.
+            url (str | None, optional): A URL to match a scraper for to initialize. Defaults to None.
+            config_data (dict, optional): A dictionary containing scrapers config data to use
+                when creating a new scraper. Defaults to None.
+            raise_error (bool, optional): Whether to raise an error if no scraper was found. Defaults to False.
+
+        Returns:
+            ScraperT | Scraper | None: An instance of a scraper that matches the given URL or ID,
+                None otherwise (if raise_error is False).
+
+        Raises:
+            ValueError: If no scraper was found and raise_error is True.
+        """
+        if scraper_class:
+            return self._get_scraper_instance(scraper_class=scraper_class,
+                                              scrapers_config_data=config_data)
+
+        elif scraper_id or url:
+            for scraper in self.get_scraper_classes():
+                if (scraper_id and scraper.id == scraper_id) or (url and scraper.match_url(url) is not None):
+                    return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
+
+            if raise_error:
+                raise ValueError(f"No matching scraper was found for URL '{url}'")
+
+            return None
+
+        else:
+            raise ValueError("At least one of: 'scraper_class', 'scraper_id', or 'url' must be provided.")
 
 
 class ScraperException(Exception):

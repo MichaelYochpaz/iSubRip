@@ -1,32 +1,34 @@
 from __future__ import annotations
 
-from isubrip.data_structures import MovieData
-from isubrip.scrapers.itunes_scraper import iTunesScraper
-from isubrip.scrapers.scraper import M3U8Scraper, MediaSourceData, MovieScraper, ScraperException, \
-    SeriesScraper, ScraperFactory
+import datetime as dt
+from enum import Enum
+import fnmatch
+
+import m3u8
+
+from isubrip.data_structures import EpisodeData, MovieData, SeasonData, SeriesData, PlaylistData
+from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperException, SeriesScraper, ScraperFactory
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
+from isubrip.utils import convert_epoch_to_datetime, parse_url_params
 
 
-class AppleTVPlusScraper(M3U8Scraper, MovieScraper, SeriesScraper):
-    """
-    An Apple TV+ movie data scraper.
-    Also works for Apple TV items that include iTunes links (by redirecting to the iTunes scraper).
-    """
-    url_regex = r"(https?://tv\.apple\.com/([a-z]{2})/(movie|show)/(?:[\w\-%]+/)?(umc\.cmc\.[a-z\d]{24,25}))(?:\?.*)?"
-    service_data = MediaSourceData(id="appletvplus", name="Apple TV+", abbreviation="ATVP")
+class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
+    """An Apple TV scraper."""
+    id = "appletv"
+    name = "Apple TV"  # (iTunes content is redirected to the iTunes scraper)
+    abbreviation = "ATV"
+    url_regex = r"(?P<base_url>https?://tv\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|episode|season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>umc\.cmc\.[a-z\d]{24,25}))(?:\?(?P<url_params>(?:).*))?"  # noqa: E501
     subtitles_class = WebVTTSubtitles
     is_movie_scraper = True
     is_series_scraper = True
-    uses_scrapers = [iTunesScraper]
+    uses_scrapers = ["itunes"]
 
-    _api_url = "https://tv.apple.com/api/uts/v3/movies/"
-    _api_request_params = {
+    _api_url = "https://tv.apple.com/api/uts/v3"
+    _api_base_params = {
         "utscf": "OjAAAAAAAAA~",
-        "utsk": "6e3013c6d6fae3c2::::::235656c069bb0efb",
-        "caller": "web",
-        "v": "58",
+        "caller": "js",
+        "v": "66",
         "pfm": "web",
-        "locale": "en-US"
     }
     _storefronts_mapping = {
         "AF": "143610", "AO": "143564", "AI": "143538", "AL": "143575", "AD": "143611", "AE": "143481", "AR": "143505",
@@ -58,19 +60,57 @@ class AppleTVPlusScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         "ZM": "143622", "ZW": "143605",
     }
 
+    _default_country = "US"  # Has to be uppercase
+
+    class Channel(Enum):
+        """
+        An Enum representing AppleTV channels.
+        Value represents the channel ID as used by the API.
+        """
+        APPLE_TV_PLUS = "tvs.sbd.4000"
+        DISNEY_PLUS = "tvs.sbd.1000216"
+        ITUNES = "tvs.sbd.9001"
+        HULU = "tvs.sbd.10000"
+        MAX = "tvs.sbd.9050"
+        NETFLIX = "tvs.sbd.9000"
+        PRIME_VIDEO = "tvs.sbd.12962"
+        STARZ = "tvs.sbd.1000308"
+
     def __init__(self, config_data: dict | None = None):
         super().__init__(config_data=config_data)
-        self.itunes_scraper = ScraperFactory().get_scraper_instance_by_scraper(
-            scraper_class=iTunesScraper,
-            scrapers_config_data=config_data,
-        )
+        self._config_data = config_data
 
-    def fetch_api_data(self, url: str) -> dict:
+    def _decide_locale(self, preferred_locales: str | list[str], default_locale: str, locales: list[str]) -> str:
+        """
+        Decide which locale to use.
+
+        Args:
+            preferred_locales (str | list[str]): The preferred locales to use.
+            default_locale (str): The default locale to use if there is no match.
+            locales (list[str]): The locales to search in.
+
+        Returns:
+            str: The locale to use.
+        """
+        if isinstance(preferred_locales, str):
+            preferred_locales = [preferred_locales]
+
+        for locale in preferred_locales:
+            if locale in locales:
+                return locale.replace("_", "-")
+
+        if result := fnmatch.filter(locales, "en_*"):
+            return result[0].replace("_", "-")
+
+        return default_locale
+
+    def _fetch_api_data(self, storefront_id: str, endpoint: str, additional_params: dict | None = None) -> dict:
         """
         Send a request to AppleTV's API and return the JSON response.
 
         Args:
-            url: The URL to send the request to.
+            endpoint (str): The endpoint to send the request to.
+            additional_params (dict[str, str]): Additional parameters to send with the request.
 
         Returns:
             dict: The JSON response.
@@ -78,65 +118,236 @@ class AppleTVPlusScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         Raises:
             HttpError: If an HTTP error response is received.
         """
-        regex_match = self.match_url(url, raise_error=True)
+        storefront_data = self._get_configuration_data(storefront_id=storefront_id)["applicationProps"]["storefront"]
 
-        # Add storefront ID to params
-        request_params = self._api_request_params.copy()
+        locale = self._decide_locale(
+            preferred_locales=["en_US", "en_GB"],
+            default_locale=storefront_data["defaultLocale"],
+            locales=storefront_data["localesSupported"],
+        )
 
-        if regex_match.group(2).upper() in self._storefronts_mapping:
-            request_params["sf"] = self._storefronts_mapping[regex_match.group(2).upper()]
+        request_params = self._generate_api_request_params(storefront_id=storefront_id, locale=locale)
 
-        else:
-            raise ScraperException(f"ID mapping for storefront '{regex_match.group(2).upper()}' could not be found.")
+        if additional_params:
+            request_params.update(additional_params)
 
-        response = self._session.get(self._api_url + regex_match.group(4), params=request_params)
+        # Send request to fetch media data
+        response = self._session.get(url=f"{self._api_url}{endpoint}", params=request_params)
         response.raise_for_status()
         response_json = response.json()
 
         return response_json.get("data", {})
 
-    def get_data(self, url: str) -> MovieData | list[MovieData] | None:
-        json_data = self.fetch_api_data(url)
-        itunes_channel: str | None = None
-        appletvplus_channel: str | None = None
+    def _generate_api_request_params(self, storefront_id: str,
+                                     locale: str | None = None, utsk: str | None = None) -> dict:
+        """
+        Generate request params for the AppleTV's API.
 
-        for channel in json_data["channels"].values():
-            if channel.get("isAppleTvPlus", False):
-                appletvplus_channel = channel["id"]
+        Args:
+            storefront_id (str): ID of the storefront to use.
+            locale (str | None, optional): ID of the locale to use. Defaults to None.
+            utsk (str | None, optional): utsk data. Defaults to None.
 
-            elif channel.get("isItunes", False):
-                itunes_channel = channel["id"]
-        
-        if appletvplus_channel:
-            media_type = json_data.get("content", {}).get("type")
+        Returns:
+            dict: The request params, generated from the given arguments.
+        """
+        params = self._api_base_params.copy()
+        params["sf"] = storefront_id
 
-            if media_type in ("Movie", "Show"):
-                for playable in json_data["playables"].values():
-                    if playable.get("channelId") == appletvplus_channel:
-                        raise NotImplementedError("AppleTV+ content scraping is not currently supported.")
+        if utsk:
+            params["utsk"] = utsk
+
+        if locale:
+            params["locale"] = locale
+
+        return params
+
+    def _generate_playlist_object(self, offer_data: dict, raise_error: bool = False) -> PlaylistData | None:
+        """
+        Generate a PlaylistData object from a list of playlists.
+
+        Args:
+            offer_data (dict): An offer data as returned by the API.
+
+        Returns:
+            PlaylistData | None: A PlaylistData object if a valid playlist is found,
+                None if not (and raise_error is False).
+
+        Raises:
+            ScraperException: If no valid playlist is found, and raise_error is True.
+        """
+        if offer_data.get("hlsUrl"):
+            try:
+                data = m3u8.load(uri=offer_data["hlsUrl"], timeout=5)
+                playlist_session_data = self._map_session_data(playlist_data=data)
+                duration = None
+
+                if duration_int := offer_data.get("durationInMilliseconds"):
+                    duration = dt.timedelta(milliseconds=duration_int)
+
+                return PlaylistData(
+                    id=playlist_session_data.get("com.apple.hls.feature.adam-id"),
+                    url=offer_data["hlsUrl"],
+                    data=data,
+                    duration=duration,
+                )
+
+            except Exception:
+                pass
+
+        if raise_error:
+            raise ScraperException("No valid playlist found.")
+
+        else:
+            return None
+
+    def _get_configuration_data(self, storefront_id: str) -> dict:
+        """
+        Get configuration data for the given storefront ID.
+
+        Args:
+            storefront_id (str): The ID of the storefront to get the configuration data for.
+
+        Returns:
+            dict: The configuration data.
+        """
+        url = f"{self._api_url}/configurations"
+        params = self._generate_api_request_params(storefront_id=storefront_id, locale="en-US")
+        response = self._session.get(url=url, params=params)
+        response.raise_for_status()
+
+        return response.json()["data"]
+
+    def _map_playables_by_channel(self, playables: list[dict]) -> dict[str, dict]:
+        """
+        Map playables by channel name.
+        Args:
+            playables (list[dict]): Playables data to map.
+
+        Returns:
+            dict: The mapped playables (in a `channel_name (str): [playables]` format).
+        """
+        mapped_playables: dict = {}
+
+        for playable in playables:
+            channel_id = playable.get("channelId", "")
+            mapped_playables.setdefault(channel_id, []).append(playable)
+
+        return mapped_playables
+
+    def get_movie_data(self, storefront_id: str, movie_id: str) -> MovieData | list[MovieData]:
+        data = self._fetch_api_data(
+            storefront_id=storefront_id,
+            endpoint=f"/movies/{movie_id}",
+        )
+
+        mapped_playables = self._map_playables_by_channel(playables=data["playables"].values())
+
+        if self.Channel.ITUNES.value not in mapped_playables:
+            if self.Channel.APPLE_TV_PLUS.value in mapped_playables:
+                raise ScraperException("Scraping AppleTV+ content is not currently supported.")
 
             else:
-                raise ScraperException(f"Unsupported media type: '{media_type}'.")
+                raise ScraperException("No iTunes playables could be found.")
 
-        elif itunes_channel:
-            itunes_playables = []
+        return_data = []
+        for playable_data in mapped_playables[self.Channel.ITUNES.value]:
+            return_data.append(self._get_movie_data_itunes(playable_data))
 
-            for playable in json_data["playables"].values():
-                if playable.get("channelId", '') == itunes_channel:
-                    itunes_playables.append(playable)
+        if len(return_data) == 1:
+            return return_data[0]
 
-            return self._get_data_itunes(playables_data=itunes_playables)
+        return return_data
 
-        return None
+    def _get_movie_data_itunes(self, playable_data: dict) -> MovieData:
+        """
+        Get movie data from an AppleTV iTunes playable.
 
-    def _get_data_itunes(self, playables_data: list[dict]) -> MovieData | list[MovieData]:
-        results = []
+        Args:
+            playable_data (dict): The playable data from the AppleTV API.
 
-        for playable_data in playables_data:
-            itunes_url = playable_data["punchoutUrls"]["open"].replace("itmss://", "https://")
-            results.append(self.itunes_scraper.get_data(itunes_url))
+        Returns:
+            MovieData: A MovieData object.
+        """
+        movie_id = playable_data["itunesMediaApiData"]["id"]  # iTunes ID
+        movie_alt_id = playable_data["canonicalId"]  # AppleTV ID
+        movie_title = playable_data["canonicalMetadata"]["movieTitle"]
+        movie_release_date = convert_epoch_to_datetime(playable_data["canonicalMetadata"]["releaseDate"] // 1000)
 
-        if len(results) == 1:
-            return results[0]
+        movie_playlists = []
+        movie_duration = None
 
-        return results
+        if offers := playable_data["itunesMediaApiData"].get("offers"):
+            for offer in offers:
+                if playlist := self._generate_playlist_object(offer_data=offer):
+                    movie_playlists.append(playlist)
+
+            if movie_duration_int := offers[0].get("durationInMilliseconds"):
+                movie_duration = dt.timedelta(milliseconds=movie_duration_int)
+
+        if movie_expected_release_date := playable_data["itunesMediaApiData"].get("futureRentalAvailabilityDate"):
+            dt.datetime.strptime(movie_expected_release_date, "%Y-%m-%d")
+
+        itunes_scraper = ScraperFactory().get_scraper_instance(scraper_id="itunes",
+                                                               config_data=self._config_data,
+                                                               raise_error=True)
+
+        return MovieData(
+                id=movie_id,
+                alt_id=movie_alt_id,
+                name=movie_title,
+                release_date=movie_release_date,
+                playlist=movie_playlists if movie_playlists else None,
+                scraper=itunes_scraper,
+                original_scraper=self,
+                original_data=playable_data,
+                duration=movie_duration,
+                preorder_availability_date=movie_expected_release_date,
+            )
+
+    def get_episode_data(self, storefront_id: str, episode_id: str) -> EpisodeData:
+        raise NotImplementedError("Series scraping is not currently supported.")
+
+    def get_season_data(self, storefront_id: str, season_id: str, show_id: str) -> SeasonData:
+        raise NotImplementedError("Series scraping is not currently supported.")
+
+    def get_show_data(self, storefront_id: str, show_id: str) -> SeriesData:
+        raise NotImplementedError("Series scraping is not currently supported.")
+
+    def get_data(self, url: str) -> MovieData | list[MovieData] | EpisodeData | SeasonData | SeriesData:
+        regex_match = self.match_url(url, raise_error=True)
+        url_data = regex_match.groupdict()
+
+        media_type = url_data["media_type"]
+
+        if storefront_code := url_data.get("country_code"):
+            storefront_code = storefront_code.upper()
+
+        else:
+            storefront_code = self._default_country
+
+        media_id = url_data["media_id"]
+
+        if storefront_code not in self._storefronts_mapping:
+            raise ScraperException(f"ID mapping for storefront '{storefront_code}' could not be found.")
+
+        storefront_id = self._storefronts_mapping[storefront_code]
+
+        if media_type == "movie":
+            return self.get_movie_data(storefront_id=storefront_id, movie_id=media_id)
+
+        elif media_type == "episode":
+            return self.get_episode_data(storefront_id=storefront_id, episode_id=media_id)
+
+        elif media_type == "season":
+            if url_params := url_data.get("url_params"):
+                if show_id := parse_url_params(url_params).get("showId"):
+                    return self.get_season_data(storefront_id=storefront_id, season_id=media_id, show_id=show_id)
+
+            raise ScraperException("Invalid AppleTV URL: Missing 'showId' parameter.")
+
+        elif media_type == "show":
+            return self.get_show_data(storefront_id=storefront_id, show_id=media_id)
+
+        else:
+            raise ScraperException(f"Invalid media type '{media_type}'.")

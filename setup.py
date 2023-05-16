@@ -69,7 +69,7 @@ setup(
 
     keywords=["iTunes", "movies", "subtitles", "scrape", "scraper", "download", "m3u8"],
     packages=[PACKAGE_NAME],
-    install_requires=["aiohttp", "beautifulsoup4", "lxml", "m3u8", "mergedeep", "requests", "tomli"],
+    install_requires=["aiohttp", "m3u8", "mergedeep", "requests", "tomli"],
     package_data={PACKAGE_NAME: ["resources/*"]},
     python_requires=">=3.8",
     entry_points={

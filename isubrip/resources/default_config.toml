@@ -1,6 +1,5 @@
-# This is the default config.
-# This file should NOT be altered. For changing settings, use a user-config file.
-# Any settings set on the user config will override these.
+# This is the default config file, containing all the default settings.
+# Settings set on the user config will override these.
 
 [general]
 check-for-updates = true
@@ -18,9 +17,6 @@ convert-to-srt = false
 
 [scrapers]
 user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
-
-[scrapers.itunes]
-user-agent = "iTunes-AppleTV/15.2"
 
 [scrapers.itunes.playlist-filters]
 group-id = ["subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"]

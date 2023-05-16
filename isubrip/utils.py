@@ -69,6 +69,23 @@ def check_type(value: Any, type_) -> bool:
     return isinstance(value, type_)
 
 
+def convert_epoch_to_datetime(epoch_timestamp: int) -> dt.datetime:
+    """
+    Convert an epoch timestamp to a datetime object.
+
+    Args:
+        epoch_timestamp (int): Epoch timestamp.
+
+    Returns:
+        datetime: A datetime object representing the timestamp.
+    """
+    if epoch_timestamp >= 0:
+        return dt.datetime.fromtimestamp(epoch_timestamp)
+
+    else:
+        return dt.datetime(1970, 1, 1) + dt.timedelta(seconds=epoch_timestamp)
+
+
 def download_subtitles_to_file(media_data: MovieData | EpisodeData, subtitles_data: SubtitlesData,
                                output_path: str | PathLike, overwrite: bool = False) -> Path:
     """
@@ -92,7 +109,7 @@ def download_subtitles_to_file(media_data: MovieData | EpisodeData, subtitles_da
     if isinstance(media_data, MovieData):
         file_name = generate_release_name(title=media_data.name,
                                           release_year=media_data.release_date.year,
-                                          media_source=media_data.source.abbreviation,
+                                          media_source=media_data.scraper.abbreviation,
                                           language_code=subtitles_data.language_code,
                                           subtitles_type=subtitles_data.special_type,
                                           file_format=subtitles_data.subtitles_format)
@@ -102,7 +119,7 @@ def download_subtitles_to_file(media_data: MovieData | EpisodeData, subtitles_da
                                           season_number=media_data.season_number,
                                           episode_number=media_data.episode_number,
                                           episode_name=media_data.episode_name,
-                                          media_source=media_data.source.abbreviation,
+                                          media_source=media_data.scraper.abbreviation,
                                           language_code=subtitles_data.language_code,
                                           subtitles_type=subtitles_data.special_type,
                                           file_format=subtitles_data.subtitles_format)
@@ -185,7 +202,7 @@ def generate_release_name(title: str,
     """
     file_name = standardize_title(title)
 
-    if release_year is not None and str(release_year) not in file_name:
+    if release_year is not None:
         file_name += f'.{release_year}'
 
     if season_number is not None:
@@ -252,6 +269,26 @@ def merge_dict_values(*dictionaries: dict) -> dict:
                 result[key] = value
 
     return result
+
+
+def parse_url_params(url_params: str) -> dict:
+    """
+    Parse GET parameters from a URL to a dictionary.
+
+    Args:
+        url_params (str): URL parameters. (e.g. 'param1=value1&param2=value2')
+
+    Returns:
+        dict: A dictionary containing the URL parameters.
+    """
+    url_params = url_params.strip('?').rstrip('&')
+    params_list = url_params.split('&')
+
+    if len(params_list) == 0 or \
+            (len(params_list) == 1 and '=' not in params_list[0]):
+        return {}
+
+    return {key: value for key, value in (param.split('=') for param in params_list)}
 
 
 def single_to_list(obj) -> list:

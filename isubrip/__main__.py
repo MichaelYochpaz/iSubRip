@@ -5,7 +5,6 @@ import shutil
 import sys
 from pathlib import Path
 
-import m3u8
 import requests
 from requests.utils import default_user_agent
 
@@ -44,14 +43,11 @@ def main():
             print(f"Scraping {url}")
 
             try:
-                scraper = scraper_factory.get_scraper_instance_by_url(url=url,
-                                                                      scrapers_config_data=config.data.get("scrapers"),
-                                                                      raise_error=True)
-
+                scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
                 atexit.register(scraper.close)
                 scraper.config.check()
 
-                media_data = scraper.get_data(url=url)
+                media_data: MovieData = scraper.get_data(url=url)
 
                 if not media_data:
                     print(f"Error: No supported media data was found for {url}.")
@@ -65,7 +61,7 @@ def main():
                     "zip_files": config.downloads.get("zip", False),
                 }
 
-                media_items: list[MediaData] = single_to_list(media_data)
+                media_items: list[MovieData] = single_to_list(media_data)
                 multiple_media_items = len(media_items) > 1
                 if multiple_media_items:
                     print(f"{len(media_items)} media items were found.")
@@ -78,7 +74,13 @@ def main():
                             print(f"{media_id}:")
 
                         if not media_item.playlist:
-                            print("Error: No valid playlist were found.")
+                            if media_data.preorder_availability_date:
+                                message = f"{media_item.name} is currently unavailable on {scraper.name}.\n" \
+                                          f"Release date ({scraper.name}): {media_data.preorder_availability_date}."
+                            else:
+                                message = f"No valid playlist was found for {media_item.name} on {scraper.name}."
+
+                            print(message)
                             continue
 
                         results = download_subtitles(media_data=media_item,
@@ -170,16 +172,16 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
     temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH, media_data=media_data)
     atexit.register(shutil.rmtree, TEMP_FOLDER_PATH, ignore_errors=False, onerror=None)
 
-    if media_data.playlist is None:
+    if not media_data.playlist:
         raise ValueError("No playlist data was found for the given media data.")
 
     successful_downloads: list[SubtitlesData] = []
     failed_downloads: list[SubtitlesData] = []
     temp_downloads: list[Path] = []
 
-    m3u8_playlist = m3u8.load(media_data.playlist)
+    playlist = single_to_list(media_data.playlist)[0]
 
-    for subtitles_data in media_data.scraper.get_subtitles(main_playlist=m3u8_playlist,
+    for subtitles_data in media_data.scraper.get_subtitles(main_playlist=playlist.data,
                                                            language_filter=language_filter,
                                                            subrip_conversion=convert_to_srt):
         try:
@@ -287,7 +289,7 @@ def generate_media_folder_name(media_data: MediaData) -> str:
     return generate_release_name(
         title=media_data.name,
         release_year=media_data.release_date.year,
-        media_source=media_data.source.abbreviation,
+        media_source=media_data.scraper.abbreviation,
     )
 
 
