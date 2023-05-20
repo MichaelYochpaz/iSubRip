@@ -49,6 +49,8 @@ def main():
 
                 media_data: MovieData = scraper.get_data(url=url)
 
+                print(f"Found movie: {media_data.name} ({media_data.release_date.year})")
+
                 if not media_data:
                     print(f"Error: No supported media data was found for {url}.")
                     continue
@@ -194,9 +196,6 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
 
             successful_downloads.append(subtitles_data)
             language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
-
-            if subtitles_data.special_type:
-                language_data += f" [{subtitles_data.special_type.value}]"
 
             print(f"{language_data} subtitles were successfully downloaded.")
 
