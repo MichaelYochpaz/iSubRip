@@ -23,7 +23,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
     is_series_scraper = True
     uses_scrapers = ["itunes"]
 
-    _api_url = "https://tv.apple.com/api/uts/v3"
+    _api_base_url = "https://tv.apple.com/api/uts/v3"
     _api_base_params = {
         "utscf": "OjAAAAAAAAA~",
         "caller": "js",
@@ -132,7 +132,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
             request_params.update(additional_params)
 
         # Send request to fetch media data
-        response = self._session.get(url=f"{self._api_url}{endpoint}", params=request_params)
+        response = self._session.get(url=f"{self._api_base_url}{endpoint}", params=request_params)
         response.raise_for_status()
         response_json = response.json()
 
@@ -211,7 +211,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         Returns:
             dict: The configuration data.
         """
-        url = f"{self._api_url}/configurations"
+        url = f"{self._api_base_url}/configurations"
         params = self._generate_api_request_params(storefront_id=storefront_id, locale="en-US")
         response = self._session.get(url=url, params=params)
         response.raise_for_status()

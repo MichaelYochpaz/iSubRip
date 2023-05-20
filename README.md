@@ -37,8 +37,8 @@ isubrip <iTunes movie URL> [iTunes movie URL...]
 ```  
 
 ## Configuration
-It's possible to configure different options and enable / disable different features using a [TOML](https://toml.io) config file.   
-A config file will be looked for in one of the following paths according to OS: 
+It's possible to configure different options and features by creating a [TOML](https://toml.io) config file.   
+A config file will be looked for in one of the following paths (according to OS): 
 
 **Windows**: `%USERPROFILE%\.isubrip\config.toml`  
 **Linux / macOS**: `$HOME/.isubrip/config.toml`  
@@ -53,16 +53,13 @@ A config file will be looked for in one of the following paths according to OS:
 ### Example Config:
 ```toml
 [downloads]
-folder = "C:\\iTunes-Subtitles"
-format = "srt"
-languages = ["en-US"]
+folder = "C:\\Subtitles\\iTunes"
+languages = ["en-US", "fr-FR", "he"]
 zip = false
 
 [subtitles]
+convert-to-srt = true
 fix-rtl = true
 ```
 
 A complete config with all the available options and explanations for each configuration can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml)
-
-### Notes
-* All settings are optional. Not specifying a setting will result in using the default value.

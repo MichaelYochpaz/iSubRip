@@ -234,7 +234,7 @@ class Config:
                         setting_path = '.'.join(single_to_list(setting.category))
                         enum_options = ', '.join([f"\'{option.name}\'" for option in enum_type])
 
-                        raise InvalidConfigValue(
+                        raise InvalidConfigValue from ValueError(
                             f"Invalid config value for {setting_path}.{setting.key}: \'{value}\'.\n"
                             f"Expected one of: {enum_options}.")
 

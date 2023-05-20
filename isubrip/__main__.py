@@ -77,8 +77,10 @@ def main():
 
                         if not media_item.playlist:
                             if media_data.preorder_availability_date:
-                                message = f"{media_item.name} is currently unavailable on {scraper.name}.\n" \
-                                          f"Release date ({scraper.name}): {media_data.preorder_availability_date}."
+                                message = f"{media_item.name} is currently unavailable on " \
+                                          f"{media_item.scraper.name}.\n" \
+                                          f"Release date ({media_item.scraper.name}): " \
+                                          f"{media_data.preorder_availability_date}."
                             else:
                                 message = f"No valid playlist was found for {media_item.name} on {scraper.name}."
 
@@ -129,7 +131,7 @@ def main():
 
 def check_for_updates() -> None:
     """Check and print if a newer version of the package is available."""
-    api_url = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"  # Used for checking updates
+    api_url = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
 
     try:
         current_version = sys.modules[PACKAGE_NAME].__version__
