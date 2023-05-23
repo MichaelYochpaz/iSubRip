@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from setuptools import setup
+from setuptools import find_packages, setup
 
 CURRENT_PATH = Path(__file__).parent.absolute()
 PACKAGE_NAME = "isubrip"
@@ -50,28 +50,29 @@ setup(
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     url="https://github.com/MichaelYochpaz/iSubRip",
-
     project_urls={
         "Bug Reports": "https://github.com/MichaelYochpaz/iSubRip/issues",
         "Source": "https://github.com/MichaelYochpaz/iSubRip"
     },
-
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: End Users/Desktop",
         "Intended Audience :: Developers",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: MacOS",
+        "Operating System :: POSIX :: Linux",
         "Topic :: Utilities",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10"
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
-
-    keywords=["iTunes", "movies", "subtitles", "scrape", "scraper", "download", "m3u8"],
-    packages=[PACKAGE_NAME],
-    install_requires=["aiohttp", "m3u8", "mergedeep", "requests", "tomli"],
+    keywords=["iTunes", "AppleTV", "movies", "subtitles", "scrape", "scraper", "download", "m3u8"],
+    packages=find_packages(where=str(CURRENT_PATH)),
     package_data={PACKAGE_NAME: ["resources/*"]},
     python_requires=">=3.8",
+    install_requires=["aiohttp", "m3u8", "mergedeep", "requests", "tomli"],
     entry_points={
         "console_scripts":
             [f"{PACKAGE_NAME} = {PACKAGE_NAME}.__main__:main"]
