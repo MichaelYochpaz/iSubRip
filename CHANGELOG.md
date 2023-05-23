@@ -1,8 +1,33 @@
 # Changelog
+## 2.4.0 [2023-23-05]
+### Added:
+- iTunes links will now redirect to AppleTV and scrape metadata from there, as AppleTV has additional and more accurate metadata.
+- Improved error messages to be more informative and case-specific:
+  - If a movie is a pre-order and has no available playlist, a proper error message will be printed with its release date (if available).
+  - If trying to scrape AppleTV+ content or series (which aren't currently supported), a proper error will be printed.
+
+### Changes:
+- A major refactor to the code, to make it more modular and allow for easier development of new features in the future.
+- Multiple changes (with some breaking changes) to the config file:
+  - The `downloads.format` setting is deprecated, and replaced by the `subtitles.convert-to-srt` setting.
+  - The `downloads.merge-playlists` setting is deprecated, with no replacement.  
+    If an AppleTV link has multiple playlists, they will be downloaded separately.
+  - The `downloads.user-agent` setting is deprecated, with no replacement.
+    The user-agent used by the scraper, will be used for downloads as well.
+  - The `scraping` config category no longer exists, and is replaced by a `scrapers` category, which has a sub-category with settings for each scraper (for example, a `scrapers.itunes` sub-category).
+- Old config paths that were previously deprecated are no longer supported and will no longer work.
+  The updated config settings can be found in the [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml).
+
+### Notes:
+* This release includes a major rewrite of the code, which may have introduced new bugs to some core features. If you encountered one, [please report it](https://github.com/MichaelYochpaz/iSubRip/issues/new/choose).
+* Minimum supported Python version bumped to 3.8.
+* `beautifulsoup4` and `lxml` packages are no longer required or used.
+---
 ## 2.3.3 [2022-10-09]
 ### Changes:
 * Added release year to zip file names. ([Issue #31](https://github.com/MichaelYochpaz/iSubRip/issues/31))
 * If the generated path for a zip file is already taken, a number will be appended at the end of the file's name to avoid overwriting. ([Issue #34](https://github.com/MichaelYochpaz/iSubRip/issues/34))
+
 ### Bug Fixes:
 * Fixed an exception being thrown if the path to downloads folder on the config is invalid.
 * Fixed AppleTV URLs without a movie title not working. ([Issue #29](https://github.com/MichaelYochpaz/iSubRip/issues/29))
