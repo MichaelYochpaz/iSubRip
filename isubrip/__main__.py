@@ -103,8 +103,7 @@ def main():
 
                     except Exception as e:
                         if multiple_media_items:
-                            print(f"Error: Encountered an error while scraping playlist for "
-                                  f"{media_id}: {e}")
+                            print(f"Error: Encountered an error while scraping playlist for {media_id}: {e}")
                             continue
 
                         else:
@@ -208,10 +207,13 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
     if not zip_files or len(temp_downloads) == 1:
         for file_path in temp_downloads:
             if overwrite_existing:
-                file_path.replace(download_path / file_path.name)
+                new_path = download_path / file_path.name
 
             else:
-                file_path.replace(generate_non_conflicting_path(download_path / file_path.name))
+                new_path = generate_non_conflicting_path(download_path / file_path.name)
+
+            # str conversion needed only for Python 3.8 - https://github.com/python/cpython/issues/76870
+            shutil.move(src=str(file_path), dst=new_path)
 
     else:
         archive_path = Path(shutil.make_archive(
