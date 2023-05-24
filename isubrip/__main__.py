@@ -48,8 +48,9 @@ def main():
                 scraper.config.check()
 
                 media_data: MovieData = scraper.get_data(url=url)
+                media_items: list[MovieData] = single_to_list(media_data)
 
-                print(f"Found movie: {media_data.name} ({media_data.release_date.year})")
+                print(f"Found movie: {media_items[0].name} ({media_items[0].release_date.year})")
 
                 if not media_data:
                     print(f"Error: No supported media data was found for {url}.")
@@ -63,7 +64,6 @@ def main():
                     "zip_files": config.downloads.get("zip", False),
                 }
 
-                media_items: list[MovieData] = single_to_list(media_data)
                 multiple_media_items = len(media_items) > 1
                 if multiple_media_items:
                     print(f"{len(media_items)} media items were found.")
