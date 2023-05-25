@@ -1,4 +1,9 @@
 # Changelog
+## 2.4.1 [2023-25-05]
+### Bug Fixes:
+* Fixed an issue where saving subtitles to a different drive than the OS drive would fail. ([Issue #41](https://github.com/MichaelYochpaz/iSubRip/issues/41)
+* Fixed AppleTV URLs with multiple iTunes playlists causing an error. ([Issue #42](https://github.com/MichaelYochpaz/iSubRip/issues/42))
+---
 ## 2.4.0 [2023-23-05]
 ### Added:
 - iTunes links will now redirect to AppleTV and scrape metadata from there, as AppleTV has additional and more accurate metadata.
