@@ -19,7 +19,6 @@ class iTunesScraper(M3U8Scraper, MovieScraper):
 
     def __init__(self, config_data: dict | None = None):
         super().__init__(config_data=config_data)
-        self._config_data = config_data
         self._appletv_scraper = ScraperFactory().get_scraper_instance(scraper_id="appletv",
                                                                       config_data=self._config_data,
                                                                       raise_error=True)

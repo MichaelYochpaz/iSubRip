@@ -21,7 +21,7 @@ USER_CONFIG_FILE = DATA_FOLDER_PATH / USER_CONFIG_FILE_NAME
 TEMP_FOLDER_PATH = Path(gettempdir()) / PACKAGE_NAME
 
 # Config
-DEFAULT_CONFIG_SETTINGS = [
+BASE_CONFIG_SETTINGS = [
     ConfigSetting(
         key="check-for-updates",
         type=bool,

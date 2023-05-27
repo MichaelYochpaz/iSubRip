@@ -58,26 +58,6 @@ body:
     validations:
       required: true
   - type: textarea
-    id: config
-    attributes:
-      label: Config
-      description: |
-        The config that was used to run iSubRip when the issue occurred.
-        Leave empty if no config was used.
-      render: TOML
-      placeholder: |
-        Example:
-
-        [downloads]
-        format = "srt"
-        languages = ["en"]
-        zip = true
-
-        [subtitles]
-        fix-rtl = true
-    validations:
-      required: false
-  - type: textarea
     id: output-log
     attributes:
       label: Output Log
@@ -102,5 +82,26 @@ body:
           File "%appdata%\local\programs\python\python38-32\lib\os.py", line 221, in makedirs
             mkdir(name, mode)
         OSError: [WinError 123] The filename, directory name, or volume label syntax is incorrect: 'C:\\%appdata%\\Local\\Temp\\iSubRip\\Can.You.Hear.Us.Now?.iT.WEB'
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Config
+      description: |
+        The iSubRip config file you are using.
+        **Leave empty only if there is no config file in use.**
+      render: TOML
+      placeholder: |
+        Example:
+
+        [downloads]
+        folder = "C:\\Subtitles\\iTunes"
+        languages = ["en-US", "fr-FR", "he"]
+        zip = false
+
+        [subtitles]
+        convert-to-srt = true
+        fix-rtl = true
     validations:
       required: false

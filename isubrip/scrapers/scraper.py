@@ -74,6 +74,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
             config_data (dict | None, optional): A dictionary containing scraper's configuration data. Defaults to None.
         """
         self._session = requests.Session()
+        self._config_data = config_data
         self.config = Config(config_data=config_data.get(self.id) if config_data else None)
 
         self.config.add_settings([

@@ -9,7 +9,7 @@ import requests
 from requests.utils import default_user_agent
 
 from isubrip.config import Config, ConfigException
-from isubrip.constants import ARCHIVE_FORMAT, DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, DEFAULT_CONFIG_SETTINGS, \
+from isubrip.constants import ARCHIVE_FORMAT, DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, BASE_CONFIG_SETTINGS, \
     PACKAGE_NAME, TEMP_FOLDER_PATH, USER_CONFIG_FILE
 from isubrip.data_structures import EpisodeData,  MediaData, MovieData, SubtitlesDownloadResults, SubtitlesData
 from isubrip.scrapers.scraper import Scraper, ScraperFactory
@@ -91,15 +91,17 @@ def main():
                                                      **download_media_subtitles_args)
 
                         success_count = len(results.successful_subtitles)
+                        failed_count = len(results.failed_subtitles)
 
-                        if not success_count:
-                            print("No matching subtitles were found.")
-                            continue
+                        if success_count:
+                            print(f"\n{success_count}/{success_count + failed_count} matching subtitles "
+                                  f"have been successfully downloaded.")
+
+                        elif failed_count:
+                            print(f"\n{failed_count} subtitles were matched, but failed to download.")
 
                         else:
-                            failed_count = len(results.failed_subtitles)
-                            print(f"\n{success_count}/{success_count + failed_count} matching subtitles "
-                                  f"have been successfully downloaded.", sep='')
+                            print("\nNo matching subtitles were found.")
 
                     except Exception as e:
                         if multiple_media_items:
@@ -269,7 +271,7 @@ def generate_config() -> Config:
         if USER_CONFIG_FILE.is_file():
             config_files.append(USER_CONFIG_FILE)
 
-    config = Config(config_settings=DEFAULT_CONFIG_SETTINGS)
+    config = Config(config_settings=BASE_CONFIG_SETTINGS)
 
     for file_path in config_files:
         with open(file_path, 'r') as data:

@@ -132,19 +132,20 @@ class Config:
     def data(self):
         return self._config_data
 
-    def add_settings(self, config_settings: list[ConfigSetting],
+    def add_settings(self, config_settings: ConfigSetting | list[ConfigSetting],
                      duplicate_behavior: DuplicateBehavior = DuplicateBehavior.OVERWRITE,
                      check_config: bool = True) -> None:
         """
         Add new config settings to the config.
 
         Args:
-            config_settings (list[ConfigSetting]): A list of ConfigSettings objects to add to the config.
+            config_settings (ConfigSetting | list[ConfigSetting]): A ConfigSetting object or a list of ConfigSetting
+                objects to add to the config.
             duplicate_behavior (DuplicateBehavior, optional): Behaviour to apply if a duplicate is found.
                 Defaults to DuplicateBehavior.OVERWRITE.
             check_config (bool, optional): Whether to check the config after loading it. Defaults to True.
         """
-        config_settings_copy = deepcopy(config_settings)
+        config_settings_copy = deepcopy(single_to_list(config_settings))
 
         for config_setting in config_settings_copy:
             if config_setting in self._config_settings:
