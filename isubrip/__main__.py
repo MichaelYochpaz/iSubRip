@@ -214,7 +214,7 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
             else:
                 new_path = generate_non_conflicting_path(download_path / file_path.name)
 
-            # str conversion needed only for Python 3.8 - https://github.com/python/cpython/issues/76870
+            # str conversion needed only for Python <= 3.8 - https://github.com/python/cpython/issues/76870
             shutil.move(src=str(file_path), dst=new_path)
 
     else:
@@ -232,7 +232,7 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
         else:
             destination_path = generate_non_conflicting_path(download_path / file_name)
 
-        archive_path.replace(destination_path)
+        shutil.move(src=str(archive_path), dst=destination_path)
 
     shutil.rmtree(temp_download_path)
     atexit.unregister(shutil.rmtree)
