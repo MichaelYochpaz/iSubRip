@@ -1,4 +1,10 @@
 # Changelog
+## 2.4.2 [2023-02-06]
+### Added:
+* Improved error handling for subtitles downloads. ([Issue #44](https://github.com/MichaelYochpaz/iSubRip/issues/44))
+### Bug Fixes:
+* Fixed an issue where using a ZIP file, and saving to a different drive than the OS drive would fail. ([Issue #43](https://github.com/MichaelYochpaz/iSubRip/issues/43)
+---
 ## 2.4.1 [2023-25-05]
 ### Bug Fixes:
 * Fixed an issue where saving subtitles to a different drive than the OS drive would fail. ([Issue #41](https://github.com/MichaelYochpaz/iSubRip/issues/41)
