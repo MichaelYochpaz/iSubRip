@@ -189,6 +189,8 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
     for subtitles_data in media_data.scraper.get_subtitles(main_playlist=playlist.data,
                                                            language_filter=language_filter,
                                                            subrip_conversion=convert_to_srt):
+        language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
+
         try:
             temp_downloads.append(download_subtitles_to_file(
                 media_data=media_data,
@@ -197,12 +199,11 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
                 overwrite=overwrite_existing,
             ))
 
-            successful_downloads.append(subtitles_data)
-            language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
-
             print(f"{language_data} subtitles were successfully downloaded.")
+            successful_downloads.append(subtitles_data)
 
-        except Exception:
+        except Exception as e:
+            print(f"Error: Failed to download '{language_data}' subtitles: {e}")
             failed_downloads.append(subtitles_data)
             continue
 
@@ -217,7 +218,7 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
             # str conversion needed only for Python <= 3.8 - https://github.com/python/cpython/issues/76870
             shutil.move(src=str(file_path), dst=new_path)
 
-    else:
+    elif len(temp_downloads) > 0:
         archive_path = Path(shutil.make_archive(
             base_name=str(temp_download_path.parent / temp_download_path.name),
             format=ARCHIVE_FORMAT,
