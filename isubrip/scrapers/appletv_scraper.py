@@ -17,7 +17,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
     id = "appletv"
     name = "Apple TV"  # (iTunes content is redirected to the iTunes scraper)
     abbreviation = "ATV"
-    url_regex = r"(?P<base_url>https?://tv\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|episode|season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>umc\.cmc\.[a-z\d]{24,25}))(?:\?(?P<url_params>(?:).*))?"  # noqa: E501
+    url_regex = r"(?P<base_url>https?://tv\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|episode|season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>umc\.cmc\.[a-z\d]{23,25}))(?:\?(?P<url_params>(?:).*))?"  # noqa: E501
     subtitles_class = WebVTTSubtitles
     is_movie_scraper = True
     is_series_scraper = True
