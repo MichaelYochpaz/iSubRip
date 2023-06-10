@@ -8,7 +8,7 @@ import sys
 from abc import ABCMeta
 from os import PathLike
 from pathlib import Path
-from typing import Any, Iterable, Union, get_args, get_origin
+from typing import Any, Union, get_args, get_origin
 
 from isubrip.data_structures import EpisodeData, MovieData, SubtitlesData, SubtitlesFormat, SubtitlesType
 
@@ -281,7 +281,7 @@ def parse_url_params(url_params: str) -> dict:
     Returns:
         dict: A dictionary containing the URL parameters.
     """
-    url_params = url_params.strip('?').rstrip('&')
+    url_params = url_params.split('?')[-1].rstrip('&')
     params_list = url_params.split('&')
 
     if len(params_list) == 0 or \
@@ -303,11 +303,15 @@ def single_to_list(obj) -> list:
         list: A list containing the object.
             If the object is already an iterable, it will be converted to a list.
     """
-    if isinstance(obj, Iterable) and not isinstance(obj, str):
-        return list(obj)
+    if isinstance(obj, list):
+        return obj
 
     elif obj is None:
         return []
+
+    # tuple (not a namedtuple) or a set
+    elif (isinstance(obj, tuple) and not hasattr(obj, '_fields')) or isinstance(obj, set):
+        return list(obj)
 
     return [obj]
 

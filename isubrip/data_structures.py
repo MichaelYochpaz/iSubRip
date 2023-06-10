@@ -132,7 +132,8 @@ class MediaData(ABC):
 
 @dataclass
 class MovieData(MediaData):
-    """A named tuple containing movie metadata.
+    """
+    A named tuple containing movie metadata.
 
     Attributes:
         duration (timedelta | None, optional): Duration of the movie. Defaults to None.
@@ -162,7 +163,6 @@ class EpisodeData(MediaData):
     episode_release_date: dt.datetime | None = None
     season_name: str | None = None
     duration: dt.timedelta | None = None
-
 
 
 @dataclass
