@@ -1,4 +1,8 @@
 # Changelog
+## 2.4.3 [2023-06-18]
+### Bug Fixes:
+* Fixed an issue where some AppleTV URLs (or iTunes links that refer to such URLs) would not be matched in some cases, resulting in a `No matching scraper was found...` Error. ([Issue #46](https://github.com/MichaelYochpaz/iSubRip/issues/46))
+---
 ## 2.4.2 [2023-06-02]
 ### Changes:
 * Improved error handling for subtitles downloads. ([Issue #44](https://github.com/MichaelYochpaz/iSubRip/issues/44))
