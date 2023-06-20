@@ -15,6 +15,7 @@ from typing import Any, ClassVar, Iterator, List, Literal, overload, Union, Type
 import aiohttp
 import m3u8
 import requests
+import requests.utils
 from m3u8 import M3U8, Media, Segment, SegmentList
 
 from isubrip.config import Config, ConfigSetting
@@ -52,10 +53,10 @@ class Scraper(ABC, metaclass=SingletonMeta):
         _session (requests.Session): A requests session to use for making requests.
         config (Config): A Config object containing the scraper's configuration.
     """
-    default_user_agent: ClassVar[str]
-    subtitles_fix_rtl: ClassVar[bool]
-    subtitles_fix_rtl_languages: ClassVar[list | None]
-    subtitles_remove_duplicates: ClassVar[bool]
+    default_user_agent: ClassVar[str] = requests.utils.default_user_agent()
+    subtitles_fix_rtl: ClassVar[bool] = False
+    subtitles_fix_rtl_languages: ClassVar[list | None] = ["ar", "he"]
+    subtitles_remove_duplicates: ClassVar[bool] = True
 
     id: ClassVar[str]
     name: ClassVar[str]
