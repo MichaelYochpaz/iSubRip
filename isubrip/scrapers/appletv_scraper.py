@@ -30,6 +30,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         "v": "66",
         "pfm": "web",
     }
+    _default_storefront = "US"  # Has to be uppercase
     _storefronts_mapping = {
         "AF": "143610", "AO": "143564", "AI": "143538", "AL": "143575", "AD": "143611", "AE": "143481", "AR": "143505",
         "AM": "143524", "AG": "143540", "AU": "143460", "AT": "143445", "AZ": "143568", "BE": "143446", "BJ": "143576",
@@ -60,8 +61,6 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         "ZM": "143622", "ZW": "143605",
     }
 
-    _default_country = "US"  # Has to be uppercase
-
     class Channel(Enum):
         """
         An Enum representing AppleTV channels.
@@ -79,6 +78,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
     def __init__(self, config_data: dict | None = None):
         super().__init__(config_data=config_data)
         self._config_data = config_data
+        self._storefront_locale_mapping_cache: dict[str, str] = {}
 
     def _decide_locale(self, preferred_locales: str | list[str], default_locale: str, locales: list[str]) -> str:
         """
@@ -118,13 +118,20 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         Raises:
             HttpError: If an HTTP error response is received.
         """
-        storefront_data = self._get_configuration_data(storefront_id=storefront_id)["applicationProps"]["storefront"]
+        if storefront_id in self._storefront_locale_mapping_cache:
+            locale = self._storefront_locale_mapping_cache[storefront_id]
 
-        locale = self._decide_locale(
-            preferred_locales=["en_US", "en_GB"],
-            default_locale=storefront_data["defaultLocale"],
-            locales=storefront_data["localesSupported"],
-        )
+        else:
+            storefront_data = \
+                self._get_configuration_data(storefront_id=storefront_id)["applicationProps"]["storefront"]
+
+            locale = self._decide_locale(
+                preferred_locales=["en_US", "en_GB"],
+                default_locale=storefront_data["defaultLocale"],
+                locales=storefront_data["localesSupported"],
+            )
+
+            self._storefront_locale_mapping_cache[storefront_id] = locale
 
         request_params = self._generate_api_request_params(storefront_id=storefront_id, locale=locale)
 
@@ -212,7 +219,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
             dict: The configuration data.
         """
         url = f"{self._api_base_url}/configurations"
-        params = self._generate_api_request_params(storefront_id=storefront_id, locale="en-US")
+        params = self._generate_api_request_params(storefront_id=storefront_id)
         response = self._session.get(url=url, params=params)
         response.raise_for_status()
 
@@ -324,7 +331,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
             storefront_code = storefront_code.upper()
 
         else:
-            storefront_code = self._default_country
+            storefront_code = self._default_storefront
 
         media_id = url_data["media_id"]
 
