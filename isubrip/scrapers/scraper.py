@@ -296,9 +296,9 @@ class M3U8Scraper(AsyncScraper, ABC):
 
     def get_media_playlists(self, main_playlist: M3U8,
                             playlist_filters: dict[str, str | list[str]] | None = None,
-                            include_default_filters: bool = True) -> Iterator[Media]:
+                            include_default_filters: bool = True) -> list[Media]:
         """
-        Find and yield playlists of media within an M3U8 main_playlist using optional filters.
+        Find playlists of media within an M3U8 main_playlist using optional filters.
 
         Args:
             main_playlist (m3u8.M3U8): an M3U8 object of the main main_playlist.
@@ -309,10 +309,10 @@ class M3U8Scraper(AsyncScraper, ABC):
             include_default_filters (bool, optional): Whether to include the default filters set by the config or not.
                 Defaults to True.
 
-        Yields:
-            SubtitlesData: A NamedTuple with a matching main_playlist, and it's metadata:
-                Language Code, Language Name, SubtitlesType, Playlist URL.
+        Returns:
+            list[Media]: A list of  matching Media objects.
         """
+        results = []
         default_filters: dict | None = self.config.get(M3U8Scraper.playlist_filters_config_category)
 
         if include_default_filters and default_filters:
@@ -324,34 +324,32 @@ class M3U8Scraper(AsyncScraper, ABC):
 
         for media in main_playlist.media:
             if not playlist_filters:
-                yield media
+                results.append(media)
+                continue
 
-            else:
-                is_valid = True
+            is_valid = True
 
-                for filter_name, filter_value in playlist_filters.items():
-                    try:
-                        filter_name_enum = M3U8Scraper.M3U8Attribute(filter_name)
-                        attribute_value = getattr(media, filter_name_enum.name.lower(), None)
+            for filter_name, filter_value in playlist_filters.items():
+                try:
+                    filter_name_enum = M3U8Scraper.M3U8Attribute(filter_name)
+                    attribute_value = getattr(media, filter_name_enum.name.lower(), None)
 
-                        if attribute_value is None:
-                            is_valid = False
-                            break
+                    if (attribute_value is None) or (
+                            isinstance(filter_value, list) and
+                            attribute_value.casefold() not in (x.casefold() for x in filter_value)
+                    ) or (
+                            isinstance(filter_value, str) and filter_value.casefold() != attribute_value.casefold()
+                    ):
+                        is_valid = False
+                        break
 
-                        elif isinstance(filter_value, list) and \
-                                attribute_value.casefold() not in (x.casefold() for x in filter_value):
-                            is_valid = False
-                            break
+                except Exception:
+                    is_valid = False
 
-                        elif isinstance(filter_value, str) and filter_value.casefold() != attribute_value.casefold():
-                            is_valid = False
-                            break
+            if is_valid:
+                results.append(media)
 
-                    except Exception:
-                        continue
-
-                if is_valid:
-                    yield media
+        return results
 
     def get_subtitles(self, main_playlist: M3U8, language_filter: list[str] | str | None = None,
                       subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
@@ -369,8 +367,9 @@ class M3U8Scraper(AsyncScraper, ABC):
             SubtitlesData: A SubtitlesData NamedTuple with a matching playlist, and it's metadata.
         """
         playlist_filters = {self.M3U8Attribute.LANGUAGE.value: language_filter} if language_filter else None
+        matched_media_items = self.get_media_playlists(main_playlist=main_playlist, playlist_filters=playlist_filters)
 
-        for matched_media in self.get_media_playlists(main_playlist=main_playlist, playlist_filters=playlist_filters):
+        for matched_media in matched_media_items:
             try:
                 matched_media_playlist = m3u8.load(matched_media.absolute_uri)
                 subtitles = self.subtitles_class(language_code=matched_media.language)
