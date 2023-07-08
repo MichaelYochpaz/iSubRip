@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import datetime as dt
-
 from isubrip.data_structures import Movie, ScrapedMediaResponse
 from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperException, ScraperFactory
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
@@ -53,46 +51,3 @@ class ItunesScraper(M3U8Scraper, MovieScraper):
             raise ScraperException("Redirect URL is not a valid Apple TV URL.")
 
         return self._appletv_scraper.get_data(redirect_location)
-
-    def _get_movie_data(self, json_data: dict) -> Movie:
-        """
-        Scrape an iTunes JSON response to get movie info.
-
-        Args:
-            json_data (dict): A dictionary with iTunes data loaded from a JSON response.
-
-        Returns:
-            Movie: A Movie (NamedTuple) object with movie's name, and an M3U8 object of the main_playlist
-            if the main_playlist is found. None otherwise.
-        """
-        itunes_id = json_data["pageData"]["id"]
-        movie_data = json_data["storePlatformData"]["product-dv"]["results"][itunes_id]
-
-        movie_title = movie_data["nameRaw"]
-        movie_release_date = dt.datetime.strptime(movie_data["releaseDate"], "%Y-%m-%d")
-
-        for offer in movie_data["offers"]:
-            if isinstance(offer.get("type"), str) and offer["type"] in ["buy", "rent"]:
-                if isinstance(offer.get("assets"), list) and len(offer["assets"]) > 0:
-                    for asset in offer["assets"]:
-                        return Movie(
-                            id=itunes_id,
-                            alt_id=None,
-                            name=movie_title,
-                            release_date=movie_release_date,
-                            playlist=asset.get("hlsUrl"),
-                            scraper=self,
-                            original_scraper=self,
-                            original_data=json_data,
-                        )
-
-        return Movie(
-            id=itunes_id,
-            alt_id=None,
-            name=movie_title,
-            release_date=movie_release_date,
-            playlist=None,
-            scraper=self,
-            original_scraper=self,
-            original_data=json_data,
-        )
