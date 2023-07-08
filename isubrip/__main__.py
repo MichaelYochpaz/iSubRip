@@ -11,7 +11,7 @@ from requests.utils import default_user_agent
 from isubrip.config import Config, ConfigException
 from isubrip.constants import ARCHIVE_FORMAT, DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, BASE_CONFIG_SETTINGS, \
     PACKAGE_NAME, TEMP_FOLDER_PATH, USER_CONFIG_FILE
-from isubrip.data_structures import EpisodeData,  MediaData, MovieData, SubtitlesDownloadResults, SubtitlesData
+from isubrip.data_structures import Movie, ScrapedMediaResponse, SubtitlesDownloadResults, SubtitlesData
 from isubrip.scrapers.scraper import Scraper, ScraperFactory
 from isubrip.utils import download_subtitles_to_file, generate_non_conflicting_path, generate_release_name, \
     single_to_list
@@ -34,90 +34,66 @@ def main():
 
         scraper_factory = ScraperFactory()
 
-        multiple_urls = len(sys.argv) > 2
-
         for idx, url in enumerate(sys.argv[1:]):
             if idx > 0:
                 print("\n--------------------------------------------------\n")  # Print between different movies
 
-            print(f"Scraping {url}")
+            print(f"Scraping '{url}'...")
 
-            try:
-                scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
-                atexit.register(scraper.close)
-                scraper.config.check()
+            scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
+            atexit.register(scraper.close)
+            scraper.config.check()
 
-                media_data: MovieData = scraper.get_data(url=url)
-                media_items: list[MovieData] = single_to_list(media_data)
+            scraper_response: ScrapedMediaResponse[Movie] = scraper.get_data(url=url)
+            movie_data: list[Movie] = single_to_list(scraper_response.media_data)
 
-                print(f"Found movie: {media_items[0].name} ({media_items[0].release_date.year})")
+            if not movie_data:
+                print(f"Error: No supported media was found for {url}.")
+                continue
 
-                if not media_data:
-                    print(f"Error: No supported media data was found for {url}.")
+            download_media_subtitles_args = {
+                "download_path": Path(config.downloads["folder"]),
+                "language_filter": config.downloads.get("languages"),
+                "convert_to_srt": config.subtitles.get("convert-to-srt", False),
+                "overwrite_existing": config.downloads.get("overwrite-existing", False),
+                "zip_files": config.downloads.get("zip", False),
+            }
+
+            for movie_item in movie_data:
+                id_str = f" (ID: {movie_item.id})" if movie_item.id else ''
+                print(f"\nFound movie: {movie_item.name} [{movie_item.release_date.year}]" + id_str)
+
+                if not movie_item.playlist:
+                    if movie_item.preorder_availability_date:
+                        message = f"'{movie_item.name}' is currently unavailable on '{scraper.name}'.\n" \
+                                  f"Release date ({scraper.name}): {movie_item.preorder_availability_date}."
+                    else:
+                        message = f"No valid playlist was found for '{movie_item.name}' on '{scraper.name}'."
+
+                    print(message)
                     continue
 
-                download_media_subtitles_args = {
-                    "download_path": Path(config.downloads["folder"]),
-                    "language_filter": config.downloads.get("languages"),
-                    "convert_to_srt": config.subtitles.get("convert-to-srt", False),
-                    "overwrite_existing": config.downloads.get("overwrite-existing", False),
-                    "zip_files": config.downloads.get("zip", False),
-                }
+                try:
+                    results = download_subtitles(movie_data=movie_item,
+                                                 scraper=scraper,
+                                                 **download_media_subtitles_args)
 
-                multiple_media_items = len(media_items) > 1
-                if multiple_media_items:
-                    print(f"{len(media_items)} media items were found.")
+                    success_count = len(results.successful_subtitles)
+                    failed_count = len(results.failed_subtitles)
 
-                for media_item in media_items:
-                    media_id = media_item.id or media_item.alt_id or media_item.name
+                    if success_count:
+                        print(f"\n{success_count}/{success_count + failed_count} matching subtitles "
+                              f"have been successfully downloaded.")
 
-                    try:
-                        if multiple_media_items:
-                            print(f"{media_id}:")
+                    elif failed_count:
+                        print(f"\n{failed_count} subtitles were matched, but failed to download.")
 
-                        if not media_item.playlist:
-                            if media_data.preorder_availability_date:
-                                message = f"{media_item.name} is currently unavailable on " \
-                                          f"{media_item.scraper.name}.\n" \
-                                          f"Release date ({media_item.scraper.name}): " \
-                                          f"{media_data.preorder_availability_date}."
-                            else:
-                                message = f"No valid playlist was found for {media_item.name} on {scraper.name}."
+                    else:
+                        print("No matching subtitles were found.")
 
-                            print(message)
-                            continue
-
-                        results = download_subtitles(media_data=media_item,
-                                                     **download_media_subtitles_args)
-
-                        success_count = len(results.successful_subtitles)
-                        failed_count = len(results.failed_subtitles)
-
-                        if success_count:
-                            print(f"\n{success_count}/{success_count + failed_count} matching subtitles "
-                                  f"have been successfully downloaded.")
-
-                        elif failed_count:
-                            print(f"\n{failed_count} subtitles were matched, but failed to download.")
-
-                        else:
-                            print("\nNo matching subtitles were found.")
-
-                    except Exception as e:
-                        if multiple_media_items:
-                            print(f"Error: Encountered an error while scraping playlist for {media_id}: {e}")
-                            continue
-
-                        else:
-                            raise e
-
-            except Exception as e:
-                if multiple_urls:
-                    print(f"Error: Encountered an error while scraping {url}: {e}")
+                except Exception as e:
+                    print(f"Error: Encountered an error while scraping '{url}'{id_str}: {e}")
                     continue
-
-                else:
-                    raise e
 
     except Exception as e:
         print(f"Error: {e}")
@@ -155,14 +131,15 @@ def check_for_updates() -> None:
         return
 
 
-def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
+def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
                        language_filter: list[str] | None = None, convert_to_srt: bool = False,
                        overwrite_existing: bool = True, zip_files: bool = False) -> SubtitlesDownloadResults:
     """
     Download subtitles for the given media data.
 
     Args:
-        media_data (MovieData | EpisodeData): A MovieData or an EpisodeData object of the media.
+        movie_data (Movie | Episode): A Movie object.
+        scraper (Scraper): A Scraper object to use for downloading subtitles.
         download_path (Path): Path to a folder where the subtitles will be downloaded to.
         language_filter (list[str] | None): List of specific languages to download subtitles for.
             None for all languages (no filter). Defaults to None.
@@ -174,26 +151,24 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
     Returns:
         Path: Path to the parent folder of the downloaded subtitles files / zip file.
     """
-    temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH, media_data=media_data)
+    temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH, movie_data=movie_data)
     atexit.register(shutil.rmtree, TEMP_FOLDER_PATH, ignore_errors=False, onerror=None)
 
-    if not media_data.playlist:
+    if not movie_data.playlist:
         raise ValueError("No playlist data was found for the given media data.")
 
     successful_downloads: list[SubtitlesData] = []
     failed_downloads: list[SubtitlesData] = []
     temp_downloads: list[Path] = []
 
-    playlist = single_to_list(media_data.playlist)[0]
-
-    for subtitles_data in media_data.scraper.get_subtitles(main_playlist=playlist.data,
-                                                           language_filter=language_filter,
-                                                           subrip_conversion=convert_to_srt):
+    for subtitles_data in scraper.get_subtitles(main_playlist=movie_data.playlist,
+                                                language_filter=language_filter,
+                                                subrip_conversion=convert_to_srt):
         language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
 
         try:
             temp_downloads.append(download_subtitles_to_file(
-                media_data=media_data,
+                media_data=movie_data,
                 subtitles_data=subtitles_data,
                 output_path=temp_download_path,
                 overwrite=overwrite_existing,
@@ -225,7 +200,8 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
             root_dir=temp_download_path,
         ))
 
-        file_name = generate_media_folder_name(media_data=media_data) + f".{ARCHIVE_FORMAT}"
+        file_name = generate_media_folder_name(movie_data=movie_data,
+                                               source=scraper.abbreviation) + f".{ARCHIVE_FORMAT}"
 
         if overwrite_existing:
             destination_path = download_path / file_name
@@ -239,7 +215,7 @@ def download_subtitles(media_data: MovieData | EpisodeData, download_path: Path,
     atexit.unregister(shutil.rmtree)
 
     return SubtitlesDownloadResults(
-        media_data=media_data,
+        movie_data=movie_data,
         successful_subtitles=successful_downloads,
         failed_subtitles=failed_downloads,
         is_zip=zip_files,
@@ -282,35 +258,36 @@ def generate_config() -> Config:
     return config
 
 
-def generate_media_folder_name(media_data: MediaData) -> str:
+def generate_media_folder_name(movie_data: Movie, source: str | None = None) -> str:
     """
     Generate a folder name for media data.
 
     Args:
-        media_data (MediaData): A media data object.
+        movie_data (MediaData): A movie data object.
+        source (str | None, optional): Abbreviation of the source to use for file names. Defaults to None.
 
     Returns:
         str: A folder name for the media data.
     """
     return generate_release_name(
-        title=media_data.name,
-        release_year=media_data.release_date.year,
-        media_source=media_data.scraper.abbreviation,
+        title=movie_data.name,
+        release_date=movie_data.release_date,
+        media_source=source,
     )
 
 
-def generate_media_path(base_path: Path, media_data: MediaData) -> Path:
+def generate_media_path(base_path: Path, movie_data: Movie) -> Path:
     """
     Generate a temporary folder for downloading media data.
 
     Args:
         base_path (Path): A base path to generate the folder in.
-        media_data (MediaData): A media data object.
+        movie_data (MediaData): A movie data object.
 
     Returns:
         Path: A path to the temporary folder.
     """
-    temp_folder_name = generate_media_folder_name(media_data=media_data)
+    temp_folder_name = generate_media_folder_name(movie_data=movie_data)
     path = generate_non_conflicting_path(base_path / temp_folder_name, has_extension=False)
     path.mkdir(parents=True, exist_ok=True)
 

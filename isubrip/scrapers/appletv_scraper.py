@@ -4,10 +4,8 @@ import datetime as dt
 from enum import Enum
 import fnmatch
 
-import m3u8
-
-from isubrip.data_structures import EpisodeData, MovieData, SeasonData, SeriesData, PlaylistData
-from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperException, SeriesScraper, ScraperFactory
+from isubrip.data_structures import Episode, Movie, ScrapedMediaResponse, Season, Series, MediaData
+from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperException, SeriesScraper
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
 from isubrip.utils import convert_epoch_to_datetime, parse_url_params
 
@@ -169,45 +167,6 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
 
         return params
 
-    def _generate_playlist_object(self, offer_data: dict, raise_error: bool = False) -> PlaylistData | None:
-        """
-        Generate a PlaylistData object from a list of playlists.
-
-        Args:
-            offer_data (dict): An offer data as returned by the API.
-
-        Returns:
-            PlaylistData | None: A PlaylistData object if a valid playlist is found,
-                None if not (and raise_error is False).
-
-        Raises:
-            ScraperException: If no valid playlist is found, and raise_error is True.
-        """
-        if offer_data.get("hlsUrl"):
-            try:
-                data = m3u8.load(uri=offer_data["hlsUrl"], timeout=5)
-                playlist_session_data = self._map_session_data(playlist_data=data)
-                duration = None
-
-                if duration_int := offer_data.get("durationInMilliseconds"):
-                    duration = dt.timedelta(milliseconds=duration_int)
-
-                return PlaylistData(
-                    id=playlist_session_data.get("com.apple.hls.feature.adam-id"),
-                    url=offer_data["hlsUrl"],
-                    data=data,
-                    duration=duration,
-                )
-
-            except Exception:
-                pass
-
-        if raise_error:
-            raise ScraperException("No valid playlist found.")
-
-        else:
-            return None
-
     def _get_configuration_data(self, storefront_id: str) -> dict:
         """
         Get configuration data for the given storefront ID.
@@ -242,7 +201,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
 
         return mapped_playables
 
-    def get_movie_data(self, storefront_id: str, movie_id: str) -> MovieData | list[MovieData]:
+    def get_movie_data(self, storefront_id: str, movie_id: str) -> ScrapedMediaResponse[Movie]:
         data = self._fetch_api_data(
             storefront_id=storefront_id,
             endpoint=f"/movies/{movie_id}",
@@ -259,25 +218,27 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
 
         return_data = []
         for playable_data in mapped_playables[self.Channel.ITUNES.value]:
-            return_data.append(self._get_movie_data_itunes(playable_data))
+            return_data.append(self._extract_itunes_movie_data(playable_data))
 
-        if len(return_data) == 1:
-            return return_data[0]
+        return ScrapedMediaResponse(
+            media_data=return_data[0] if len(return_data) == 1 else return_data,
+            metadata_scraper=self.id,
+            playlist_scraper="itunes",
+            original_data=data,
+        )
 
-        return return_data
-
-    def _get_movie_data_itunes(self, playable_data: dict) -> MovieData:
+    def _extract_itunes_movie_data(self, playable_data: dict) -> Movie:
         """
-        Get movie data from an AppleTV iTunes playable.
+        Extract movie data from an AppleTV's API iTunes playable data.
 
         Args:
             playable_data (dict): The playable data from the AppleTV API.
 
         Returns:
-            MovieData: A MovieData object.
+            Movie: A Movie object.
         """
-        movie_id = playable_data["itunesMediaApiData"]["id"]  # iTunes ID
-        movie_alt_id = playable_data["canonicalId"]  # AppleTV ID
+        itunes_movie_id = playable_data["itunesMediaApiData"]["id"]
+        appletv_movie_id = playable_data["canonicalId"]
         movie_title = playable_data["canonicalMetadata"]["movieTitle"]
         movie_release_date = convert_epoch_to_datetime(playable_data["canonicalMetadata"]["releaseDate"] // 1000)
 
@@ -286,7 +247,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
 
         if offers := playable_data["itunesMediaApiData"].get("offers"):
             for offer in offers:
-                if playlist := self._generate_playlist_object(offer_data=offer):
+                if (playlist := offer.get("hlsUrl")) and offer["hlsUrl"] not in movie_playlists:
                     movie_playlists.append(playlist)
 
             if movie_duration_int := offers[0].get("durationInMilliseconds"):
@@ -295,33 +256,26 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         if movie_expected_release_date := playable_data["itunesMediaApiData"].get("futureRentalAvailabilityDate"):
             dt.datetime.strptime(movie_expected_release_date, "%Y-%m-%d")
 
-        itunes_scraper = ScraperFactory().get_scraper_instance(scraper_id="itunes",
-                                                               config_data=self._config_data,
-                                                               raise_error=True)
+        return Movie(
+            id=itunes_movie_id,
+            referer_id=appletv_movie_id,
+            name=movie_title,
+            release_date=movie_release_date,
+            duration=movie_duration,
+            preorder_availability_date=movie_expected_release_date,
+            playlist=movie_playlists if movie_playlists else None,
+        )
 
-        return MovieData(
-                id=movie_id,
-                alt_id=movie_alt_id,
-                name=movie_title,
-                release_date=movie_release_date,
-                playlist=movie_playlists if movie_playlists else None,
-                scraper=itunes_scraper,
-                original_scraper=self,
-                original_data=playable_data,
-                duration=movie_duration,
-                preorder_availability_date=movie_expected_release_date,
-            )
-
-    def get_episode_data(self, storefront_id: str, episode_id: str) -> EpisodeData:
+    def get_episode_data(self, storefront_id: str, episode_id: str) -> ScrapedMediaResponse[Episode]:
         raise NotImplementedError("Series scraping is not currently supported.")
 
-    def get_season_data(self, storefront_id: str, season_id: str, show_id: str) -> SeasonData:
+    def get_season_data(self, storefront_id: str, season_id: str, show_id: str) -> ScrapedMediaResponse[Season]:
         raise NotImplementedError("Series scraping is not currently supported.")
 
-    def get_show_data(self, storefront_id: str, show_id: str) -> SeriesData:
+    def get_show_data(self, storefront_id: str, show_id: str) -> ScrapedMediaResponse[Series]:
         raise NotImplementedError("Series scraping is not currently supported.")
 
-    def get_data(self, url: str) -> MovieData | list[MovieData] | EpisodeData | SeasonData | SeriesData:
+    def get_data(self, url: str) -> ScrapedMediaResponse[MediaData]:
         regex_match = self.match_url(url, raise_error=True)
         url_data = regex_match.groupdict()
 

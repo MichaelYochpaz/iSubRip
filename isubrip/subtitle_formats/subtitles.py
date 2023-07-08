@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import time
 from typing import ClassVar, Generic, TYPE_CHECKING, TypeVar
 
-from isubrip.data_structures import SubtitlesFormat, SubtitlesType
+from isubrip.data_structures import SubtitlesFormatType, SubtitlesType
 
 if TYPE_CHECKING:
     from isubrip.subtitle_formats.subrip import SubRipCaptionBlock, SubRipSubtitles
@@ -70,12 +70,12 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
     An object representing subtitles, made out of blocks.
 
     Attributes:
-        format (SubtitlesFormat): [Class Attribute] Format of the subtitles (contains name and file extension).
+        format (SubtitlesFormatType): [Class Attribute] Format of the subtitles (contains name and file extension).
         blocks (list[SubtitlesBlock]): A list of subtitles blocks that make up the subtitles.
         language_code (str | None): Language code of the subtitles.
         special_type (SubtitlesType | None): Special type of the subtitles (if any).
     """
-    format: ClassVar[SubtitlesFormat]
+    format: ClassVar[SubtitlesFormatType]
 
     def __init__(self, blocks: list[SubtitlesBlockT] | None = None,
                  language_code: str | None = None, special_type: SubtitlesType | None = None):

@@ -20,9 +20,9 @@ from m3u8 import M3U8, Media, Segment, SegmentList
 
 from isubrip.config import Config, ConfigSetting
 from isubrip.constants import PACKAGE_NAME, SCRAPER_MODULES_SUFFIX
-from isubrip.data_structures import SubtitlesData, SubtitlesFormat, SubtitlesType
+from isubrip.data_structures import SubtitlesData, SubtitlesFormatType, SubtitlesType, ScrapedMediaResponse
 from isubrip.subtitle_formats.subtitles import Subtitles
-from isubrip.utils import merge_dict_values, SingletonMeta
+from isubrip.utils import merge_dict_values, single_to_list, SingletonMeta
 
 
 ScraperT = TypeVar("ScraperT", bound="Scraper")
@@ -136,17 +136,20 @@ class Scraper(ABC, metaclass=SingletonMeta):
         self._session.close()
 
     @abstractmethod
-    def get_data(self, url: str):
+    def get_data(self, url: str) -> ScrapedMediaResponse:
         """
         Scrape media information about the media on a URL.
 
         Args:
             url (str): A URL to get media information about.
+
+        Returns:
+            ScrapedMediaResponse: A ScrapedMediaResponse object containing scraped media information.
         """
         pass
 
     @abstractmethod
-    def get_subtitles(self, main_playlist: M3U8, language_filter: list[str] | None = None,
+    def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | None = None,
                       subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
         """
         Find and yield subtitles data from a main_playlist.
@@ -227,6 +230,8 @@ class M3U8Scraper(AsyncScraper, ABC):
             ) for m3u8_attribute in self.M3U8Attribute],
             check_config=False)
 
+        self._m3u8_cache: dict[str, M3U8] = {}
+
     def _download_segments_async(self, segments: SegmentList[Segment]) -> list[bytes]:
         """
         Download M3U8 segments asynchronously.
@@ -255,6 +260,49 @@ class M3U8Scraper(AsyncScraper, ABC):
         """
         async with self.async_session.get(url) as response:
             return await response.read()
+
+    @overload
+    def load_m3u8(self, url: str | list[str], raise_error: Literal[True] = ...) -> M3U8:
+        ...
+
+    @overload
+    def load_m3u8(self, url: str | list[str], raise_error: Literal[False] = ...) -> M3U8 | None:
+        ...
+
+    def load_m3u8(self, url: str | list[str], raise_error: bool = False) -> M3U8 | None:
+        """
+        Load an M3U8 playlist from a URL to an M3U8 object.
+        Multiple URLs can be given, in which case the first one that loads successfully will be returned.
+        The method uses caching to avoid loading the same playlist multiple times.
+
+        Args:
+            url (str | list[str]: URL of the M3U8 playlist to load.
+            raise_error (bool, optional): Whether to raise an error if none of the playlists loaded successfully.
+                If set to false, a None value will be returned instead. Defaults to False.
+
+        Returns:
+            m3u8.M3U8: An M3U8 object representing the playlist.
+        """
+        errors = {}
+
+        for _url in single_to_list(url):
+            if _url in self._m3u8_cache:
+                return self._m3u8_cache[_url]
+
+            else:
+                try:
+                    self._m3u8_cache[_url] = m3u8.load(uri=_url, timeout=5)
+                    return self._m3u8_cache[_url]
+
+                except Exception as e:
+                    errors[_url] = e
+                    continue
+
+        if raise_error:
+            errors_str = "\n".join([f"{url}: {error}" for url, error in errors.items()])
+            raise ScraperException(f"Failed to load M3U8 playlist: {url}:\n{errors_str}")
+
+        return None
 
     def _map_session_data(self, playlist_data: M3U8) -> dict[str, Any]:
         """
@@ -294,14 +342,33 @@ class M3U8Scraper(AsyncScraper, ABC):
 
         return None
 
+    def find_valid_playlist(self, playlists: list[str] | str) -> M3U8 | None:
+        """
+        Find and return a valid M3U8 playlist from a list of playlists.
+
+        Args:
+            playlists (list[str] | str): List of playlists to check (list[str]). Can also be a single playlist (str).
+
+        Returns:
+            m3u8.M3U8 | None: A successfully loaded M3U8 playlist, or None if none of the playlists loaded successfully.
+        """
+        for playlist in single_to_list(playlists):  # type: str
+            try:
+                return self.load_m3u8(playlist)
+
+            except Exception:
+                continue
+
+        return None
+
     def get_media_playlists(self, main_playlist: M3U8,
                             playlist_filters: dict[str, str | list[str]] | None = None,
                             include_default_filters: bool = True) -> list[Media]:
         """
-        Find playlists of media within an M3U8 main_playlist using optional filters.
+        Find and yield playlists of media within an M3U8 main_playlist using optional filters.
 
         Args:
-            main_playlist (m3u8.M3U8): an M3U8 object of the main main_playlist.
+            main_playlist (m3u8.M3U8): An M3U8 object of the main main_playlist.
             playlist_filters (dict[str, str | list[str], optional):
                 A dictionary of filters to use when searching for subtitles.
                 Will be added to filters set by the config (unless `include_default_filters` is set to false).
@@ -351,13 +418,13 @@ class M3U8Scraper(AsyncScraper, ABC):
 
         return results
 
-    def get_subtitles(self, main_playlist: M3U8, language_filter: list[str] | str | None = None,
+    def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | str | None = None,
                       subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
         """
         Find and yield subtitles for a movie using optional filters.
 
         Args:
-            main_playlist (m3u8.M3U8): an M3U8 object of the main playlist.
+            main_playlist(str | list[str]): A URL or a list of URLs (for redundancy) of the main playlist.
             language_filter (list[str] | str | None, optional):
                 A language or a list of languages to filter for. Defaults to None.
             subrip_conversion (bool, optional): Whether to convert and return the subtitles as an SRT file or not.
@@ -367,7 +434,13 @@ class M3U8Scraper(AsyncScraper, ABC):
             SubtitlesData: A SubtitlesData NamedTuple with a matching playlist, and it's metadata.
         """
         playlist_filters = {self.M3U8Attribute.LANGUAGE.value: language_filter} if language_filter else None
-        matched_media_items = self.get_media_playlists(main_playlist=main_playlist, playlist_filters=playlist_filters)
+        main_playlist_m3u8 = self.find_valid_playlist(main_playlist)
+
+        if main_playlist_m3u8 is None:
+            raise ScraperException("Failed to load main playlist.")
+
+        matched_media_items = self.get_media_playlists(main_playlist=main_playlist_m3u8,
+                                                       playlist_filters=playlist_filters)
 
         for matched_media in matched_media_items:
             try:
@@ -385,7 +458,7 @@ class M3U8Scraper(AsyncScraper, ABC):
                 yield SubtitlesData(
                     language_code=matched_media.language,
                     language_name=matched_media.name,
-                    subtitles_format=SubtitlesFormat.SUBRIP if subrip_conversion else SubtitlesFormat.WEBVTT,
+                    subtitles_format=SubtitlesFormatType.SUBRIP if subrip_conversion else SubtitlesFormatType.WEBVTT,
                     content=subtitles.to_srt().dump() if subrip_conversion else subtitles.dump(),
                     special_type=self.detect_subtitles_type(matched_media),
                 )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import os
 import re
 import sys
@@ -10,7 +11,7 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Union, get_args, get_origin
 
-from isubrip.data_structures import EpisodeData, MovieData, SubtitlesData, SubtitlesFormat, SubtitlesType
+from isubrip.data_structures import Episode, Movie, SubtitlesData, SubtitlesFormatType, SubtitlesType
 
 
 class SingletonMeta(ABCMeta):
@@ -86,15 +87,17 @@ def convert_epoch_to_datetime(epoch_timestamp: int) -> dt.datetime:
         return dt.datetime(1970, 1, 1) + dt.timedelta(seconds=epoch_timestamp)
 
 
-def download_subtitles_to_file(media_data: MovieData | EpisodeData, subtitles_data: SubtitlesData,
-                               output_path: str | PathLike, overwrite: bool = False) -> Path:
+def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: SubtitlesData, output_path: str | PathLike,
+                               source_abbreviation: str | None = None, overwrite: bool = False) -> Path:
     """
     Download subtitles to a file.
 
     Args:
-        media_data (MovieData | EpisodeData): An object containing media data.
+        media_data (Movie | Episode): An object containing media data.
         subtitles_data (SubtitlesData): A SubtitlesData object containing subtitles data.
         output_path (str | PathLike): Path to the output folder.
+        source_abbreviation (str | None, optional): Abbreviation of the source the subtitles are downloaded from.
+            Defaults to None.
         overwrite (bool, optional): Whether to overwrite files if they already exist. Defaults to True.
 
     Returns:
@@ -106,26 +109,26 @@ def download_subtitles_to_file(media_data: MovieData | EpisodeData, subtitles_da
     if not os.path.isdir(output_path):
         raise ValueError(f'Invalid path: {output_path}')
 
-    if isinstance(media_data, MovieData):
+    if isinstance(media_data, Movie):
         file_name = generate_release_name(title=media_data.name,
-                                          release_year=media_data.release_date.year,
-                                          media_source=media_data.scraper.abbreviation,
+                                          release_date=media_data.release_date,
+                                          media_source=source_abbreviation,
                                           language_code=subtitles_data.language_code,
                                           subtitles_type=subtitles_data.special_type,
                                           file_format=subtitles_data.subtitles_format)
-    elif isinstance(media_data, EpisodeData):
+    elif isinstance(media_data, Episode):
         file_name = generate_release_name(title=media_data.name,
-                                          release_year=media_data.release_date.year,
+                                          release_date=media_data.release_date,
                                           season_number=media_data.season_number,
                                           episode_number=media_data.episode_number,
                                           episode_name=media_data.episode_name,
-                                          media_source=media_data.scraper.abbreviation,
+                                          media_source=source_abbreviation,
                                           language_code=subtitles_data.language_code,
                                           subtitles_type=subtitles_data.special_type,
                                           file_format=subtitles_data.subtitles_format)
 
     else:
-        raise TypeError(f'This function only supports MovieData and EpisodeData objects. Got {type(media_data)}.')
+        raise TypeError(f'This function only supports Movie and Episode objects. Got {type(media_data)}.')
 
     file_path = Path(output_path) / file_name
 
@@ -171,7 +174,7 @@ def generate_non_conflicting_path(file_path: str | Path, has_extension: bool = T
 
 
 def generate_release_name(title: str,
-                          release_year: int | None = None,
+                          release_date: dt.datetime | int | None = None,
                           season_number: int | None = None,
                           episode_number: int | None = None,
                           episode_name: str | None = None,
@@ -180,13 +183,13 @@ def generate_release_name(title: str,
                           additional_info: str | list[str] | None = None,
                           language_code: str | None = None,
                           subtitles_type: SubtitlesType | None = None,
-                          file_format: str | SubtitlesFormat | None = None) -> str:
+                          file_format: str | SubtitlesFormatType | None = None) -> str:
     """
     Generate a release name.
 
     Args:
         title (str): Media title.
-        release_year (int | None, optional): Release year. Defaults to None.
+        release_date (int | None, optional): Release date (datetime), or year (int) of the media. Defaults to None.
         season_number (int | None, optional): Season number. Defaults to None.
         episode_number (int | None, optional): Episode number. Defaults to None.
         episode_name (str | None, optional): Episode name. Defaults to None.
@@ -202,7 +205,13 @@ def generate_release_name(title: str,
     """
     file_name = standardize_title(title)
 
-    if release_year is not None:
+    if release_date is not None:
+        if isinstance(release_date, dt.datetime):
+            release_year = release_date.year
+
+        else:
+            release_year = release_date
+
         file_name += f'.{release_year}'
 
     if season_number is not None:
@@ -233,7 +242,7 @@ def generate_release_name(title: str,
         file_name += f'.{subtitles_type.value.lower()}'
 
     if file_format is not None:
-        if isinstance(file_format, SubtitlesFormat):
+        if isinstance(file_format, SubtitlesFormatType):
             file_format = file_format.value.file_extension
 
         file_name += f'.{file_format}'

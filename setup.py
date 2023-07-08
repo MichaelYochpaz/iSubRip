@@ -72,7 +72,7 @@ setup(
     packages=find_packages(where=str(CURRENT_PATH)),
     package_data={PACKAGE_NAME: ["resources/*"]},
     python_requires=">=3.8",
-    install_requires=["aiohttp", "m3u8", "mergedeep", "requests", "tomli"],
+    install_requires=["aiohttp", "m3u8", "mergedeep", "pydantic", "requests", "tomli"],
     entry_points={
         "console_scripts":
             [f"{PACKAGE_NAME} = {PACKAGE_NAME}.__main__:main"]

@@ -4,7 +4,7 @@ import re
 from abc import ABCMeta
 from datetime import time
 
-from isubrip.data_structures import SubtitlesFormat
+from isubrip.data_structures import SubtitlesFormatType
 from isubrip.subtitle_formats.subtitles import SubtitlesBlock, Subtitles, SubtitlesCaptionBlock
 from isubrip.utils import split_subtitles_timestamp
 
@@ -132,7 +132,7 @@ class Region(WebVTTBlock):
 
 class WebVTTSubtitles(Subtitles[WebVTTBlock]):
     """An object representing a WebVTT subtitles file."""
-    format = SubtitlesFormat.WEBVTT
+    format = SubtitlesFormatType.WEBVTT
 
     def dumps(self) -> str:
         """

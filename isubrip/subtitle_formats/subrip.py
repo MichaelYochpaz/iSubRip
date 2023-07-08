@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from isubrip.data_structures import SubtitlesFormat
+from isubrip.data_structures import SubtitlesFormatType
 from isubrip.subtitle_formats.subtitles import Subtitles, SubtitlesCaptionBlock
 
 
@@ -25,7 +25,7 @@ class SubRipCaptionBlock(SubtitlesCaptionBlock):
 
 class SubRipSubtitles(Subtitles[SubRipCaptionBlock]):
     """An object representing a SubRip subtitles file."""
-    format = SubtitlesFormat.SUBRIP
+    format = SubtitlesFormatType.SUBRIP
 
     def dumps(self) -> str:
         subtitles_str = ""
