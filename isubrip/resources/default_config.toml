@@ -12,6 +12,7 @@ zip = true
 
 [subtitles]
 fix-rtl = false
+rtl-languages = ["ar", "he", "he-il"]
 remove-duplicates = true
 convert-to-srt = false
 
