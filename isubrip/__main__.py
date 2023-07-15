@@ -254,7 +254,6 @@ def generate_config() -> Config:
         with open(file_path, 'r') as data:
             config.loads(config_data=data.read(), check_config=True)
 
-    config.check()
     return config
 
 
