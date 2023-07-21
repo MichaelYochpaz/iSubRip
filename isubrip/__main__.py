@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import atexit
+import datetime as dt
 import logging
 import os
 import shutil
@@ -16,11 +17,12 @@ from isubrip.constants import ARCHIVE_FORMAT, DATA_FOLDER_PATH, DEFAULT_CONFIG_P
     USER_CONFIG_FILE, LOG_FILES_PATH, LOG_FILE_NAME
 from isubrip.data_structures import Movie, ScrapedMediaResponse, SubtitlesDownloadResults, SubtitlesData
 from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
-from isubrip.scrapers.scraper import Scraper, ScraperFactory
+from isubrip.scrapers.scraper import Scraper, ScraperFactory, PlaylistLoadError
 from isubrip.utils import download_subtitles_to_file, generate_non_conflicting_path, generate_release_name, \
     raise_for_status, single_to_list
 
 LOG_ROTATION_SIZE: int | None = None
+PREORDER_MESSAGE = "'{movie_name}' will be available on {scraper_name} on {preorder_date}."
 
 BASE_CONFIG_SETTINGS = [
     ConfigSetting(
@@ -156,16 +158,15 @@ def main():
             id_str = f" (ID: {movie_item.id})" if movie_item.id else ''
             logger.info(f"Found movie: {movie_item.name} [{movie_item.release_date.year}]" + id_str)
 
-            if not movie_item.playlist:
-                if movie_item.preorder_availability_date:
-                    logger.info(f"'{movie_item.name}' is currently unavailable on '{scraper.name}'.\n"
-                                f"Release date ({scraper.name}): {movie_item.preorder_availability_date}.")
-                else:
-                    logger.info(f"No valid playlist was found for '{movie_item.name}' on '{scraper.name}'.")
-
-                continue
 
             try:
+                if not movie_item.playlist:
+                    if movie_item.preorder_availability_date:
+                        raise PlaylistLoadError
+                    else:
+                        logger.error(f"No valid playlist was found for '{movie_item.name}' ({scraper.name}).")
+                        continue
+
                 results = download_subtitles(movie_data=movie_item,
                                              scraper=scraper,
                                              **download_media_subtitles_args)
@@ -184,8 +185,15 @@ def main():
                     logger.info("No matching subtitles were found.")
 
             except Exception as e:
-                logger.error(f"Error: Encountered an error while scraping '{url}'{id_str}: {e}")
-                logger.debug(f"Error details: {e}", exc_info=True)
+                if isinstance(e, PlaylistLoadError) and movie_item.preorder_availability_date:
+                    preorder_date_str = movie_item.preorder_availability_date.strftime("%Y-%m-%d")
+                    logger.info(PREORDER_MESSAGE.format(movie_name=movie_item.name, scraper_name=scraper.name,
+                                                        preorder_date=preorder_date_str))
+
+                else:
+                    logger.error(f"Error: Encountered an error while scraping '{url}'{id_str}: {e}")
+                    logger.debug(f"Error details: {e}", exc_info=True)
+
                 continue
 
 
@@ -255,9 +263,6 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
     """
     temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH, movie_data=movie_data)
     atexit.register(shutil.rmtree, TEMP_FOLDER_PATH, ignore_errors=False, onerror=None)
-
-    if not movie_data.playlist:
-        raise ValueError("No playlist data was found for the given media data.")
 
     successful_downloads: list[SubtitlesData] = []
     failed_downloads: list[SubtitlesData] = []

@@ -281,7 +281,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
                 movie_duration = dt.timedelta(milliseconds=movie_duration_int)
 
         if movie_expected_release_date := playable_data["itunesMediaApiData"].get("futureRentalAvailabilityDate"):
-            dt.datetime.strptime(movie_expected_release_date, "%Y-%m-%d")
+            movie_expected_release_date = dt.datetime.strptime(movie_expected_release_date, "%Y-%m-%d")
 
         return Movie(
             id=itunes_movie_id,

@@ -439,7 +439,7 @@ class M3U8Scraper(AsyncScraper, ABC):
         main_playlist_m3u8 = self.find_valid_playlist(main_playlist)
 
         if main_playlist_m3u8 is None:
-            raise ScraperException("Failed to load main playlist.")
+            raise PlaylistLoadError
 
         matched_media_items = self.get_media_playlists(main_playlist=main_playlist_m3u8,
                                                        playlist_filters=playlist_filters)
@@ -631,4 +631,8 @@ class ScraperFactory(metaclass=SingletonMeta):
 
 
 class ScraperException(Exception):
+    pass
+
+
+class PlaylistLoadError(ScraperException):
     pass
