@@ -5,9 +5,10 @@ from enum import Enum
 import fnmatch
 
 from isubrip.data_structures import Episode, Movie, ScrapedMediaResponse, Season, Series, MediaData
+from isubrip.logger import logger
 from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperException, SeriesScraper
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
-from isubrip.utils import convert_epoch_to_datetime, parse_url_params
+from isubrip.utils import convert_epoch_to_datetime, parse_url_params, raise_for_status
 
 
 class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
@@ -116,18 +117,29 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         Raises:
             HttpError: If an HTTP error response is received.
         """
-        if storefront_id in self._storefront_locale_mapping_cache:
-            locale = self._storefront_locale_mapping_cache[storefront_id]
+        logger.debug(f"Calling API endpoint '{endpoint}' using storefront '{storefront_id}'.")
+
+        if storefront_cached_local := self._storefront_locale_mapping_cache.get(storefront_id):
+            logger.debug(f"Using cached locale for storefront '{storefront_id}': '{storefront_cached_local}'.")
+            locale = storefront_cached_local
 
         else:
             storefront_data = \
                 self._get_configuration_data(storefront_id=storefront_id)["applicationProps"]["storefront"]
 
+            default_locale = storefront_data["defaultLocale"]
+            available_locales = storefront_data["localesSupported"]
+
+            logger.debug(f"Available locales for storefront '{storefront_id}': {available_locales}'."
+                         f"\nStorefront's default locale: '{default_locale}'.")
+
             locale = self._decide_locale(
                 preferred_locales=["en_US", "en_GB"],
-                default_locale=storefront_data["defaultLocale"],
-                locales=storefront_data["localesSupported"],
+                default_locale=default_locale,
+                locales=available_locales,
             )
+
+            logger.debug(f"Determined locale for storefront '{storefront_id}': '{locale}'")
 
             self._storefront_locale_mapping_cache[storefront_id] = locale
 
@@ -138,7 +150,10 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
 
         # Send request to fetch media data
         response = self._session.get(url=f"{self._api_base_url}{endpoint}", params=request_params)
-        response.raise_for_status()
+        logger.debug(f"API endpoint '{endpoint}' on storefront '{storefront_id}' responded with status code: "
+                     f"'{response.status_code}'.")
+
+        raise_for_status(response)
         response_json = response.json()
 
         return response_json.get("data", {})
@@ -177,16 +192,19 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         Returns:
             dict: The configuration data.
         """
+        logger.debug(f"Fetching configuration data for storefront '{storefront_id}'...")
         url = f"{self._api_base_url}/configurations"
         params = self._generate_api_request_params(storefront_id=storefront_id)
         response = self._session.get(url=url, params=params)
-        response.raise_for_status()
+        raise_for_status(response)
+        logger.debug("Configuration data fetched successfully.")
 
         return response.json()["data"]
 
     def _map_playables_by_channel(self, playables: list[dict]) -> dict[str, dict]:
         """
         Map playables by channel name.
+
         Args:
             playables (list[dict]): Playables data to map.
 
@@ -196,8 +214,8 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         mapped_playables: dict = {}
 
         for playable in playables:
-            channel_id = playable.get("channelId", "")
-            mapped_playables.setdefault(channel_id, []).append(playable)
+            if channel_id := playable.get("channelId"):
+                mapped_playables.setdefault(channel_id, []).append(playable)
 
         return mapped_playables
 
@@ -208,6 +226,8 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         )
 
         mapped_playables = self._map_playables_by_channel(playables=data["playables"].values())
+        logger.debug(f"Available channels for movie '{movie_id}': "
+                     f"{' '.join(list(mapped_playables.keys()))}")
 
         if self.Channel.ITUNES.value not in mapped_playables:
             if self.Channel.APPLE_TV_PLUS.value in mapped_playables:
@@ -217,11 +237,18 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
                 raise ScraperException("No iTunes playables could be found.")
 
         return_data = []
+
         for playable_data in mapped_playables[self.Channel.ITUNES.value]:
             return_data.append(self._extract_itunes_movie_data(playable_data))
 
+        if len(return_data) > 1:
+            logger.debug(f"{len(return_data)} iTunes playables were found for movie '{movie_id}'.")
+
+        else:
+            return_data = return_data[0]
+
         return ScrapedMediaResponse(
-            media_data=return_data[0] if len(return_data) == 1 else return_data,
+            media_data=return_data,
             metadata_scraper=self.id,
             playlist_scraper="itunes",
             original_data=data,

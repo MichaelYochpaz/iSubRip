@@ -34,7 +34,7 @@ body:
         The Python version that's being used to run iSubRip.
         Can be checked by running `python --version`.
       placeholder: |
-        Example: "3.10.6".
+        Example: "3.10.6"
     validations:
       required: true
   - type: input
@@ -45,7 +45,7 @@ body:
         iSubRip's version that's being used.
         Can be checked by running `python -m pip show isubrip`.
       placeholder: |
-        Example: "2.3.2".
+        Example: "2.3.2"
     validations:
       required: true
   - type: textarea
@@ -54,7 +54,8 @@ body:
       label: Description
       description: |
         A summary of the issue.
-        Please try to include as much information as possible, and steps to reproduce (if they're known).
+        Include as much information as possible, and steps to reproduce (if they're known).
+        Log files (see README for more information) can be attached by clicking the area to highlight it, and then dragging & dropping files in.
     validations:
       required: true
   - type: textarea

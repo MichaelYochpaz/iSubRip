@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 import os
 import re
 import sys
@@ -11,7 +10,10 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Union, get_args, get_origin
 
+import requests
+
 from isubrip.data_structures import Episode, Movie, SubtitlesData, SubtitlesFormatType, SubtitlesType
+from isubrip.logger import logger
 
 
 class SingletonMeta(ABCMeta):
@@ -278,6 +280,24 @@ def merge_dict_values(*dictionaries: dict) -> dict:
                 result[key] = value
 
     return result
+
+
+def raise_for_status(response: requests.Response) -> None:
+    """
+    Raise an exception if the response status code is invalid.
+    Uses 'response.raise_for_status()' internally, with additional logging.
+
+    Args:
+        response (requests.Response): A response object.
+    """
+    if response.ok:
+        return
+
+    logger.error(f'Response status code: {response.status_code}')
+    logger.error(f'Response text: {response.text}')
+
+    response.raise_for_status()
+
 
 
 def parse_url_params(url_params: str) -> dict:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from isubrip.data_structures import Movie, ScrapedMediaResponse
+from isubrip.logger import logger
 from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperException, ScraperFactory
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
+from isubrip.utils import raise_for_status
 
 
 class ItunesScraper(M3U8Scraper, MovieScraper):
@@ -40,14 +42,17 @@ class ItunesScraper(M3U8Scraper, MovieScraper):
         regex_match = self.match_url(url, raise_error=True)
         url = regex_match.group(1)
         response = self._session.get(url=url, allow_redirects=False)
-        response.raise_for_status()
+        raise_for_status(response=response)
 
         redirect_location = response.headers.get("Location")
 
         if response.status_code != 301 or not redirect_location:
+            logger.debug(f"iTunes URL: {url} did not redirect to an Apple TV URL."
+                         f"\nResponse code: '{response.status_code}'.")
             raise ScraperException("Apple TV redirect URL not found.")
 
         if not self._appletv_scraper.match_url(redirect_location):
+            logger.debug(f"iTunes URL: {url} redirected to an invalid Apple TV URL: '{redirect_location}'.")
             raise ScraperException("Redirect URL is not a valid Apple TV URL.")
 
         return self._appletv_scraper.get_data(redirect_location)

@@ -21,6 +21,7 @@ from m3u8 import M3U8, Media, Segment, SegmentList
 from isubrip.config import Config, ConfigSetting
 from isubrip.constants import PACKAGE_NAME, SCRAPER_MODULES_SUFFIX
 from isubrip.data_structures import SubtitlesData, SubtitlesFormatType, SubtitlesType, ScrapedMediaResponse
+from isubrip.logger import logger
 from isubrip.subtitle_formats.subtitles import Subtitles
 from isubrip.utils import merge_dict_values, single_to_list, SingletonMeta
 
@@ -322,7 +323,6 @@ class M3U8Scraper(AsyncScraper, ABC):
 
         return session_data
 
-
     @staticmethod
     def detect_subtitles_type(subtitles_media: Media) -> SubtitlesType | None:
         """
@@ -354,9 +354,11 @@ class M3U8Scraper(AsyncScraper, ABC):
         """
         for playlist in single_to_list(playlists):  # type: str
             try:
+                logger.debug(f"Loading playlist M3U8 playlist: '{playlist}'")
                 return self.load_m3u8(playlist)
 
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Failed to load playlist '{playlist}': {e}")
                 continue
 
         return None
@@ -463,7 +465,10 @@ class M3U8Scraper(AsyncScraper, ABC):
                     special_type=self.detect_subtitles_type(matched_media),
                 )
 
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to download {matched_media.name} ({matched_media.language}) subtitles. "
+                               f"Skipping...")
+                logger.debug(e, exc_info=True)
                 continue
 
 
@@ -523,9 +528,13 @@ class ScraperFactory(metaclass=SingletonMeta):
         Returns:
             Scraper: An instance of the given scraper class.
         """
+        logger.debug(f"Initializing '{scraper_class.name}' scraper...")
+
         if scraper_class not in self._scraper_instances_cache:
+            logger.debug(f"'{scraper_class.name}' scraper not found in cache, creating a new instance...")
+
             if scraper_class in self._currently_initializing:
-                raise ScraperException(f"Scraper '{scraper_class.id}' is already being initialized.\n"
+                raise ScraperException(f"'{scraper_class.name}' scraper is already being initialized.\n"
                                        f"Make sure there are no circular dependencies between scrapers.")
 
             self._currently_initializing.append(scraper_class)
@@ -542,6 +551,9 @@ class ScraperFactory(metaclass=SingletonMeta):
 
             self._scraper_instances_cache[scraper_class] = scraper_class(config_data=config_data)
             self._currently_initializing.remove(scraper_class)
+
+        else:
+            logger.debug(f"'{scraper_class.id}' scraper found in cache. Cached instance will be used.")
 
         return self._scraper_instances_cache[scraper_class]  # type: ignore[return-value]
 
@@ -595,14 +607,24 @@ class ScraperFactory(metaclass=SingletonMeta):
                                               scrapers_config_data=config_data)
 
         elif scraper_id or url:
-            for scraper in self.get_scraper_classes():
-                if (scraper_id and scraper.id == scraper_id) or (url and scraper.match_url(url) is not None):
-                    return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
+            if scraper_id:
+                logger.debug(f"Searching for a scraper object with ID '{scraper_id}'...")
+                for scraper in self.get_scraper_classes():
+                    if scraper.id == scraper_id:
+                        return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
+
+            elif url:
+                logger.debug(f"Searching for a scraper object that matches URL '{url}'...")
+                for scraper in self.get_scraper_classes():
+                    if scraper.match_url(url) is not None:
+                        return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
 
             if raise_error:
                 raise ValueError(f"No matching scraper was found for URL '{url}'")
 
-            return None
+            else:
+                logger.debug("No matching scraper was found.")
+                return None
 
         else:
             raise ValueError("At least one of: 'scraper_class', 'scraper_id', or 'url' must be provided.")

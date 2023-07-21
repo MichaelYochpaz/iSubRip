@@ -253,8 +253,8 @@ class Config:
 
     def check(self) -> None:
         """
-            Check whether the config is valid by comparing config's data to the config settings.
-            Raises an error if an invalid value is found.
+        Check whether the config is valid by comparing config's data to the config settings.
+        Raises an error if an invalid value is found.
 
         Raises:
             MissingConfigValue: A required config value is missing.

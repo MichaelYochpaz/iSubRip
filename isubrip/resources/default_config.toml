@@ -3,6 +3,7 @@
 
 [general]
 check-for-updates = true
+log-rotation-size = 15
 
 [downloads]
 folder = "."

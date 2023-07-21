@@ -1,115 +1,198 @@
 from __future__ import annotations
 
 import atexit
+import logging
+import os
 import shutil
 import sys
 from pathlib import Path
+from typing import List
 
 import requests
 from requests.utils import default_user_agent
 
-from isubrip.config import Config, ConfigException
-from isubrip.constants import ARCHIVE_FORMAT, DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, BASE_CONFIG_SETTINGS, \
-    PACKAGE_NAME, TEMP_FOLDER_PATH, USER_CONFIG_FILE
+from isubrip.config import Config, ConfigException, ConfigSetting, SpecialConfigType
+from isubrip.constants import ARCHIVE_FORMAT, DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, PACKAGE_NAME, TEMP_FOLDER_PATH, \
+    USER_CONFIG_FILE, LOG_FILES_PATH, LOG_FILE_NAME
 from isubrip.data_structures import Movie, ScrapedMediaResponse, SubtitlesDownloadResults, SubtitlesData
+from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
 from isubrip.scrapers.scraper import Scraper, ScraperFactory
 from isubrip.utils import download_subtitles_to_file, generate_non_conflicting_path, generate_release_name, \
-    single_to_list
+    raise_for_status, single_to_list
+
+LOG_ROTATION_SIZE: int | None = None
+
+BASE_CONFIG_SETTINGS = [
+    ConfigSetting(
+        key="check-for-updates",
+        type=bool,
+        category="general",
+        required=False,
+    ),
+    ConfigSetting(
+        key="log_rotation_size",
+        type=str,
+        category="general",
+        required=False,
+    ),
+    ConfigSetting(
+        key="add-release-year-to-series",
+        type=bool,
+        category="downloads",
+        required=False,
+    ),
+    ConfigSetting(
+        key="folder",
+        type=str,
+        category="downloads",
+        required=True,
+        special_type=SpecialConfigType.EXISTING_FOLDER_PATH,
+    ),
+    ConfigSetting(
+        key="languages",
+        type=List[str],
+        category="downloads",
+        required=False,
+    ),
+    ConfigSetting(
+        key="overwrite-existing",
+        type=bool,
+        category="downloads",
+        required=True,
+    ),
+    ConfigSetting(
+        key="zip",
+        type=bool,
+        category="downloads",
+        required=False,
+    ),
+    ConfigSetting(
+        key="fix-rtl",
+        type=bool,
+        category="subtitles",
+        required=True,
+    ),
+    ConfigSetting(
+        key="rtl-languages",
+        type=List[str],
+        category="subtitles",
+        required=False,
+    ),
+    ConfigSetting(
+        key="remove-duplicates",
+        type=bool,
+        category="subtitles",
+        required=True,
+    ),
+    ConfigSetting(
+        key="convert-to-srt",
+        type=bool,
+        category="subtitles",
+        required=False,
+    ),
+    ConfigSetting(
+        key="user-agent",
+        type=str,
+        category="scrapers",
+        required=True,
+    ),
+]
 
 
 def main():
-    scraper_factory = None
+    # Assure at least one argument was passed
+    if len(sys.argv) < 2:
+        print_usage()
+        exit(0)
 
-    try:
-        # Assure at least one argument was passed
-        if len(sys.argv) < 2:
-            print_usage()
-            exit(1)
+    create_required_folders()
+    setup_loggers(stdout_loglevel=logging.INFO, file_loglevel=logging.DEBUG)
 
-        config = generate_config()
-        update_settings(config)
+    cli_args = " ".join(sys.argv[1:])
 
-        if config.general.get("check-for-updates", True):
-            check_for_updates()
+    if sys.modules.get(PACKAGE_NAME):
+        package_version = sys.modules[PACKAGE_NAME].__version__
 
-        scraper_factory = ScraperFactory()
+    else:
+        package_version = "Unknown"
+        logger.debug("Could not find pack's version.")
 
-        for idx, url in enumerate(sys.argv[1:]):
-            if idx > 0:
-                print("\n--------------------------------------------------\n")  # Print between different movies
+    logger.debug(f'Used CLI Command: {PACKAGE_NAME} {cli_args}')
+    logger.debug(f'Python version: {sys.version}')
+    logger.debug(f'Package version: {package_version}')
+    logger.debug(f'OS: {sys.platform}')
 
-            print(f"Scraping '{url}'...")
+    config = generate_config()
+    update_settings(config)
 
-            scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
-            atexit.register(scraper.close)
-            scraper.config.check()
+    if config.general.get("check-for-updates", True):
+        check_for_updates()
 
-            scraper_response: ScrapedMediaResponse[Movie] = scraper.get_data(url=url)
-            movie_data: list[Movie] = single_to_list(scraper_response.media_data)
+    scraper_factory = ScraperFactory()
 
-            if not movie_data:
-                print(f"Error: No supported media was found for {url}.")
+    for idx, url in enumerate(sys.argv[1:]):
+        logger.info(f"Scraping '{url}'...")
+
+        scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
+        atexit.register(scraper.close)
+        scraper.config.check()  # Recheck config after scraper settings were loaded
+
+        scraper_response: ScrapedMediaResponse[Movie] = scraper.get_data(url=url)
+        movie_data: list[Movie] = single_to_list(scraper_response.media_data)
+
+        if not movie_data:
+            logger.error(f"Error: No supported media was found for {url}.")
+            continue
+
+        download_media_subtitles_args = {
+            "download_path": Path(config.downloads["folder"]),
+            "language_filter": config.downloads.get("languages"),
+            "convert_to_srt": config.subtitles.get("convert-to-srt", False),
+            "overwrite_existing": config.downloads.get("overwrite-existing", False),
+            "zip_files": config.downloads.get("zip", False),
+        }
+
+        for movie_item in movie_data:
+            id_str = f" (ID: {movie_item.id})" if movie_item.id else ''
+            logger.info(f"Found movie: {movie_item.name} [{movie_item.release_date.year}]" + id_str)
+
+            if not movie_item.playlist:
+                if movie_item.preorder_availability_date:
+                    logger.info(f"'{movie_item.name}' is currently unavailable on '{scraper.name}'.\n"
+                                f"Release date ({scraper.name}): {movie_item.preorder_availability_date}.")
+                else:
+                    logger.info(f"No valid playlist was found for '{movie_item.name}' on '{scraper.name}'.")
+
                 continue
 
-            download_media_subtitles_args = {
-                "download_path": Path(config.downloads["folder"]),
-                "language_filter": config.downloads.get("languages"),
-                "convert_to_srt": config.subtitles.get("convert-to-srt", False),
-                "overwrite_existing": config.downloads.get("overwrite-existing", False),
-                "zip_files": config.downloads.get("zip", False),
-            }
+            try:
+                results = download_subtitles(movie_data=movie_item,
+                                             scraper=scraper,
+                                             **download_media_subtitles_args)
 
-            for movie_item in movie_data:
-                id_str = f" (ID: {movie_item.id})" if movie_item.id else ''
-                print(f"\nFound movie: {movie_item.name} [{movie_item.release_date.year}]" + id_str)
+                success_count = len(results.successful_subtitles)
+                failed_count = len(results.failed_subtitles)
 
-                if not movie_item.playlist:
-                    if movie_item.preorder_availability_date:
-                        message = f"'{movie_item.name}' is currently unavailable on '{scraper.name}'.\n" \
-                                  f"Release date ({scraper.name}): {movie_item.preorder_availability_date}."
-                    else:
-                        message = f"No valid playlist was found for '{movie_item.name}' on '{scraper.name}'."
+                if success_count:
+                    logger.info(f"{success_count}/{success_count + failed_count} matching subtitles "
+                                f"have been successfully downloaded.")
 
-                    print(message)
-                    continue
+                elif failed_count:
+                    logger.info(f"{failed_count} subtitles were matched, but failed to download.")
 
-                try:
-                    results = download_subtitles(movie_data=movie_item,
-                                                 scraper=scraper,
-                                                 **download_media_subtitles_args)
+                else:
+                    logger.info("No matching subtitles were found.")
 
-                    success_count = len(results.successful_subtitles)
-                    failed_count = len(results.failed_subtitles)
-
-                    if success_count:
-                        print(f"\n{success_count}/{success_count + failed_count} matching subtitles "
-                              f"have been successfully downloaded.")
-
-                    elif failed_count:
-                        print(f"\n{failed_count} subtitles were matched, but failed to download.")
-
-                    else:
-                        print("No matching subtitles were found.")
-
-                except Exception as e:
-                    print(f"Error: Encountered an error while scraping '{url}'{id_str}: {e}")
-                    continue
-
-    except Exception as e:
-        print(f"Error: {e}")
-        exit(1)
-
-    finally:
-        # Note: This will only close scrapers that were initialized using the ScraperFactory.
-        if scraper_factory:
-            for scraper in scraper_factory.get_initialized_scrapers():
-                scraper.close()
+            except Exception as e:
+                logger.error(f"Error: Encountered an error while scraping '{url}'{id_str}: {e}")
+                logger.debug(f"Error details: {e}", exc_info=True)
+                continue
 
 
 def check_for_updates() -> None:
     """Check and print if a newer version of the package is available."""
     api_url = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
-
+    logger.debug("Checking for package updates on PyPI...")
     try:
         current_version = sys.modules[PACKAGE_NAME].__version__
 
@@ -118,17 +201,36 @@ def check_for_updates() -> None:
             headers={"Accept": "application/json"},
             timeout=10,
         )
-        response.raise_for_status()
+        raise_for_status(response)
         response_data = response.json()
 
-        if latest_version := response_data["info"]["version"]:
-            if latest_version != current_version:
-                print(f"Note: You are currently using version {current_version} of {PACKAGE_NAME}, "
-                      f"however version {latest_version} is available.",
-                      f"\nConsider upgrading by running \"python3 -m pip install --upgrade {PACKAGE_NAME}\"\n")
+        pypi_latest_version = response_data["info"]["version"]
 
-    except Exception:
+        if pypi_latest_version != current_version:
+            logger.info(f"Found a newer version of {PACKAGE_NAME} - {pypi_latest_version}")
+
+            logger.warning(f"Note: You are currently using version '{current_version}' of '{PACKAGE_NAME}', "
+                           f"however version '{pypi_latest_version}' is available.",
+                           f"\nConsider upgrading by running \"python3 -m pip install --upgrade {PACKAGE_NAME}\"\n")
+
+        else:
+            logger.debug(f"Latest version of {PACKAGE_NAME} ({current_version}) is currently installed.")
+
+    except Exception as e:
+        logger.warning(f"Update check failed: {e}")
+        logger.debug(f"Stack trace: {e}", exc_info=True)
         return
+
+
+def create_required_folders():
+    if not DATA_FOLDER_PATH.is_dir():
+        logger.debug(f"'{DATA_FOLDER_PATH}' directory could not be found and will be created.")
+        LOG_FILES_PATH.mkdir(parents=True, exist_ok=True)
+
+    else:
+        if not LOG_FILES_PATH.is_dir():
+            logger.debug(f"'{LOG_FILES_PATH}' directory could not be found and will be created.")
+            LOG_FILES_PATH.mkdir()
 
 
 def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
@@ -174,11 +276,12 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
                 overwrite=overwrite_existing,
             ))
 
-            print(f"{language_data} subtitles were successfully downloaded.")
+            logger.info(f"{language_data} subtitles were successfully downloaded.")
             successful_downloads.append(subtitles_data)
 
         except Exception as e:
-            print(f"Error: Failed to download '{language_data}' subtitles: {e}")
+            logger.error(f"Error: Failed to download '{language_data}' subtitles: {e}")
+            logger.debug("Stack trace:", exc_info=True)
             failed_downloads.append(subtitles_data)
             continue
 
@@ -221,6 +324,19 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
         is_zip=zip_files,
     )
 
+def handle_log_rotation(log_rotation_size: int):
+    """
+    Handle log rotation and remove old log files if needed.
+
+    Args:
+        log_rotation_size (int): Maximum amount of log files to keep.
+    """
+    log_files: list[Path] = sorted(LOG_FILES_PATH.glob("*.log"), key=os.path.getctime, reverse=True)
+
+    if len(log_files) > log_rotation_size:
+        for log_file in log_files[log_rotation_size:]:
+            log_file.unlink()
+
 
 def generate_config() -> Config:
     """
@@ -234,25 +350,35 @@ def generate_config() -> Config:
         MissingConfigValue: If a required config value is missing.
         InvalidConfigValue: If a config value is invalid.
     """
-    config_files = [DEFAULT_CONFIG_PATH]
-
     if not DEFAULT_CONFIG_PATH.is_file():
         raise ConfigException("Default config file could not be found.")
 
-    # If data folder doesn't exist, create it
-    if not DATA_FOLDER_PATH.is_dir():
-        DATA_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
-
-    else:
-        # If a user config file exists, add it to config_files
-        if USER_CONFIG_FILE.is_file():
-            config_files.append(USER_CONFIG_FILE)
-
     config = Config(config_settings=BASE_CONFIG_SETTINGS)
 
-    for file_path in config_files:
-        with open(file_path, 'r') as data:
-            config.loads(config_data=data.read(), check_config=True)
+    logger.debug(f"Loading default config data...")
+
+    with open(DEFAULT_CONFIG_PATH, 'r') as data:
+        config.loads(config_data=data.read(), check_config=True)
+
+    logger.debug(f"Default config data loaded and validated successfully.")
+
+    # If logs folder doesn't exist, create it (also handles data folder)
+    if not DATA_FOLDER_PATH.is_dir():
+        logger.debug(f"'{DATA_FOLDER_PATH}' directory could not be found and will be created.")
+        DATA_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
+        LOG_FILES_PATH.mkdir()
+
+    else:
+        if not LOG_FILES_PATH.is_dir():
+            logger.debug(f"'{LOG_FILES_PATH}' directory could not be found and will be created.")
+            LOG_FILES_PATH.mkdir()
+
+        # If a user config file exists, add it to config_files
+        if USER_CONFIG_FILE.is_file():
+            logger.info(f"User config file detected at '{USER_CONFIG_FILE}' and will be used.")
+            with open(USER_CONFIG_FILE, 'r') as data:
+                config.loads(config_data=data.read(), check_config=True)
+            logger.debug(f"User config file loaded and validated successfully.")
 
     return config
 
@@ -305,11 +431,55 @@ def update_settings(config: Config) -> None:
     Scraper.subtitles_remove_duplicates = config.subtitles["remove-duplicates"]
     Scraper.default_user_agent = config.scrapers.get("user-agent", default_user_agent())
 
+    if log_rotation := config.general.get("log-rotation-size"):
+        global LOG_ROTATION_SIZE
+        LOG_ROTATION_SIZE = log_rotation
+
 
 def print_usage() -> None:
     """Print usage information."""
-    print(f"Usage: {PACKAGE_NAME} <iTunes movie URL> [iTunes movie URL...]")
+    logger.info(f"Usage: {PACKAGE_NAME} <iTunes movie URL> [iTunes movie URL...]")
+
+
+def setup_loggers(stdout_loglevel: int, file_loglevel: int) -> None:
+    """
+    Configure loggers.
+
+    Args:
+        stdout_loglevel (int): Log level for STDOUT logger.
+        file_loglevel (int): Log level for logfile logger.
+    """
+    logger.setLevel(logging.DEBUG)
+
+    # Setup STDOUT logger
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(stdout_loglevel)
+    stdout_handler.setFormatter(CustomStdoutFormatter())
+    logger.addHandler(stdout_handler)
+
+    # Setup logfile logger
+    logfile_path = generate_non_conflicting_path(LOG_FILES_PATH / LOG_FILE_NAME)
+    logfile_handler = logging.FileHandler(filename=logfile_path, encoding="utf-8")
+    logfile_handler.setLevel(file_loglevel)
+    logfile_handler.setFormatter(CustomLogFileFormatter())
+    logger.addHandler(logfile_handler)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+
+    except Exception as ex:
+        logger.error(f"Error: {ex}")
+        logger.debug(f"Stack trace: {ex}", exc_info=True)
+        exit(1)
+
+    finally:
+        if _log_rotation_size := LOG_ROTATION_SIZE:
+            handle_log_rotation(log_rotation_size=_log_rotation_size)
+
+        _scraper_factory = ScraperFactory()
+
+        # Note: This will only close scrapers that were initialized using the ScraperFactory.
+        for _scraper in _scraper_factory.get_initialized_scrapers():
+            _scraper.close()

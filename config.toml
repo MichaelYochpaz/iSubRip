@@ -13,6 +13,11 @@
 # Value can be either "true" or "false".
 check-for-updates = true
 
+# Maximum number of log files to keep in the logs folder.
+# Once the maximum number is reached, the oldest logs files will be deleted in rotation
+# until the number of files equals the maximum.
+log-rotation-size = 15
+
 
 [downloads]
 # Folder to downloads files to.
