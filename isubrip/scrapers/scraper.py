@@ -156,8 +156,9 @@ class Scraper(ABC, metaclass=SingletonMeta):
         Find and yield subtitles data from a main_playlist.
 
         Args:
-            main_playlist (M3U8): Main playlist of the media to search for subtitles in.
-            language_filter (list[str], optional): A list of languages to filter for.
+            main_playlist(str | list[str]): A URL or a list of URLs (for redundancy) of the main playlist.
+            language_filter (list[str] | str | None, optional):
+                A language or a list of languages to filter for. Defaults to None.
             subrip_conversion (bool, optional): Whether to convert the subtitles to SubRip format. Defaults to False.
 
         Yields:
@@ -422,19 +423,6 @@ class M3U8Scraper(AsyncScraper, ABC):
 
     def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | str | None = None,
                       subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
-        """
-        Find and yield subtitles for a movie using optional filters.
-
-        Args:
-            main_playlist(str | list[str]): A URL or a list of URLs (for redundancy) of the main playlist.
-            language_filter (list[str] | str | None, optional):
-                A language or a list of languages to filter for. Defaults to None.
-            subrip_conversion (bool, optional): Whether to convert and return the subtitles as an SRT file or not.
-                Defaults to False.
-
-        Yields:
-            SubtitlesData: A SubtitlesData NamedTuple with a matching playlist, and it's metadata.
-        """
         playlist_filters = {self.M3U8Attribute.LANGUAGE.value: language_filter} if language_filter else None
         main_playlist_m3u8 = self.find_valid_playlist(main_playlist)
 

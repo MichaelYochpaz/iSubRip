@@ -132,7 +132,7 @@ def main():
 
     scraper_factory = ScraperFactory()
 
-    for idx, url in enumerate(sys.argv[1:]):
+    for url in sys.argv[1:]:
         logger.info(f"Scraping '{url}'...")
 
         scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
@@ -156,8 +156,13 @@ def main():
 
         for movie_item in movie_data:
             id_str = f" (ID: {movie_item.id})" if movie_item.id else ''
-            logger.info(f"Found movie: {movie_item.name} [{movie_item.release_date.year}]" + id_str)
 
+            if isinstance(movie_item.release_date, dt.datetime):
+                year_str = movie_item.release_date.year
+            else:
+                year_str = movie_item.release_date
+
+            logger.info(f"Found movie: {movie_item.name} [{year_str}]" + id_str)
 
             try:
                 if not movie_item.playlist:
@@ -259,7 +264,7 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
             (only if there are multiple subtitles).
 
     Returns:
-        Path: Path to the parent folder of the downloaded subtitles files / zip file.
+        SubtitlesDownloadResults: A SubtitlesDownloadResults object containing the results of the download.
     """
     temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH, movie_data=movie_data)
     atexit.register(shutil.rmtree, TEMP_FOLDER_PATH, ignore_errors=False, onerror=None)
@@ -268,7 +273,7 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
     failed_downloads: list[SubtitlesData] = []
     temp_downloads: list[Path] = []
 
-    for subtitles_data in scraper.get_subtitles(main_playlist=movie_data.playlist,
+    for subtitles_data in scraper.get_subtitles(main_playlist=movie_data.playlist,  # type: ignore[arg-type]
                                                 language_filter=language_filter,
                                                 subrip_conversion=convert_to_srt):
         language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
@@ -336,7 +341,7 @@ def handle_log_rotation(log_rotation_size: int):
     Args:
         log_rotation_size (int): Maximum amount of log files to keep.
     """
-    log_files: list[Path] = sorted(LOG_FILES_PATH.glob("*.log"), key=os.path.getctime, reverse=True)
+    log_files: list[Path] = sorted(LOG_FILES_PATH.glob("*.log"), key=os.path.getctime, reverse=True)  # type: ignore
 
     if len(log_files) > log_rotation_size:
         for log_file in log_files[log_rotation_size:]:
@@ -360,12 +365,12 @@ def generate_config() -> Config:
 
     config = Config(config_settings=BASE_CONFIG_SETTINGS)
 
-    logger.debug(f"Loading default config data...")
+    logger.debug("Loading default config data...")
 
     with open(DEFAULT_CONFIG_PATH, 'r') as data:
         config.loads(config_data=data.read(), check_config=True)
 
-    logger.debug(f"Default config data loaded and validated successfully.")
+    logger.debug("Default config data loaded and validated successfully.")
 
     # If logs folder doesn't exist, create it (also handles data folder)
     if not DATA_FOLDER_PATH.is_dir():
@@ -383,7 +388,7 @@ def generate_config() -> Config:
             logger.info(f"User config file detected at '{USER_CONFIG_FILE}' and will be used.")
             with open(USER_CONFIG_FILE, 'r') as data:
                 config.loads(config_data=data.read(), check_config=True)
-            logger.debug(f"User config file loaded and validated successfully.")
+            logger.debug("User config file loaded and validated successfully.")
 
     return config
 

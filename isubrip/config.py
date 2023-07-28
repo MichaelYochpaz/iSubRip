@@ -54,7 +54,8 @@ class ConfigSetting(NamedTuple):
             to validate, represented by a SpecialConfigType value. Defaults to None.
     """
     key: str
-    # TODO: Use `types.UnionType` instead of `typing._UnionGenericAlias`, once minimum Python version >= 3.10
+    # TODO: Use `types.UnionType` instead of `typing._UnionGenericAlias`, once minimum Python version >= 3.10.
+    # TODO: Update 'InvalidConfigType' exception as well.
     type: type | typing._UnionGenericAlias  # type: ignore[name-defined]
     category: str | list[str] | None = None
     required: bool = False
@@ -231,13 +232,10 @@ class Config:
                     try:
                         value = enum_type(value)
 
-                    except ValueError:
+                    except ValueError as e:
                         setting_path = '.'.join(single_to_list(setting.category))
-                        enum_options = ', '.join([f"\'{option.name}\'" for option in enum_type])
-
-                        raise InvalidConfigValue from ValueError(
-                            f"Invalid config value for {setting_path}.{setting.key}: \'{value}\'.\n"
-                            f"Expected one of: {enum_options}.")
+                        raise InvalidConfigValueEnum(setting_path=setting_path,
+                                                     value=value, enum_type=enum_type) from e
 
                 if type(value) in (list, tuple) and len(value) == 0:
                     value = None
@@ -277,38 +275,86 @@ class Config:
 
             if value is None:
                 if setting.required:
-                    raise MissingConfigValue(f"Missing required config value: '{setting_path}'")
+                    raise MissingRequiredConfigSetting(setting_path=setting_path)
 
                 else:
                     continue
 
             if setting.enum_type is None and not check_type(value, setting.type):
-                raise InvalidConfigValue(
-                    f"Invalid config value type for '{setting_path}': '{value}'.\n"
-                    f"Expected {setting.type}, received: {type(value)}.")
+                raise InvalidConfigType(setting_path=setting_path, value=value, expected_type=setting.type)
 
             special_types = single_to_list(setting.special_type)
 
             if SpecialConfigType.EXISTING_FILE_PATH in special_types:
                 if not os.path.isfile(value):
-                    raise InvalidConfigValue(f"Invalid config value type for '{setting_path}'.\n"
-                                             f"File '{value}' not found.")
+                    raise InvalidConfigFilePath(setting_path=setting_path, value=value)
 
             elif SpecialConfigType.EXISTING_FOLDER_PATH in special_types:
                 if not os.path.isdir(value):
-                    raise InvalidConfigValue(f"Invalid config value type for '{setting_path}'.\n"
-                                             f"Folder '{value}' not found.")
+                    raise InvalidConfigFolderPath(setting_path=setting_path, value=value)
 
 
 class ConfigException(Exception):
     pass
 
 
-class MissingConfigValue(ConfigException):
+class MissingRequiredConfigSetting(ConfigException):
     """A required config value is missing."""
-    pass
+    def __init__(self, setting_path: str):
+        super().__init__(f"Missing required config value: '{setting_path}'.")
 
 
 class InvalidConfigValue(ConfigException):
-    """An invalid value has been used."""
-    pass
+    """An invalid config setting has been set."""
+    def __init__(self, setting_path: str, value: Any, additional_note: str | None = None):
+        message = f"Invalid config value for '{setting_path}': '{value}'."
+
+        if additional_note:
+            message += f"\n{additional_note}"
+
+        super().__init__(message)
+
+
+class InvalidConfigValueEnum(InvalidConfigValue):
+    """An invalid config value of an enum type setting has been set."""
+    def __init__(self, setting_path: str, value: Any, enum_type: type[Enum]):
+        enum_options = ', '.join([f"'{option.name}'" for option in enum_type])
+
+        super().__init__(
+            setting_path=setting_path,
+            value=value,
+            additional_note=f"Value can only be one of: {enum_options}.",
+        )
+
+
+class InvalidConfigType(InvalidConfigValue):
+    """An invalid config value type has been set."""
+    def __init__(self, setting_path: str, expected_type: type | typing._UnionGenericAlias, value: Any):
+        expected_type_str = expected_type.__name__ if hasattr(expected_type, '__name__') else str(expected_type)
+        value_type_str = type(value).__name__ if hasattr(type(value), '__name__') else str(type(value))
+
+        super().__init__(
+            setting_path=setting_path,
+            value=value,
+            additional_note=f"Expected type: '{expected_type_str}'. Received: '{value_type_str}'.",
+        )
+
+
+class InvalidConfigFilePath(InvalidConfigValue):
+    """An invalid config value of a file path has been set."""
+    def __init__(self, setting_path: str, value: str):
+        super().__init__(
+            setting_path=setting_path,
+            value=value,
+            additional_note=f"File '{value}' not found.",
+        )
+
+
+class InvalidConfigFolderPath(InvalidConfigValue):
+    """An invalid config value of a folder path has been set."""
+    def __init__(self, setting_path: str, value: str):
+        super().__init__(
+            setting_path=setting_path,
+            value=value,
+            additional_note=f"Folder '{value}' not found.",
+        )
