@@ -1,3 +1,71 @@
+# --- Poetry ---
+[tool.poetry]
+name = "isubrip"
+version = "2.4.3"
+description = "A Python package for scraping and downloading subtitles from AppleTV / iTunes movie pages."
+license = "MIT"
+authors = ["Michael Yochpaz"]
+readme = "README.md"
+homepage = "https://github.com/MichaelYochpaz/iSubRip"
+repository = "https://github.com/MichaelYochpaz/iSubRip"
+keywords = [
+    "iTunes",
+    "AppleTV",
+    "movies",
+    "subtitles",
+    "scrape",
+    "scraper",
+    "download",
+    "m3u8"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Utilities",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+packages = [
+    { include = "isubrip" },
+]
+include = [
+    "isubrip/resources", "README.md", "LICENSE"
+]
+[tool.poetry.scripts]
+isubrip = "isubrip.__main__:main"
+
+[tool.poetry.urls]
+"Bug Reports" = "https://github.com/MichaelYochpaz/iSubRip/issues"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+requests = "^2.31.0"
+aiohttp = "^3.8.5"
+m3u8 = "^3.5.0"
+mergedeep = "^1.3.4"
+pydantic = "^2.1.1"
+tomli = "^2.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry_bumpversion.file."isubrip/__init__.py"]
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'
+
+[tool.poetry_bumpversion.file."README.md"]
+search = 'Latest version: {current_version}'
+replace = 'Latest version: {new_version}'
+
+# --- Ruff ---
 [tool.ruff]
 line-length = 120
 target-version = "py38"
