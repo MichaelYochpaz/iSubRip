@@ -1,30 +1,29 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import asyncio
+from enum import Enum
 import importlib
 import inspect
-import os
+from pathlib import Path
 import re
 import sys
-from abc import abstractmethod, ABC
-from enum import Enum
-from glob import glob
-from pathlib import Path
-from typing import Any, ClassVar, Iterator, List, Literal, overload, Union, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Iterator, List, Literal, TypeVar, Union, overload
 
 import aiohttp
 import m3u8
+from m3u8 import M3U8, Media, Segment, SegmentList
 import requests
 import requests.utils
-from m3u8 import M3U8, Media, Segment, SegmentList
 
 from isubrip.config import Config, ConfigSetting
 from isubrip.constants import PACKAGE_NAME, SCRAPER_MODULES_SUFFIX
-from isubrip.data_structures import SubtitlesData, SubtitlesFormatType, SubtitlesType, ScrapedMediaResponse
+from isubrip.data_structures import ScrapedMediaResponse, SubtitlesData, SubtitlesFormatType, SubtitlesType
 from isubrip.logger import logger
-from isubrip.subtitle_formats.subtitles import Subtitles
-from isubrip.utils import merge_dict_values, single_to_list, SingletonMeta
+from isubrip.utils import SingletonMeta, merge_dict_values, single_to_list
 
+if TYPE_CHECKING:
+    from isubrip.subtitle_formats.subtitles import Subtitles
 
 ScraperT = TypeVar("ScraperT", bound="Scraper")
 
@@ -117,10 +116,10 @@ class Scraper(ABC, metaclass=SingletonMeta):
         if isinstance(cls.url_regex, str):
             return re.fullmatch(pattern=cls.url_regex, string=url, flags=re.IGNORECASE)
 
-        else:  # isinstance(cls.url_regex, (list, tuple)):
-            for url_regex_item in cls.url_regex:
-                if result := re.fullmatch(pattern=url_regex_item, string=url, flags=re.IGNORECASE):
-                    return result
+        # isinstance(cls.url_regex, list):
+        for url_regex_item in cls.url_regex:
+            if result := re.fullmatch(pattern=url_regex_item, string=url, flags=re.IGNORECASE):
+                return result
 
         if raise_error:
             raise ValueError(f"URL '{url}' doesn't match the URL regex of {cls.name}.")
@@ -147,7 +146,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
         Returns:
             ScrapedMediaResponse: A ScrapedMediaResponse object containing scraped media information.
         """
-        pass
 
     @abstractmethod
     def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | None = None,
@@ -165,7 +163,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
             SubtitlesData: A SubtitlesData object for each subtitle found
                 in the main playlist (matching the filters, if given).
         """
-        pass
 
 
 class MovieScraper(Scraper, ABC):
@@ -291,18 +288,17 @@ class M3U8Scraper(AsyncScraper, ABC):
             if _url in self._m3u8_cache:
                 return self._m3u8_cache[_url]
 
-            else:
-                try:
-                    self._m3u8_cache[_url] = m3u8.load(uri=_url, timeout=5)
-                    return self._m3u8_cache[_url]
+            try:
+                self._m3u8_cache[_url] = m3u8.load(uri=_url, timeout=5)
+                return self._m3u8_cache[_url]
 
-                except Exception as e:
-                    errors[_url] = e
-                    continue
+            except Exception as e:
+                errors[_url] = e
+                continue
 
         if raise_error:
             errors_str = "\n".join([f"{url}: {error}" for url, error in errors.items()])
-            raise ScraperException(f"Failed to load M3U8 playlist: {url}:\n{errors_str}")
+            raise ScraperError(f"Failed to load M3U8 playlist: {url}:\n{errors_str}")
 
         return None
 
@@ -338,7 +334,7 @@ class M3U8Scraper(AsyncScraper, ABC):
         if subtitles_media.forced == "YES":
             return SubtitlesType.FORCED
 
-        elif subtitles_media.characteristics is not None and "public.accessibility" in subtitles_media.characteristics:
+        if subtitles_media.characteristics is not None and "public.accessibility" in subtitles_media.characteristics:
             return SubtitlesType.CC
 
         return None
@@ -486,20 +482,20 @@ class ScraperFactory(metaclass=SingletonMeta):
             return self._scraper_classes_cache
 
         else:
-            scraper_modules_paths = glob(os.path.dirname(__file__) + f"/*{SCRAPER_MODULES_SUFFIX}.py")
+            scraper_modules_paths = Path(__file__).parent.glob(f"*{SCRAPER_MODULES_SUFFIX}.py")
 
             for scraper_module_path in scraper_modules_paths:
-                sys.path.append(scraper_module_path)
+                sys.path.append(str(scraper_module_path))
 
-                module = importlib.import_module(f"{PACKAGE_NAME}.scrapers.{Path(scraper_module_path).stem}")
+                module = importlib.import_module(f"{PACKAGE_NAME}.scrapers.{scraper_module_path.stem}")
 
                 # Find all 'Scraper' subclasses
                 for _, obj in inspect.getmembers(module,
                                                  predicate=lambda x: inspect.isclass(x) and issubclass(x, Scraper)):
                     # Skip object if it's an abstract or imported from another module
-                    if not inspect.isabstract(obj) and obj.__module__ == module.__name__:
-                        if any((obj.is_movie_scraper, obj.is_series_scraper)):
-                            yield obj
+                    if ((not inspect.isabstract(obj) and obj.__module__ == module.__name__) and
+                            any((obj.is_movie_scraper, obj.is_series_scraper))):
+                        yield obj
 
             return
 
@@ -522,7 +518,7 @@ class ScraperFactory(metaclass=SingletonMeta):
             logger.debug(f"'{scraper_class.name}' scraper not found in cache, creating a new instance...")
 
             if scraper_class in self._currently_initializing:
-                raise ScraperException(f"'{scraper_class.name}' scraper is already being initialized.\n"
+                raise ScraperError(f"'{scraper_class.name}' scraper is already being initialized.\n"
                                        f"Make sure there are no circular dependencies between scrapers.")
 
             self._currently_initializing.append(scraper_class)
@@ -532,7 +528,7 @@ class ScraperFactory(metaclass=SingletonMeta):
                 config_data = None
 
             else:
-                required_scrapers_ids = [scraper_class.id] + scraper_class.uses_scrapers
+                required_scrapers_ids = [scraper_class.id, *scraper_class.uses_scrapers]
                 config_data = \
                     {scraper_id: scrapers_config_data[scraper_id] for scraper_id in required_scrapers_ids
                      if scrapers_config_data.get(scraper_id)}
@@ -594,33 +590,31 @@ class ScraperFactory(metaclass=SingletonMeta):
             return self._get_scraper_instance(scraper_class=scraper_class,
                                               scrapers_config_data=config_data)
 
-        elif scraper_id or url:
-            if scraper_id:
-                logger.debug(f"Searching for a scraper object with ID '{scraper_id}'...")
-                for scraper in self.get_scraper_classes():
-                    if scraper.id == scraper_id:
-                        return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
-
-            elif url:
-                logger.debug(f"Searching for a scraper object that matches URL '{url}'...")
-                for scraper in self.get_scraper_classes():
-                    if scraper.match_url(url) is not None:
-                        return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
-
-            if raise_error:
-                raise ValueError(f"No matching scraper was found for URL '{url}'")
-
-            else:
-                logger.debug("No matching scraper was found.")
-                return None
-
-        else:
+        if not (scraper_id or url):
             raise ValueError("At least one of: 'scraper_class', 'scraper_id', or 'url' must be provided.")
 
+        if scraper_id:
+            logger.debug(f"Searching for a scraper object with ID '{scraper_id}'...")
+            for scraper in self.get_scraper_classes():
+                if scraper.id == scraper_id:
+                    return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
 
-class ScraperException(Exception):
+        elif url:
+            logger.debug(f"Searching for a scraper object that matches URL '{url}'...")
+            for scraper in self.get_scraper_classes():
+                if scraper.match_url(url) is not None:
+                    return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
+
+        if raise_error:
+            raise ValueError(f"No matching scraper was found for URL '{url}'")
+
+        logger.debug("No matching scraper was found.")
+        return None
+
+
+class ScraperError(Exception):
     pass
 
 
-class PlaylistLoadError(ScraperException):
+class PlaylistLoadError(ScraperError):
     pass

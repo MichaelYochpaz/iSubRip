@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import time
-from typing import ClassVar, Generic, TYPE_CHECKING, TypeVar
-
-from isubrip.data_structures import SubtitlesFormatType, SubtitlesType
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 if TYPE_CHECKING:
+    from isubrip.data_structures import SubtitlesFormatType, SubtitlesType
     from isubrip.subtitle_formats.subrip import SubRipCaptionBlock, SubRipSubtitles
 
 RTL_CONTROL_CHARS = ('\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e')
@@ -124,7 +123,6 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
     @abstractmethod
     def dumps(self) -> str:
         """Dump subtitles object to a string representing the subtitles."""
-        pass
 
     @staticmethod
     @abstractmethod
@@ -209,7 +207,7 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
         return SubRipSubtitles(
             blocks=[block.to_srt() for block in self.blocks if isinstance(block, SubtitlesCaptionBlock)],
             language_code=self.language_code,
-            special_type=self.special_type
+            special_type=self.special_type,
         )
 
 

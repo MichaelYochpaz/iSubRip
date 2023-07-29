@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 from tempfile import gettempdir
 
-
 # General
 PACKAGE_NAME = "isubrip"
 

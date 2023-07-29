@@ -4,9 +4,9 @@ import datetime as dt
 from enum import Enum
 import fnmatch
 
-from isubrip.data_structures import Episode, Movie, ScrapedMediaResponse, Season, Series, MediaData
+from isubrip.data_structures import Episode, MediaData, Movie, ScrapedMediaResponse, Season, Series
 from isubrip.logger import logger
-from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperException, SeriesScraper
+from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperError, SeriesScraper
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
 from isubrip.utils import convert_epoch_to_datetime, parse_url_params, raise_for_status
 
@@ -231,10 +231,9 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
 
         if self.Channel.ITUNES.value not in mapped_playables:
             if self.Channel.APPLE_TV_PLUS.value in mapped_playables:
-                raise ScraperException("Scraping AppleTV+ content is not currently supported.")
+                raise ScraperError("Scraping AppleTV+ content is not currently supported.")
 
-            else:
-                raise ScraperException("No iTunes playables could be found.")
+            raise ScraperError("No iTunes playables could be found.")
 
         return_data = []
 
@@ -317,25 +316,23 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
         media_id = url_data["media_id"]
 
         if storefront_code not in self._storefronts_mapping:
-            raise ScraperException(f"ID mapping for storefront '{storefront_code}' could not be found.")
+            raise ScraperError(f"ID mapping for storefront '{storefront_code}' could not be found.")
 
         storefront_id = self._storefronts_mapping[storefront_code]
 
         if media_type == "movie":
             return self.get_movie_data(storefront_id=storefront_id, movie_id=media_id)
 
-        elif media_type == "episode":
+        if media_type == "episode":
             return self.get_episode_data(storefront_id=storefront_id, episode_id=media_id)
 
-        elif media_type == "season":
-            if url_params := url_data.get("url_params"):
-                if show_id := parse_url_params(url_params).get("showId"):
-                    return self.get_season_data(storefront_id=storefront_id, season_id=media_id, show_id=show_id)
+        if media_type == "season":
+            if (url_params := url_data.get("url_params")) and (show_id := parse_url_params(url_params).get("showId")):
+                return self.get_season_data(storefront_id=storefront_id, season_id=media_id, show_id=show_id)
 
-            raise ScraperException("Invalid AppleTV URL: Missing 'showId' parameter.")
+            raise ScraperError("Invalid AppleTV URL: Missing 'showId' parameter.")
 
-        elif media_type == "show":
+        if media_type == "show":
             return self.get_show_data(storefront_id=storefront_id, show_id=media_id)
 
-        else:
-            raise ScraperException(f"Invalid media type '{media_type}'.")
+        raise ScraperError(f"Invalid media type '{media_type}'.")

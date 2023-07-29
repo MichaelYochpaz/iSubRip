@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import datetime as dt
+import datetime as dt  # noqa: TCH003
 from enum import Enum
 from typing import Generic, List, NamedTuple, Optional, TypeVar, Union
 
 from pydantic import BaseModel, ConfigDict
-
 
 MediaData = TypeVar("MediaData", bound=Union["Movie", "Episode", "Season", "Series"])
 

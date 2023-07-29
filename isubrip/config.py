@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import os.path
-import typing
 from copy import deepcopy
 from enum import Enum
+from pathlib import Path
+import typing
 from typing import Any, NamedTuple, Type
 
-import tomli
 from mergedeep import merge
+import tomli
 
 from isubrip.utils import check_type, single_to_list
 
@@ -56,7 +56,7 @@ class ConfigSetting(NamedTuple):
     key: str
     # TODO: Use `types.UnionType` instead of `typing._UnionGenericAlias`, once minimum Python version >= 3.10.
     # TODO: Update 'InvalidConfigType' exception as well.
-    type: type | typing._UnionGenericAlias  # type: ignore[name-defined]
+    type: type | typing._UnionGenericAlias  # type: ignore[name-defined]  # noqa: SLF001
     category: str | list[str] | None = None
     required: bool = False
     enum_type: Type[Enum] | None = None
@@ -101,8 +101,7 @@ class Config:
         if self._config_data and key in self._config_data:
             return self._config_data[key]
 
-        else:
-            raise AttributeError(f"Attribute \'{key}\' does not exist.")
+        raise AttributeError(f"Attribute \'{key}\' does not exist.")
 
     def __getitem__(self, key: str) -> Any:
         """
@@ -191,8 +190,7 @@ class Config:
         if check_config and self._config_settings:
             self.check()
 
-    @staticmethod
-    def _map_config_settings(settings: list[ConfigSetting], data: dict) -> dict[ConfigSetting, Any]:
+    def _map_config_settings(self, settings: list[ConfigSetting], data: dict) -> dict[ConfigSetting, Any]:
         """
         Map config settings to their values.
         This function wil also unflatten data.
@@ -234,8 +232,8 @@ class Config:
 
                     except ValueError as e:
                         setting_path = '.'.join(single_to_list(setting.category))
-                        raise InvalidConfigValueEnum(setting_path=setting_path,
-                                                     value=value, enum_type=enum_type) from e
+                        raise InvalidEnumConfigValueError(setting_path=setting_path,
+                                                          value=value, enum_type=enum_type) from e
 
                 if type(value) in (list, tuple) and len(value) == 0:
                     value = None
@@ -261,7 +259,7 @@ class Config:
         if self._config_data is None or not self._config_settings:
             return
 
-        mapped_config = Config._map_config_settings(self._config_settings, self._config_data)
+        mapped_config = self._map_config_settings(self._config_settings, self._config_data)
 
         for setting, value in mapped_config.items():
             if isinstance(setting.category, (list, tuple)):
@@ -275,36 +273,33 @@ class Config:
 
             if value is None:
                 if setting.required:
-                    raise MissingRequiredConfigSetting(setting_path=setting_path)
+                    raise MissingRequiredConfigSettingError(setting_path=setting_path)
 
-                else:
-                    continue
+                continue
 
             if setting.enum_type is None and not check_type(value, setting.type):
-                raise InvalidConfigType(setting_path=setting_path, value=value, expected_type=setting.type)
+                raise InvalidConfigTypeError(setting_path=setting_path, value=value, expected_type=setting.type)
 
             special_types = single_to_list(setting.special_type)
 
-            if SpecialConfigType.EXISTING_FILE_PATH in special_types:
-                if not os.path.isfile(value):
-                    raise InvalidConfigFilePath(setting_path=setting_path, value=value)
+            if SpecialConfigType.EXISTING_FILE_PATH in special_types and not Path(value).is_file():
+                raise InvalidConfigFilePathError(setting_path=setting_path, value=value)
 
-            elif SpecialConfigType.EXISTING_FOLDER_PATH in special_types:
-                if not os.path.isdir(value):
-                    raise InvalidConfigFolderPath(setting_path=setting_path, value=value)
+            if SpecialConfigType.EXISTING_FOLDER_PATH in special_types and not Path(value).is_dir():
+                raise InvalidConfigFolderPathError(setting_path=setting_path, value=value)
 
 
-class ConfigException(Exception):
+class ConfigError(Exception):
     pass
 
 
-class MissingRequiredConfigSetting(ConfigException):
+class MissingRequiredConfigSettingError(ConfigError):
     """A required config value is missing."""
     def __init__(self, setting_path: str):
         super().__init__(f"Missing required config value: '{setting_path}'.")
 
 
-class InvalidConfigValue(ConfigException):
+class InvalidConfigValueError(ConfigError):
     """An invalid config setting has been set."""
     def __init__(self, setting_path: str, value: Any, additional_note: str | None = None):
         message = f"Invalid config value for '{setting_path}': '{value}'."
@@ -315,7 +310,7 @@ class InvalidConfigValue(ConfigException):
         super().__init__(message)
 
 
-class InvalidConfigValueEnum(InvalidConfigValue):
+class InvalidEnumConfigValueError(InvalidConfigValueError):
     """An invalid config value of an enum type setting has been set."""
     def __init__(self, setting_path: str, value: Any, enum_type: type[Enum]):
         enum_options = ', '.join([f"'{option.name}'" for option in enum_type])
@@ -327,9 +322,11 @@ class InvalidConfigValueEnum(InvalidConfigValue):
         )
 
 
-class InvalidConfigType(InvalidConfigValue):
+class InvalidConfigTypeError(InvalidConfigValueError):
     """An invalid config value type has been set."""
-    def __init__(self, setting_path: str, expected_type: type | typing._UnionGenericAlias, value: Any):
+    def __init__(self, setting_path: str,
+                 expected_type: type | typing._UnionGenericAlias,  # type: ignore[name-defined] # noqa: SLF001
+                 value: Any):
         expected_type_str = expected_type.__name__ if hasattr(expected_type, '__name__') else str(expected_type)
         value_type_str = type(value).__name__ if hasattr(type(value), '__name__') else str(type(value))
 
@@ -340,7 +337,7 @@ class InvalidConfigType(InvalidConfigValue):
         )
 
 
-class InvalidConfigFilePath(InvalidConfigValue):
+class InvalidConfigFilePathError(InvalidConfigValueError):
     """An invalid config value of a file path has been set."""
     def __init__(self, setting_path: str, value: str):
         super().__init__(
@@ -350,7 +347,7 @@ class InvalidConfigFilePath(InvalidConfigValue):
         )
 
 
-class InvalidConfigFolderPath(InvalidConfigValue):
+class InvalidConfigFolderPathError(InvalidConfigValueError):
     """An invalid config value of a folder path has been set."""
     def __init__(self, setting_path: str, value: str):
         super().__init__(

@@ -1,19 +1,19 @@
 from __future__ import annotations
 
+from abc import ABCMeta
 import datetime as dt
-import os
+from pathlib import Path
 import re
 import sys
-
-from abc import ABCMeta
-from os import PathLike
-from pathlib import Path
-from typing import Any, Union, get_args, get_origin
-
-import requests
+from typing import TYPE_CHECKING, Any, Union, get_args, get_origin
 
 from isubrip.data_structures import Episode, Movie, SubtitlesData, SubtitlesFormatType, SubtitlesType
 from isubrip.logger import logger
+
+if TYPE_CHECKING:
+    from os import PathLike
+
+    import requests
 
 
 class SingletonMeta(ABCMeta):
@@ -48,7 +48,7 @@ def check_type(value: Any, type_) -> bool:
     if origin is Union:
         return any(check_type(value, union_sub_type) for union_sub_type in args)
 
-    elif origin is tuple:
+    if origin is tuple:
         if args[-1] is Ellipsis:
             # Example: (int, str, ...)
             args_len = len(args)
@@ -56,16 +56,15 @@ def check_type(value: Any, type_) -> bool:
             return check_type(value[:args_len - 1], tuple(args[:-1])) and \
                 all(check_type(item, args[-2]) for item in value[args_len - 1:])
 
-        else:
-            return isinstance(value, tuple) and \
-                len(value) == len(args) and \
-                all(check_type(item, item_type) for item, item_type in zip(value, args))
+        return isinstance(value, tuple) and \
+            len(value) == len(args) and \
+            all(check_type(item, item_type) for item, item_type in zip(value, args))
 
-    elif origin is list:
+    if origin is list:
         return isinstance(value, list) and \
             all(check_type(item, args[0]) for item in value)
 
-    elif origin is dict:
+    if origin is dict:
         return isinstance(value, dict) and \
             all(check_type(k, args[0]) and check_type(v, args[1]) for k, v in value.items())
 
@@ -85,8 +84,7 @@ def convert_epoch_to_datetime(epoch_timestamp: int) -> dt.datetime:
     if epoch_timestamp >= 0:
         return dt.datetime.fromtimestamp(epoch_timestamp)
 
-    else:
-        return dt.datetime(1970, 1, 1) + dt.timedelta(seconds=epoch_timestamp)
+    return dt.datetime(1970, 1, 1) + dt.timedelta(seconds=epoch_timestamp)
 
 
 def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: SubtitlesData, output_path: str | PathLike,
@@ -108,8 +106,10 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
     Raises:
         ValueError: If the path in `output_path` does not exist.
     """
-    if not os.path.isdir(output_path):
-        raise ValueError(f'Invalid path: {output_path}')
+    output_path = Path(output_path)
+
+    if not output_path.is_dir():
+        raise ValueError(f"Invalid path: {output_path}")
 
     if isinstance(media_data, Movie):
         file_name = generate_release_name(title=media_data.name,
@@ -118,7 +118,7 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
                                           language_code=subtitles_data.language_code,
                                           subtitles_type=subtitles_data.special_type,
                                           file_format=subtitles_data.subtitles_format)
-    elif isinstance(media_data, Episode):
+    else:  # isinstance(media_data, Episode):
         file_name = generate_release_name(title=media_data.name,
                                           release_date=media_data.release_date,
                                           season_number=media_data.season_number,
@@ -129,15 +129,12 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
                                           subtitles_type=subtitles_data.special_type,
                                           file_format=subtitles_data.subtitles_format)
 
-    else:
-        raise TypeError(f'This function only supports Movie and Episode objects. Got {type(media_data)}.')
-
-    file_path = Path(output_path) / file_name
+    file_path = output_path / file_name
 
     if file_path.exists() and not overwrite:
         file_path = generate_non_conflicting_path(file_path)
 
-    with open(file_path, 'wb') as f:
+    with file_path.open('wb') as f:
         f.write(subtitles_data.content)
 
     return file_path
@@ -164,10 +161,10 @@ def generate_non_conflicting_path(file_path: str | Path, has_extension: bool = T
     i = 1
     while True:
         if has_extension:
-            new_file_path = file_path.parent / f'{file_path.stem}-{i}{file_path.suffix}'
+            new_file_path = file_path.parent / f"{file_path.stem}-{i}{file_path.suffix}"
 
         else:
-            new_file_path = file_path.parent / f'{file_path}-{i}'
+            new_file_path = file_path.parent / f"{file_path}-{i}"
 
         if not new_file_path.exists():
             return new_file_path
@@ -214,40 +211,40 @@ def generate_release_name(title: str,
         else:
             release_year = release_date
 
-        file_name += f'.{release_year}'
+        file_name += f".{release_year}"
 
     if season_number is not None:
-        file_name += f'.S{season_number:02}'
+        file_name += f".S{season_number:02}"
 
     if episode_number is not None:
-        file_name += f'.E{episode_number:02}'
+        file_name += f".E{episode_number:02}"
 
     if episode_name is not None:
-        file_name += f'.{standardize_title(episode_name)}'
+        file_name += f".{standardize_title(episode_name)}"
 
     if media_source is not None:
-        file_name += f'.{media_source}'
+        file_name += f".{media_source}"
 
     if source_type is not None:
-        file_name += f'.{source_type}'
+        file_name += f".{source_type}"
 
     if additional_info is not None:
         if isinstance(additional_info, (list, tuple)):
             additional_info = '.'.join(additional_info)
 
-        file_name += f'.{additional_info}'
+        file_name += f".{additional_info}"
 
     if language_code is not None:
-        file_name += f'.{language_code}'
+        file_name += f".{language_code}"
 
     if subtitles_type is not None:
-        file_name += f'.{subtitles_type.value.lower()}'
+        file_name += f".{subtitles_type.value.lower()}"
 
     if file_format is not None:
         if isinstance(file_format, SubtitlesFormatType):
             file_format = file_format.value.file_extension
 
-        file_name += f'.{file_format}'
+        file_name += f".{file_format}"
 
     return file_name
 
@@ -293,11 +290,10 @@ def raise_for_status(response: requests.Response) -> None:
     if response.ok:
         return
 
-    logger.error(f'Response status code: {response.status_code}')
-    logger.error(f'Response text: {response.text}')
+    logger.error(f"Response status code: {response.status_code}")
+    logger.error(f"Response text: {response.text}")
 
     response.raise_for_status()
-
 
 
 def parse_url_params(url_params: str) -> dict:
@@ -335,11 +331,11 @@ def single_to_list(obj) -> list:
     if isinstance(obj, list):
         return obj
 
-    elif obj is None:
+    if obj is None:
         return []
 
     # tuple (not a namedtuple) or a set
-    elif (isinstance(obj, tuple) and not hasattr(obj, '_fields')) or isinstance(obj, set):
+    if (isinstance(obj, tuple) and not hasattr(obj, '_fields')) or isinstance(obj, set):
         return list(obj)
 
     return [obj]
@@ -410,7 +406,7 @@ def standardize_title(title: str) -> str:
             if len(split_title) > 1:
                 return split_title[0] + split_title[1] + '.'.join(split_title[2:])
 
-            elif len(split_title) == 1:
+            if len(split_title) == 1:
                 return "_" + title
 
     return title

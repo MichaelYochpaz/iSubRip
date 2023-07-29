@@ -3,23 +3,35 @@ from __future__ import annotations
 import atexit
 import datetime as dt
 import logging
-import os
+from pathlib import Path
 import shutil
 import sys
-from pathlib import Path
 from typing import List
 
 import requests
 from requests.utils import default_user_agent
 
-from isubrip.config import Config, ConfigException, ConfigSetting, SpecialConfigType
-from isubrip.constants import ARCHIVE_FORMAT, DATA_FOLDER_PATH, DEFAULT_CONFIG_PATH, PACKAGE_NAME, TEMP_FOLDER_PATH, \
-    USER_CONFIG_FILE, LOG_FILES_PATH, LOG_FILE_NAME
-from isubrip.data_structures import Movie, ScrapedMediaResponse, SubtitlesDownloadResults, SubtitlesData
+from isubrip.config import Config, ConfigError, ConfigSetting, SpecialConfigType
+from isubrip.constants import (
+    ARCHIVE_FORMAT,
+    DATA_FOLDER_PATH,
+    DEFAULT_CONFIG_PATH,
+    LOG_FILE_NAME,
+    LOG_FILES_PATH,
+    PACKAGE_NAME,
+    TEMP_FOLDER_PATH,
+    USER_CONFIG_FILE,
+)
+from isubrip.data_structures import Movie, ScrapedMediaResponse, SubtitlesData, SubtitlesDownloadResults
 from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
-from isubrip.scrapers.scraper import Scraper, ScraperFactory, PlaylistLoadError
-from isubrip.utils import download_subtitles_to_file, generate_non_conflicting_path, generate_release_name, \
-    raise_for_status, single_to_list
+from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperFactory
+from isubrip.utils import (
+    download_subtitles_to_file,
+    generate_non_conflicting_path,
+    generate_release_name,
+    raise_for_status,
+    single_to_list,
+)
 
 LOG_ROTATION_SIZE: int | None = None
 PREORDER_MESSAGE = "'{movie_name}' will be available on {scraper_name} on {preorder_date}."
@@ -119,10 +131,10 @@ def main():
         package_version = "Unknown"
         logger.debug("Could not find pack's version.")
 
-    logger.debug(f'Used CLI Command: {PACKAGE_NAME} {cli_args}')
-    logger.debug(f'Python version: {sys.version}')
-    logger.debug(f'Package version: {package_version}')
-    logger.debug(f'OS: {sys.platform}')
+    logger.debug(f"Used CLI Command: {PACKAGE_NAME} {cli_args}")
+    logger.debug(f"Python version: {sys.version}")
+    logger.debug(f"Package version: {package_version}")
+    logger.debug(f"OS: {sys.platform}")
 
     config = generate_config()
     update_settings(config)
@@ -155,7 +167,7 @@ def main():
         }
 
         for movie_item in movie_data:
-            id_str = f" (ID: {movie_item.id})" if movie_item.id else ''
+            id_str = f" (ID: {movie_item.id})" if movie_item.id else ""
 
             if isinstance(movie_item.release_date, dt.datetime):
                 year_str = movie_item.release_date.year
@@ -168,9 +180,9 @@ def main():
                 if not movie_item.playlist:
                     if movie_item.preorder_availability_date:
                         raise PlaylistLoadError
-                    else:
-                        logger.error(f"No valid playlist was found for '{movie_item.name}' ({scraper.name}).")
-                        continue
+
+                    logger.error(f"No valid playlist was found for '{movie_item.name}' ({scraper.name}).")
+                    continue
 
                 results = download_subtitles(movie_data=movie_item,
                                              scraper=scraper,
@@ -224,7 +236,7 @@ def check_for_updates() -> None:
 
             logger.warning(f"Note: You are currently using version '{current_version}' of '{PACKAGE_NAME}', "
                            f"however version '{pypi_latest_version}' is available.",
-                           f"\nConsider upgrading by running \"python3 -m pip install --upgrade {PACKAGE_NAME}\"\n")
+                           f'\nConsider upgrading by running "python3 -m pip install --upgrade {PACKAGE_NAME}"\n')
 
         else:
             logger.debug(f"Latest version of {PACKAGE_NAME} ({current_version}) is currently installed.")
@@ -334,6 +346,7 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
         is_zip=zip_files,
     )
 
+
 def handle_log_rotation(log_rotation_size: int):
     """
     Handle log rotation and remove old log files if needed.
@@ -341,10 +354,10 @@ def handle_log_rotation(log_rotation_size: int):
     Args:
         log_rotation_size (int): Maximum amount of log files to keep.
     """
-    log_files: list[Path] = sorted(LOG_FILES_PATH.glob("*.log"), key=os.path.getctime, reverse=True)  # type: ignore
+    sorted_log_files = sorted(LOG_FILES_PATH.glob("*.log"), key=lambda file: file.stat().st_mtime, reverse=True)
 
-    if len(log_files) > log_rotation_size:
-        for log_file in log_files[log_rotation_size:]:
+    if len(sorted_log_files) > log_rotation_size:
+        for log_file in sorted_log_files[log_rotation_size:]:
             log_file.unlink()
 
 
@@ -361,13 +374,13 @@ def generate_config() -> Config:
         InvalidConfigValue: If a config value is invalid.
     """
     if not DEFAULT_CONFIG_PATH.is_file():
-        raise ConfigException("Default config file could not be found.")
+        raise ConfigError("Default config file could not be found.")
 
     config = Config(config_settings=BASE_CONFIG_SETTINGS)
 
     logger.debug("Loading default config data...")
 
-    with open(DEFAULT_CONFIG_PATH, 'r') as data:
+    with DEFAULT_CONFIG_PATH.open('r') as data:
         config.loads(config_data=data.read(), check_config=True)
 
     logger.debug("Default config data loaded and validated successfully.")
@@ -386,8 +399,10 @@ def generate_config() -> Config:
         # If a user config file exists, add it to config_files
         if USER_CONFIG_FILE.is_file():
             logger.info(f"User config file detected at '{USER_CONFIG_FILE}' and will be used.")
-            with open(USER_CONFIG_FILE, 'r') as data:
+
+            with USER_CONFIG_FILE.open('r') as data:
                 config.loads(config_data=data.read(), check_config=True)
+
             logger.debug("User config file loaded and validated successfully.")
 
     return config

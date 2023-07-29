@@ -1,13 +1,15 @@
 from __future__ import annotations
-import re
 
 from abc import ABCMeta
-from datetime import time
+import re
+from typing import TYPE_CHECKING
 
 from isubrip.data_structures import SubtitlesFormatType
-from isubrip.subtitle_formats.subtitles import SubtitlesBlock, Subtitles, SubtitlesCaptionBlock
+from isubrip.subtitle_formats.subtitles import Subtitles, SubtitlesBlock, SubtitlesCaptionBlock
 from isubrip.utils import split_subtitles_timestamp
 
+if TYPE_CHECKING:
+    from datetime import time
 
 # WebVTT Documentation:
 # https://www.w3.org/TR/webvtt1/#cues
@@ -82,12 +84,10 @@ class Comment(WebVTTBlock):
         if self.inline:
             return f"{self.header} {self.payload}"
 
-        else:
-            if self.payload:
-                return f"{self.header}\n{self.payload}"
+        if self.payload:
+            return f"{self.header}\n{self.payload}"
 
-            else:
-                return self.header
+        return self.header
 
 
 class Style(WebVTTBlock):
@@ -249,13 +249,15 @@ WEBVTT_CAPTION_SETTING_REGION_REGEX = r"region:(?:(?!(?:-->)|\t)\S)+"
 WEBVTT_CAPTION_SETTING_SIZE_REGEX = rf"size:{WEBVTT_PERCENTAGE_REGEX}"
 WEBVTT_CAPTION_SETTING_VERTICAL_REGEX = r"vertical:(?:lr|rl)"
 
-WEBVTT_CAPTION_SETTINGS_REGEX = f"(?:(?:{WEBVTT_CAPTION_SETTING_ALIGNMENT_REGEX})|" \
-                                f"(?:{WEBVTT_CAPTION_SETTING_LINE_REGEX})|" \
-                                f"(?:{WEBVTT_CAPTION_SETTING_POSITION_REGEX})|" \
-                                f"(?:{WEBVTT_CAPTION_SETTING_REGION_REGEX})|" \
-                                f"(?:{WEBVTT_CAPTION_SETTING_SIZE_REGEX})|" \
-                                f"(?:{WEBVTT_CAPTION_SETTING_VERTICAL_REGEX})|" \
-                                f"(?:[ \t]+))*"
+WEBVTT_CAPTION_SETTINGS_REGEX = ("(?:"
+                                 f"(?:{WEBVTT_CAPTION_SETTING_ALIGNMENT_REGEX})|"
+                                 f"(?:{WEBVTT_CAPTION_SETTING_LINE_REGEX})|"
+                                 f"(?:{WEBVTT_CAPTION_SETTING_POSITION_REGEX})|"
+                                 f"(?:{WEBVTT_CAPTION_SETTING_REGION_REGEX})|"
+                                 f"(?:{WEBVTT_CAPTION_SETTING_SIZE_REGEX})|"
+                                 f"(?:{WEBVTT_CAPTION_SETTING_VERTICAL_REGEX})|"
+                                 f"(?:[ \t]+)"
+                                 ")*")
 
 WEBVTT_CAPTION_BLOCK_REGEX = rf"^({WEBVTT_CAPTION_TIMINGS_REGEX})[ \t]*({WEBVTT_CAPTION_SETTINGS_REGEX})?"
 WEBVTT_COMMENT_HEADER_REGEX = rf"^{Comment.header}(?:$|[ \t])(.+)?"
