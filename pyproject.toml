@@ -69,4 +69,54 @@ replace = 'Latest version: {new_version}'
 [tool.ruff]
 line-length = 120
 target-version = "py38"
-select = ["B", "E", "F"]
+select = [
+    "ARG",
+    "ASYNC",
+    "B",
+    "C4",
+    "COM",
+    "E",
+    "F",
+    "FA",
+    "I",
+    "INP",
+    "ISC",
+    "N",
+    "PIE",
+    "PGH",
+    "PT",
+    "PTH",
+    "Q002",
+    "Q003",
+    "RSE",
+    "RET",
+    "RUF",
+    "S",
+    "SIM",
+    "SLF",
+    "T20",
+    "TCH",
+    "TID",
+    "TRY",
+#    "UP",
+]
+ignore = [
+    "C416",
+    "RUF010",
+    "RUF012",
+    "SIM108",
+    "TD002",
+    "TD003",
+    "TRY003",
+#    "UP015",
+]
+unfixable = ["ARG"]
+
+[tool.ruff.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.flake8-quotes]
+docstring-quotes = "double"
+
+[tool.ruff.isort]
+force-sort-within-sections = true
