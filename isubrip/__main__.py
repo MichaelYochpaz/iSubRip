@@ -11,6 +11,7 @@ from typing import List
 import requests
 from requests.utils import default_user_agent
 
+from isubrip.__init__ import __version__ as package_version
 from isubrip.config import Config, ConfigError, ConfigSetting, SpecialConfigType
 from isubrip.constants import (
     ARCHIVE_FORMAT,
@@ -19,10 +20,20 @@ from isubrip.constants import (
     LOG_FILE_NAME,
     LOG_FILES_PATH,
     PACKAGE_NAME,
+    PREORDER_MESSAGE,
     TEMP_FOLDER_PATH,
     USER_CONFIG_FILE,
 )
-from isubrip.data_structures import Movie, ScrapedMediaResponse, SubtitlesData, SubtitlesDownloadResults
+from isubrip.data_structures import (
+    Episode,
+    MediaData,
+    Movie,
+    ScrapedMediaResponse,
+    Season,
+    Series,
+    SubtitlesData,
+    SubtitlesDownloadResults,
+)
 from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
 from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperFactory
 from isubrip.utils import (
@@ -34,7 +45,6 @@ from isubrip.utils import (
 )
 
 LOG_ROTATION_SIZE: int | None = None
-PREORDER_MESSAGE = "'{movie_name}' will be available on {scraper_name} on {preorder_date}."
 
 BASE_CONFIG_SETTINGS = [
     ConfigSetting(
@@ -120,16 +130,10 @@ def main():
         exit(0)
 
     create_required_folders()
-    setup_loggers(stdout_loglevel=logging.INFO, file_loglevel=logging.DEBUG)
+    setup_loggers(stdout_loglevel=logging.INFO,
+                  file_loglevel=logging.DEBUG)
 
     cli_args = " ".join(sys.argv[1:])
-
-    if sys.modules.get(PACKAGE_NAME):
-        package_version = sys.modules[PACKAGE_NAME].__version__
-
-    else:
-        package_version = "Unknown"
-        logger.debug("Could not find pack's version.")
 
     logger.debug(f"Used CLI Command: {PACKAGE_NAME} {cli_args}")
     logger.debug(f"Python version: {sys.version}")
@@ -151,14 +155,62 @@ def main():
         atexit.register(scraper.close)
         scraper.config.check()  # Recheck config after scraper settings were loaded
 
-        scraper_response: ScrapedMediaResponse[Movie] = scraper.get_data(url=url)
-        movie_data: list[Movie] = single_to_list(scraper_response.media_data)
+        scraper_response: ScrapedMediaResponse = scraper.get_data(url=url)
+        media_data: list[MediaData] = single_to_list(scraper_response.media_data)
+        playlist_scraper = scraper_factory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
+                                                                config_data=config.data.get("scrapers"))
 
-        if not movie_data:
+        if not media_data:
             logger.error(f"Error: No supported media was found for {url}.")
             continue
 
-        download_media_subtitles_args = {
+        for media_item in media_data:
+            try:
+                download_media(scraper=playlist_scraper, media_item=media_item, config=config)
+
+            except Exception as e:
+                logger.error(f"Error: Encountered an error while scraping '{url}': {e}")
+                logger.debug(f"Error details: {e}", exc_info=True)
+                continue
+
+
+def download_media(scraper: Scraper, media_item: MediaData, config: Config):
+    """
+    Download a media item.
+
+    Args:
+        scraper (Scraper): A Scraper object to use for downloading subtitles.
+        media_item (MediaData): A media data item to download subtitles for.
+        config (Config): A config to use for downloading subtitles.
+    """
+    if isinstance(media_item, Movie):
+        release_year = (
+            media_item.release_date.year
+            if isinstance(media_item.release_date, dt.datetime)
+            else media_item.release_date
+        )
+        id_str = f" (ID: {media_item.id})" if media_item.id else ""
+        logger.info(f"Found movie: {media_item.name} [{release_year}]" + id_str)
+
+    elif isinstance(media_item, Episode):
+        episode_name = f" - {media_item.episode_name}" if media_item.episode_name else ""
+        id_str = f" (ID: {media_item.id})" if media_item.id else ""
+        logger.info(f"Found episode: '{media_item.series_name}' - "
+                    f"S{media_item.season_number:02d}E{media_item.episode_number:02d}{episode_name}" + id_str)
+
+    else:
+        if isinstance(media_item, Season):
+            for episode in media_item.episodes:
+                download_media(scraper=scraper, media_item=episode, config=config)
+
+        elif isinstance(media_item, Series):
+            for season in media_item.seasons:
+                download_media(scraper=scraper, media_item=season, config=config)
+
+        return
+
+    if media_item.playlist:
+        download_subtitles_kwargs = {
             "download_path": Path(config.downloads["folder"]),
             "language_filter": config.downloads.get("languages"),
             "convert_to_srt": config.subtitles.get("convert-to-srt", False),
@@ -166,52 +218,37 @@ def main():
             "zip_files": config.downloads.get("zip", False),
         }
 
-        for movie_item in movie_data:
-            id_str = f" (ID: {movie_item.id})" if movie_item.id else ""
+        try:
+            results = download_subtitles(scraper=scraper,
+                                         media_data=media_item,
+                                         **download_subtitles_kwargs)
 
-            if isinstance(movie_item.release_date, dt.datetime):
-                year_str = movie_item.release_date.year
+            success_count = len(results.successful_subtitles)
+            failed_count = len(results.failed_subtitles)
+
+            if success_count:
+                logger.info(f"{success_count}/{success_count + failed_count} matching subtitles "
+                            f"have been successfully downloaded.")
+
+            elif failed_count:
+                logger.info(f"{failed_count} subtitles were matched, but failed to download.")
+
             else:
-                year_str = movie_item.release_date
+                logger.info("No matching subtitles were found.")
 
-            logger.info(f"Found movie: {movie_item.name} [{year_str}]" + id_str)
+            return
 
-            try:
-                if not movie_item.playlist:
-                    if movie_item.preorder_availability_date:
-                        raise PlaylistLoadError
+        except PlaylistLoadError:
+            pass
 
-                    logger.error(f"No valid playlist was found for '{movie_item.name}' ({scraper.name}).")
-                    continue
+    # We get here if there is no playlist, or there is one, but it failed to load
+    if isinstance(media_item, Movie) and media_item.preorder_availability_date:
+        preorder_date_str = media_item.preorder_availability_date.strftime("%Y-%m-%d")
+        logger.info(PREORDER_MESSAGE.format(movie_name=media_item.name, scraper_name=scraper.name,
+                                            preorder_date=preorder_date_str))
 
-                results = download_subtitles(movie_data=movie_item,
-                                             scraper=scraper,
-                                             **download_media_subtitles_args)
-
-                success_count = len(results.successful_subtitles)
-                failed_count = len(results.failed_subtitles)
-
-                if success_count:
-                    logger.info(f"{success_count}/{success_count + failed_count} matching subtitles "
-                                f"have been successfully downloaded.")
-
-                elif failed_count:
-                    logger.info(f"{failed_count} subtitles were matched, but failed to download.")
-
-                else:
-                    logger.info("No matching subtitles were found.")
-
-            except Exception as e:
-                if isinstance(e, PlaylistLoadError) and movie_item.preorder_availability_date:
-                    preorder_date_str = movie_item.preorder_availability_date.strftime("%Y-%m-%d")
-                    logger.info(PREORDER_MESSAGE.format(movie_name=movie_item.name, scraper_name=scraper.name,
-                                                        preorder_date=preorder_date_str))
-
-                else:
-                    logger.error(f"Error: Encountered an error while scraping '{url}'{id_str}: {e}")
-                    logger.debug(f"Error details: {e}", exc_info=True)
-
-                continue
+    else:
+        logger.error("No valid playlist was found.")
 
 
 def check_for_updates() -> None:
@@ -224,7 +261,7 @@ def check_for_updates() -> None:
         response = requests.get(
             url=api_url,
             headers={"Accept": "application/json"},
-            timeout=10,
+            timeout=5,
         )
         raise_for_status(response)
         response_data = response.json()
@@ -258,15 +295,15 @@ def create_required_folders():
             LOG_FILES_PATH.mkdir()
 
 
-def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
+def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_path: Path,
                        language_filter: list[str] | None = None, convert_to_srt: bool = False,
                        overwrite_existing: bool = True, zip_files: bool = False) -> SubtitlesDownloadResults:
     """
     Download subtitles for the given media data.
 
     Args:
-        movie_data (Movie | Episode): A Movie object.
         scraper (Scraper): A Scraper object to use for downloading subtitles.
+        media_data (Movie | Episode): A movie or episode data object.
         download_path (Path): Path to a folder where the subtitles will be downloaded to.
         language_filter (list[str] | None): List of specific languages to download subtitles for.
             None for all languages (no filter). Defaults to None.
@@ -278,21 +315,23 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
     Returns:
         SubtitlesDownloadResults: A SubtitlesDownloadResults object containing the results of the download.
     """
-    temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH, movie_data=movie_data)
+    temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH,
+                                             media_data=media_data,
+                                             source=scraper.abbreviation)
     atexit.register(shutil.rmtree, TEMP_FOLDER_PATH, ignore_errors=False, onerror=None)
 
     successful_downloads: list[SubtitlesData] = []
     failed_downloads: list[SubtitlesData] = []
     temp_downloads: list[Path] = []
 
-    for subtitles_data in scraper.get_subtitles(main_playlist=movie_data.playlist,  # type: ignore[arg-type]
+    for subtitles_data in scraper.get_subtitles(main_playlist=media_data.playlist,  # type: ignore[arg-type]
                                                 language_filter=language_filter,
                                                 subrip_conversion=convert_to_srt):
         language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
 
         try:
             temp_downloads.append(download_subtitles_to_file(
-                media_data=movie_data,
+                media_data=media_data,
                 subtitles_data=subtitles_data,
                 output_path=temp_download_path,
                 overwrite=overwrite_existing,
@@ -325,7 +364,7 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
             root_dir=temp_download_path,
         ))
 
-        file_name = generate_media_folder_name(movie_data=movie_data,
+        file_name = generate_media_folder_name(media_data=media_data,
                                                source=scraper.abbreviation) + f".{ARCHIVE_FORMAT}"
 
         if overwrite_existing:
@@ -340,7 +379,7 @@ def download_subtitles(movie_data: Movie, scraper: Scraper, download_path: Path,
     atexit.unregister(shutil.rmtree)
 
     return SubtitlesDownloadResults(
-        movie_data=movie_data,
+        movie_data=media_data,
         successful_subtitles=successful_downloads,
         failed_subtitles=failed_downloads,
         is_zip=zip_files,
@@ -408,36 +447,45 @@ def generate_config() -> Config:
     return config
 
 
-def generate_media_folder_name(movie_data: Movie, source: str | None = None) -> str:
+def generate_media_folder_name(media_data: Movie | Episode, source: str | None = None) -> str:
     """
     Generate a folder name for media data.
 
     Args:
-        movie_data (MediaData): A movie data object.
+        media_data (Movie | Episode): A movie or episode data object.
         source (str | None, optional): Abbreviation of the source to use for file names. Defaults to None.
 
     Returns:
         str: A folder name for the media data.
     """
+    if isinstance(media_data, Movie):
+        return generate_release_name(
+            title=media_data.name,
+            release_date=media_data.release_date,
+            media_source=source,
+        )
+
+    # elif isinstance(media_data, Episode):
     return generate_release_name(
-        title=movie_data.name,
-        release_date=movie_data.release_date,
+        title=media_data.series_name,
+        season_number=media_data.season_number,
         media_source=source,
     )
 
 
-def generate_media_path(base_path: Path, movie_data: Movie) -> Path:
+def generate_media_path(base_path: Path, media_data: Movie | Episode, source: str | None = None) -> Path:
     """
     Generate a temporary folder for downloading media data.
 
     Args:
         base_path (Path): A base path to generate the folder in.
-        movie_data (MediaData): A movie data object.
+        media_data (Movie | Episode): A movie or episode data object.
+        source (str | None, optional): Abbreviation of the source to use for file names. Defaults to None.
 
     Returns:
         Path: A path to the temporary folder.
     """
-    temp_folder_name = generate_media_folder_name(movie_data=movie_data)
+    temp_folder_name = generate_media_folder_name(media_data=media_data, source=source)
     path = generate_non_conflicting_path(base_path / temp_folder_name, has_extension=False)
     path.mkdir(parents=True, exist_ok=True)
 

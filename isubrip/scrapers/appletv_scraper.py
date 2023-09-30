@@ -3,18 +3,19 @@ from __future__ import annotations
 import datetime as dt
 from enum import Enum
 import fnmatch
+from typing import Iterator
 
-from isubrip.data_structures import Episode, MediaData, Movie, ScrapedMediaResponse, Season, Series
+from isubrip.data_structures import Episode, MediaData, Movie, ScrapedMediaResponse, Season, Series, SubtitlesData
 from isubrip.logger import logger
-from isubrip.scrapers.scraper import M3U8Scraper, MovieScraper, ScraperError, SeriesScraper
+from isubrip.scrapers.scraper import HLSScraper, ScraperError
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
 from isubrip.utils import convert_epoch_to_datetime, parse_url_params, raise_for_status
 
 
-class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
+class AppleTVScraper(HLSScraper):
     """An Apple TV scraper."""
     id = "appletv"
-    name = "Apple TV"  # (iTunes content is redirected to the iTunes scraper)
+    name = "Apple TV"
     abbreviation = "ATV"
     url_regex = r"(?P<base_url>https?://tv\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|episode|season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>umc\.cmc\.[a-z\d]{23,25}))(?:\?(?P<url_params>(?:).*))?"  # noqa: E501
     subtitles_class = WebVTTSubtitles
@@ -139,7 +140,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
                 locales=available_locales,
             )
 
-            logger.debug(f"Determined locale for storefront '{storefront_id}': '{locale}'")
+            logger.debug(f"Selected locale for storefront '{storefront_id}': '{locale}'")
 
             self._storefront_locale_mapping_cache[storefront_id] = locale
 
@@ -336,3 +337,7 @@ class AppleTVScraper(M3U8Scraper, MovieScraper, SeriesScraper):
             return self.get_show_data(storefront_id=storefront_id, show_id=media_id)
 
         raise ScraperError(f"Invalid media type '{media_type}'.")
+
+    def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | str | None = None,
+                      subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
+        raise NotImplementedError("Subtitles scraping for AppleTV+ is not currently supported.")

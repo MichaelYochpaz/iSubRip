@@ -8,7 +8,7 @@ import inspect
 from pathlib import Path
 import re
 import sys
-from typing import TYPE_CHECKING, Any, ClassVar, Iterator, List, Literal, TypeVar, Union, overload
+from typing import TYPE_CHECKING, ClassVar, Iterator, List, Literal, TypeVar, Union, overload
 
 import aiohttp
 import m3u8
@@ -18,7 +18,7 @@ import requests.utils
 
 from isubrip.config import Config, ConfigSetting
 from isubrip.constants import PACKAGE_NAME, SCRAPER_MODULES_SUFFIX
-from isubrip.data_structures import ScrapedMediaResponse, SubtitlesData, SubtitlesFormatType, SubtitlesType
+from isubrip.data_structures import ScrapedMediaResponse, SubtitlesData, SubtitlesType
 from isubrip.logger import logger
 from isubrip.utils import SingletonMeta, merge_dict_values, single_to_list
 
@@ -165,16 +165,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
         """
 
 
-class MovieScraper(Scraper, ABC):
-    """A base class for movie scrapers."""
-    is_movie_scraper = True
-
-
-class SeriesScraper(Scraper, ABC):
-    """A base class for series scrapers."""
-    is_series_scraper = True
-
-
 class AsyncScraper(Scraper, ABC):
     """A base class for scrapers that utilize async requests."""
     def __init__(self, config_data: dict | None = None):
@@ -190,8 +180,8 @@ class AsyncScraper(Scraper, ABC):
         await self.async_session.close()
 
 
-class M3U8Scraper(AsyncScraper, ABC):
-    """A base class for M3U8 scrapers."""
+class HLSScraper(AsyncScraper, ABC):
+    """A base class for HLS (m3u8) scrapers."""
     playlist_filters_config_category = "playlist-filters"
 
     class M3U8Attribute(Enum):
@@ -229,8 +219,6 @@ class M3U8Scraper(AsyncScraper, ABC):
             ) for m3u8_attribute in self.M3U8Attribute],
             check_config=False)
 
-        self._m3u8_cache: dict[str, M3U8] = {}
-
     def _download_segments_async(self, segments: SegmentList[Segment]) -> list[bytes]:
         """
         Download M3U8 segments asynchronously.
@@ -260,65 +248,27 @@ class M3U8Scraper(AsyncScraper, ABC):
         async with self.async_session.get(url) as response:
             return await response.read()
 
-    @overload
-    def load_m3u8(self, url: str | list[str], raise_error: Literal[True] = ...) -> M3U8:
-        ...
-
-    @overload
-    def load_m3u8(self, url: str | list[str], raise_error: Literal[False] = ...) -> M3U8 | None:
-        ...
-
-    def load_m3u8(self, url: str | list[str], raise_error: bool = False) -> M3U8 | None:
+    def load_m3u8(self, url: str | list[str]) -> M3U8 | None:
         """
         Load an M3U8 playlist from a URL to an M3U8 object.
         Multiple URLs can be given, in which case the first one that loads successfully will be returned.
         The method uses caching to avoid loading the same playlist multiple times.
 
         Args:
-            url (str | list[str]: URL of the M3U8 playlist to load.
-            raise_error (bool, optional): Whether to raise an error if none of the playlists loaded successfully.
-                If set to false, a None value will be returned instead. Defaults to False.
+            url (str | list[str]): URL of the M3U8 playlist to load. Can also be a list of URLs (for redundancy).
 
         Returns:
             m3u8.M3U8: An M3U8 object representing the playlist.
         """
-        errors = {}
-
         for _url in single_to_list(url):
-            if _url in self._m3u8_cache:
-                return self._m3u8_cache[_url]
-
             try:
-                self._m3u8_cache[_url] = m3u8.load(uri=_url, timeout=5)
-                return self._m3u8_cache[_url]
+                return m3u8.load(uri=_url, timeout=5)
 
             except Exception as e:
-                errors[_url] = e
+                logger.debug(f"Failed to load M3U8 playlist '{_url}': {e}")
                 continue
 
-        if raise_error:
-            errors_str = "\n".join([f"{url}: {error}" for url, error in errors.items()])
-            raise ScraperError(f"Failed to load M3U8 playlist: {url}:\n{errors_str}")
-
         return None
-
-    def _map_session_data(self, playlist_data: M3U8) -> dict[str, Any]:
-        """
-        Create and return a dictionary of session data from an M3U8 playlist.
-
-        Args:
-            playlist_data (m3u8.M3U8): M3U8 playlist to map session data from.
-
-        Returns:
-            dict[str, Any]: Dictionary of session data.
-        """
-        session_data = {}
-
-        if playlist_data.session_data:
-            for session_data_item in playlist_data.session_data:
-                session_data[session_data_item.data_id] = session_data_item.value
-
-        return session_data
 
     @staticmethod
     def detect_subtitles_type(subtitles_media: Media) -> SubtitlesType | None:
@@ -336,27 +286,6 @@ class M3U8Scraper(AsyncScraper, ABC):
 
         if subtitles_media.characteristics is not None and "public.accessibility" in subtitles_media.characteristics:
             return SubtitlesType.CC
-
-        return None
-
-    def find_valid_playlist(self, playlists: list[str] | str) -> M3U8 | None:
-        """
-        Find and return a valid M3U8 playlist from a list of playlists.
-
-        Args:
-            playlists (list[str] | str): List of playlists to check (list[str]). Can also be a single playlist (str).
-
-        Returns:
-            m3u8.M3U8 | None: A successfully loaded M3U8 playlist, or None if none of the playlists loaded successfully.
-        """
-        for playlist in single_to_list(playlists):  # type: str
-            try:
-                logger.debug(f"Loading playlist M3U8 playlist: '{playlist}'")
-                return self.load_m3u8(playlist)
-
-            except Exception as e:
-                logger.debug(f"Failed to load playlist '{playlist}': {e}")
-                continue
 
         return None
 
@@ -379,7 +308,7 @@ class M3U8Scraper(AsyncScraper, ABC):
             list[Media]: A list of  matching Media objects.
         """
         results = []
-        default_filters: dict | None = self.config.get(M3U8Scraper.playlist_filters_config_category)
+        default_filters: dict | None = self.config.get(HLSScraper.playlist_filters_config_category)
 
         if include_default_filters and default_filters:
             if not playlist_filters:
@@ -397,7 +326,7 @@ class M3U8Scraper(AsyncScraper, ABC):
 
             for filter_name, filter_value in playlist_filters.items():
                 try:
-                    filter_name_enum = M3U8Scraper.M3U8Attribute(filter_name)
+                    filter_name_enum = HLSScraper.M3U8Attribute(filter_name)
                     attribute_value = getattr(media, filter_name_enum.name.lower(), None)
 
                     if (attribute_value is None) or (
@@ -417,44 +346,6 @@ class M3U8Scraper(AsyncScraper, ABC):
 
         return results
 
-    def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | str | None = None,
-                      subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
-        playlist_filters = {self.M3U8Attribute.LANGUAGE.value: language_filter} if language_filter else None
-        main_playlist_m3u8 = self.find_valid_playlist(main_playlist)
-
-        if main_playlist_m3u8 is None:
-            raise PlaylistLoadError
-
-        matched_media_items = self.get_media_playlists(main_playlist=main_playlist_m3u8,
-                                                       playlist_filters=playlist_filters)
-
-        for matched_media in matched_media_items:
-            try:
-                matched_media_playlist = m3u8.load(matched_media.absolute_uri)
-                subtitles = self.subtitles_class(language_code=matched_media.language)
-                for segment in self._download_segments_async(matched_media_playlist.segments):
-                    subtitles.append_subtitles(subtitles.loads(segment.decode("utf-8")))
-
-                subtitles.polish(
-                    fix_rtl=self.subtitles_fix_rtl,
-                    rtl_languages=self.subtitles_fix_rtl_languages,
-                    remove_duplicates=self.subtitles_remove_duplicates,
-                )
-
-                yield SubtitlesData(
-                    language_code=matched_media.language,
-                    language_name=matched_media.name,
-                    subtitles_format=SubtitlesFormatType.SUBRIP if subrip_conversion else SubtitlesFormatType.WEBVTT,
-                    content=subtitles.to_srt().dump() if subrip_conversion else subtitles.dump(),
-                    special_type=self.detect_subtitles_type(matched_media),
-                )
-
-            except Exception as e:
-                logger.warning(f"Failed to download {matched_media.name} ({matched_media.language}) subtitles. "
-                               f"Skipping...")
-                logger.debug(e, exc_info=True)
-                continue
-
 
 class ScraperFactory(metaclass=SingletonMeta):
     def __init__(self):
@@ -471,33 +362,32 @@ class ScraperFactory(metaclass=SingletonMeta):
         """
         return list(self._scraper_instances_cache.values())
 
-    def get_scraper_classes(self) -> Iterator[type[Scraper]]:
+    def get_scraper_classes(self) -> list[type[Scraper]]:
         """
-        Iterate over all scraper classes.
+        Find all scraper classes in the scrapers directory.
 
-        Yields:
-            type[Scraper]: A Scraper subclass.
+        Returns:
+            list[Scraper]: A Scraper subclass.
         """
         if self._scraper_classes_cache is not None:
             return self._scraper_classes_cache
 
-        else:
-            scraper_modules_paths = Path(__file__).parent.glob(f"*{SCRAPER_MODULES_SUFFIX}.py")
+        self._scraper_classes_cache = []
+        scraper_modules_paths = Path(__file__).parent.glob(f"*{SCRAPER_MODULES_SUFFIX}.py")
 
-            for scraper_module_path in scraper_modules_paths:
-                sys.path.append(str(scraper_module_path))
+        for scraper_module_path in scraper_modules_paths:
+            sys.path.append(str(scraper_module_path))
 
-                module = importlib.import_module(f"{PACKAGE_NAME}.scrapers.{scraper_module_path.stem}")
+            module = importlib.import_module(f"{PACKAGE_NAME}.scrapers.{scraper_module_path.stem}")
 
-                # Find all 'Scraper' subclasses
-                for _, obj in inspect.getmembers(module,
-                                                 predicate=lambda x: inspect.isclass(x) and issubclass(x, Scraper)):
-                    # Skip object if it's an abstract or imported from another module
-                    if ((not inspect.isabstract(obj) and obj.__module__ == module.__name__) and
-                            any((obj.is_movie_scraper, obj.is_series_scraper))):
-                        yield obj
+            # Find all 'Scraper' subclasses
+            for _, obj in inspect.getmembers(module,
+                                             predicate=lambda x: inspect.isclass(x) and issubclass(x, Scraper)):
+                # Skip object if it's an abstract or imported from another module
+                if not inspect.isabstract(obj) and obj.__module__ == module.__name__:
+                    self._scraper_classes_cache.append(obj)
 
-            return
+        return self._scraper_classes_cache
 
     def _get_scraper_instance(self, scraper_class: type[ScraperT],
                               scrapers_config_data: dict | None = None) -> ScraperT:
@@ -537,7 +427,7 @@ class ScraperFactory(metaclass=SingletonMeta):
             self._currently_initializing.remove(scraper_class)
 
         else:
-            logger.debug(f"'{scraper_class.id}' scraper found in cache. Cached instance will be used.")
+            logger.debug(f"Cached '{scraper_class.name}' scraper instance found and will be used.")
 
         return self._scraper_instances_cache[scraper_class]  # type: ignore[return-value]
 

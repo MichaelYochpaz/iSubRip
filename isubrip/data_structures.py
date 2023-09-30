@@ -4,7 +4,7 @@ import datetime as dt  # noqa: TCH003
 from enum import Enum
 from typing import Generic, List, NamedTuple, Optional, TypeVar, Union
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 MediaData = TypeVar("MediaData", bound=Union["Movie", "Episode", "Season", "Series"])
 
@@ -115,6 +115,7 @@ class Episode(BaseModel):
 
     Attributes:
         id (str | None, optional): ID of the episode on the service it was scraped from. Defaults to None.
+        referer_id (str | None, optional): ID of the episode on the original referring service. Defaults to None.
         series_name (str): Name of the series the episode is from.
         series_release_date (datetime | int | None, optional): Release date (datetime), or year (int) of the series.
             Defaults to None.
@@ -123,18 +124,21 @@ class Episode(BaseModel):
         episode_number (int): Episode number.
         episode_name (str | None, optional): Episode name. Defaults to None.
         episode_release_date (datetime | None): Release date of the episode. Defaults to None.
+        episode_duration (timedelta | None, optional): Duration of the episode. Defaults to None.
         playlist (str | None, optional): Main playlist URL(s).
     """
     series_name: str
     season_number: int
     episode_number: int
     id: Optional[str] = None
+    referer_id: Optional[str] = None
     series_release_date: Union[dt.datetime, int, None] = None
     season_name: Optional[str] = None
     release_date: Optional[dt.datetime] = None
     duration: Optional[dt.timedelta] = None
     episode_name: Optional[str] = None
     episode_release_date: Optional[dt.datetime] = None
+    episode_duration: Optional[dt.timedelta] = None
     playlist: Union[str, List[str], None] = None
 
 
@@ -144,6 +148,7 @@ class Season(BaseModel):
 
     Attributes:
         id (str | None, optional): ID of the season on the service it was scraped from. Defaults to None.
+        referer_id (str | None, optional): ID of the season on the original referring service. Defaults to None.
         series_name (str): Name of the series the season is from.
         series_release_date (datetime | int | None, optional): Release date (datetime), or year (int) of the series.
             Defaults to None.
@@ -154,6 +159,7 @@ class Season(BaseModel):
     series_name: str
     season_number: int
     id: Optional[str] = None
+    referer_id: Optional[str] = None
     series_release_date: Union[dt.datetime, int, None] = None
     season_name: Optional[str] = None
     season_release_date: Union[dt.datetime, int, None] = None
@@ -165,13 +171,18 @@ class Series(BaseModel):
     An object containing series metadata.
 
     Attributes:
+        id (str | None, optional): ID of the series on the service it was scraped from. Defaults to None.
         series_name (str): Series name.
+        referer_id (str | None, optional): ID of the series on the original referring service. Defaults to None.
         series_release_date (datetime | int | None, optional): Release date (datetime), or year (int) of the series.
             Defaults to None.
         seasons (list[Season]): A list of season objects containing metadata about seasons of the series.
     """
+
     series_name: str
     seasons: List[Season] = []
+    id: Optional[str] = None
+    referer_id: Optional[str] = None
     series_release_date: Union[dt.datetime, int, None] = None
 
 
@@ -186,8 +197,6 @@ class ScrapedMediaResponse(BaseModel, Generic[MediaData]):
         playlist_scraper (str): ID of the scraper that should be used to parse and scrape the playlist.
         original_data (dict): Original raw data from the API that was used to extract media's data.
     """
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
     media_data: Union[MediaData, List[MediaData]]
     metadata_scraper: str
     playlist_scraper: str

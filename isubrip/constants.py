@@ -9,6 +9,9 @@ from tempfile import gettempdir
 PACKAGE_NAME = "isubrip"
 
 # Logging
+PREORDER_MESSAGE = ("'{movie_name}' is currently unavailable on {scraper_name}, "
+                    "and will be available on {preorder_date}.")
+
 ANSI_COLORS = {
     logging.DEBUG: "\x1b[38;20m",  # Grey
     logging.INFO: "\x1b[34;20m",  # Blue
