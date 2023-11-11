@@ -54,8 +54,10 @@ class ItunesScraper(HLSScraper):
         redirect_location = response.headers.get("Location")
 
         if response.status_code != 301 or not redirect_location:
-            logger.debug(f"iTunes URL: {url} did not redirect to an Apple TV URL."
-                         f"\nResponse code: '{response.status_code}'.")
+            logger.debug(f"iTunes URL: {url} did not redirect to an Apple TV URL.\n"
+                         f"Response status code: {response.status_code}.\n"
+                         f"Response headers:\n{response.headers}.\n"
+                         f"Response data:\n{response.text}.")
             raise ScraperError("Apple TV redirect URL not found.")
 
         if not self._appletv_scraper.match_url(redirect_location):
