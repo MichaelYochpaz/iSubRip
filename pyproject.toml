@@ -57,9 +57,9 @@ tomli = "^2.0.1"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry_bumpversion.file."isubrip/__init__.py"]
-search = '__version__ = "{current_version}"'
-replace = '__version__ = "{new_version}"'
+[tool.poetry_bumpversion.file."isubrip/constants.py"]
+search = 'PACKAGE_VERSION = "{current_version}"'
+replace = 'PACKAGE_VERSION = "{new_version}"'
 
 [tool.poetry_bumpversion.file."README.md"]
 search = 'Latest version: {current_version}'

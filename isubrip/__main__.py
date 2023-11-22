@@ -11,7 +11,6 @@ from typing import List
 import requests
 from requests.utils import default_user_agent
 
-from isubrip.__init__ import __version__ as package_version
 from isubrip.config import Config, ConfigError, ConfigSetting, SpecialConfigType
 from isubrip.constants import (
     ARCHIVE_FORMAT,
@@ -20,6 +19,7 @@ from isubrip.constants import (
     LOG_FILE_NAME,
     LOG_FILES_PATH,
     PACKAGE_NAME,
+    PACKAGE_VERSION,
     PREORDER_MESSAGE,
     TEMP_FOLDER_PATH,
     USER_CONFIG_FILE,
@@ -137,14 +137,14 @@ def main():
 
     logger.debug(f"Used CLI Command: {PACKAGE_NAME} {cli_args}")
     logger.debug(f"Python version: {sys.version}")
-    logger.debug(f"Package version: {package_version}")
+    logger.debug(f"Package version: {PACKAGE_VERSION}")
     logger.debug(f"OS: {sys.platform}")
 
     config = generate_config()
     update_settings(config)
 
     if config.general.get("check-for-updates", True):
-        check_for_updates()
+        check_for_updates(current_package_version=PACKAGE_VERSION)
 
     scraper_factory = ScraperFactory()
 
@@ -251,13 +251,16 @@ def download_media(scraper: Scraper, media_item: MediaData, config: Config):
         logger.error("No valid playlist was found.")
 
 
-def check_for_updates() -> None:
-    """Check and print if a newer version of the package is available."""
+def check_for_updates(current_package_version: str) -> None:
+    """
+    Check and print if a newer version of the package is available, and log accordingly.
+
+    Args:
+        current_package_version (str): The current version of the package.
+    """
     api_url = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
     logger.debug("Checking for package updates on PyPI...")
     try:
-        current_version = sys.modules[PACKAGE_NAME].__version__
-
         response = requests.get(
             url=api_url,
             headers={"Accept": "application/json"},
@@ -268,15 +271,13 @@ def check_for_updates() -> None:
 
         pypi_latest_version = response_data["info"]["version"]
 
-        if pypi_latest_version != current_version:
-            logger.info(f"Found a newer version of {PACKAGE_NAME} - {pypi_latest_version}")
-
-            logger.warning(f"Note: You are currently using version '{current_version}' of '{PACKAGE_NAME}', "
-                           f"however version '{pypi_latest_version}' is available.",
+        if pypi_latest_version != current_package_version:
+            logger.warning(f"You are currently using version '{current_package_version}' of '{PACKAGE_NAME}', "
+                           f"however version '{pypi_latest_version}' is available."
                            f'\nConsider upgrading by running "python3 -m pip install --upgrade {PACKAGE_NAME}"\n')
 
         else:
-            logger.debug(f"Latest version of {PACKAGE_NAME} ({current_version}) is currently installed.")
+            logger.debug(f"Latest version of '{PACKAGE_NAME}' ({current_package_version}) is currently installed.")
 
     except Exception as e:
         logger.warning(f"Update check failed: {e}")
