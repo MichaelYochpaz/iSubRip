@@ -18,7 +18,7 @@ def set_logger(_logger: logging.Logger) -> None:
 
 
 @lru_cache
-def get_formatter(fmt: str, datefmt=LOGGING_DATE_FORMAT) -> logging.Formatter:
+def get_formatter(fmt: str, datefmt: str = LOGGING_DATE_FORMAT) -> logging.Formatter:
     """
     Get a formatter instance, and utilize caching.
 

@@ -8,7 +8,7 @@ import inspect
 from pathlib import Path
 import re
 import sys
-from typing import TYPE_CHECKING, ClassVar, Iterator, List, Literal, TypeVar, Union, overload
+from typing import TYPE_CHECKING, ClassVar, Iterator, List, Literal, Type, TypeVar, Union, overload
 
 import aiohttp
 import m3u8
@@ -23,6 +23,8 @@ from isubrip.logger import logger
 from isubrip.utils import SingletonMeta, merge_dict_values, single_to_list
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from isubrip.subtitle_formats.subtitles import Subtitles
 
 ScraperT = TypeVar("ScraperT", bound="Scraper")
@@ -126,13 +128,14 @@ class Scraper(ABC, metaclass=SingletonMeta):
 
         return None
 
-    def __enter__(self):
+    def __enter__(self) -> Scraper:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Type[BaseException] | None,
+                 exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         self._session.close()
 
     @abstractmethod
@@ -172,11 +175,11 @@ class AsyncScraper(Scraper, ABC):
         self.async_session = aiohttp.ClientSession()
         self.async_session.headers.update(self._session.headers)
 
-    def close(self):
+    def close(self) -> None:
         asyncio.get_event_loop().run_until_complete(self._async_close())
         super().close()
 
-    async def _async_close(self):
+    async def _async_close(self) -> None:
         await self.async_session.close()
 
 
@@ -246,7 +249,9 @@ class HLSScraper(AsyncScraper, ABC):
             bytes: Downloaded segment.
         """
         async with self.async_session.get(url) as response:
-            return await response.read()
+            segment: bytes = await response.read()
+
+        return segment
 
     def load_m3u8(self, url: str | list[str]) -> M3U8 | None:
         """
@@ -348,7 +353,7 @@ class HLSScraper(AsyncScraper, ABC):
 
 
 class ScraperFactory(metaclass=SingletonMeta):
-    def __init__(self):
+    def __init__(self) -> None:
         self._scraper_classes_cache: list[type[Scraper]] | None = None
         self._scraper_instances_cache: dict[type[Scraper], Scraper] = {}
         self._currently_initializing: list[type[Scraper]] = []  # Used to prevent infinite recursion

@@ -131,8 +131,8 @@ class AppleTVScraper(HLSScraper):
             default_locale = storefront_data["defaultLocale"]
             available_locales = storefront_data["localesSupported"]
 
-            logger.debug(f"Available locales for storefront '{storefront_id}': {available_locales}'."
-                         f"\nStorefront's default locale: '{default_locale}'.")
+            logger.debug(f"Available locales for storefront '{storefront_id}': {available_locales}'. "
+                         f"Storefront's default locale: '{default_locale}'.")
 
             locale = self._decide_locale(
                 preferred_locales=["en_US", "en_GB"],
@@ -155,9 +155,10 @@ class AppleTVScraper(HLSScraper):
                      f"'{response.status_code}'.")
 
         raise_for_status(response)
-        response_json = response.json()
+        response_json: dict = response.json()
+        response_data: dict = response_json.get("data", {})
 
-        return response_json.get("data", {})
+        return response_data
 
     def _generate_api_request_params(self, storefront_id: str,
                                      locale: str | None = None, utsk: str | None = None) -> dict:
@@ -200,7 +201,8 @@ class AppleTVScraper(HLSScraper):
         raise_for_status(response)
         logger.debug("Configuration data fetched successfully.")
 
-        return response.json()["data"]
+        response_data: dict = response.json()["data"]
+        return response_data
 
     def _map_playables_by_channel(self, playables: list[dict]) -> dict[str, dict]:
         """

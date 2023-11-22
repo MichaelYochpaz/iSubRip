@@ -26,6 +26,7 @@ from isubrip.constants import (
 )
 from isubrip.data_structures import (
     Episode,
+    MediaBase,
     MediaData,
     Movie,
     ScrapedMediaResponse,
@@ -123,7 +124,7 @@ BASE_CONFIG_SETTINGS = [
 ]
 
 
-def main():
+def main() -> None:
     # Assure at least one argument was passed
     if len(sys.argv) < 2:
         print_usage()
@@ -156,7 +157,7 @@ def main():
         scraper.config.check()  # Recheck config after scraper settings were loaded
 
         scraper_response: ScrapedMediaResponse = scraper.get_data(url=url)
-        media_data: list[MediaData] = single_to_list(scraper_response.media_data)
+        media_data: List[MediaBase] = single_to_list(scraper_response.media_data)
         playlist_scraper = scraper_factory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
                                                                 config_data=config.data.get("scrapers"))
 
@@ -174,7 +175,7 @@ def main():
                 continue
 
 
-def download_media(scraper: Scraper, media_item: MediaData, config: Config):
+def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> None:
     """
     Download a media item.
 
@@ -236,7 +237,7 @@ def download_media(scraper: Scraper, media_item: MediaData, config: Config):
             else:
                 logger.info("No matching subtitles were found.")
 
-            return
+            return  # noqa: TRY300
 
         except PlaylistLoadError:
             pass
@@ -285,7 +286,7 @@ def check_for_updates(current_package_version: str) -> None:
         return
 
 
-def create_required_folders():
+def create_required_folders() -> None:
     if not DATA_FOLDER_PATH.is_dir():
         logger.debug(f"'{DATA_FOLDER_PATH}' directory could not be found and will be created.")
         LOG_FILES_PATH.mkdir(parents=True, exist_ok=True)
@@ -387,7 +388,7 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
     )
 
 
-def handle_log_rotation(log_rotation_size: int):
+def handle_log_rotation(log_rotation_size: int) -> None:
     """
     Handle log rotation and remove old log files if needed.
 

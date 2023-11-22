@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from isubrip.data_structures import SubtitlesFormatType
 from isubrip.subtitle_formats.subtitles import Subtitles, SubtitlesBlock, SubtitlesCaptionBlock
@@ -41,11 +41,11 @@ class Caption(SubtitlesCaptionBlock, WebVTTBlock):
         self.identifier = identifier
         self.settings = settings
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and \
             self.start_time == other.start_time and self.end_time == other.end_time and self.payload == other.payload
 
-    def __str__(self):
+    def __str__(self) -> str:
         result_str = ""
         time_format = "%H:%M:%S.%f"
 
@@ -67,7 +67,7 @@ class Comment(WebVTTBlock):
     """An object representing a WebVTT comment block."""
     header = "NOTE"
 
-    def __init__(self, payload, inline: bool = False):
+    def __init__(self, payload: str, inline: bool = False) -> None:
         """
         Initialize a new object representing a WebVTT comment block.
 
@@ -77,10 +77,10 @@ class Comment(WebVTTBlock):
         self.payload = payload
         self.inline = inline
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.inline == other.inline and self.payload == other.payload
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.inline:
             return f"{self.header} {self.payload}"
 
@@ -94,7 +94,7 @@ class Style(WebVTTBlock):
     """An object representing a WebVTT style block."""
     header = "STYLE"
 
-    def __init__(self, payload):
+    def __init__(self, payload: str) -> None:
         """
         Initialize a new object representing a WebVTT style block.
 
@@ -103,10 +103,10 @@ class Style(WebVTTBlock):
         """
         self.payload = payload
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.payload == other.payload
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.header} {self.payload}"
 
 
@@ -114,7 +114,7 @@ class Region(WebVTTBlock):
     """An object representing a WebVTT region block."""
     header = "REGION"
 
-    def __init__(self, payload):
+    def __init__(self, payload: str) -> None:
         """
         Initialize a new object representing a WebVTT region block.
 
@@ -123,7 +123,7 @@ class Region(WebVTTBlock):
         """
         self.payload = payload
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.payload == other.payload
 
     def __str__(self) -> str:

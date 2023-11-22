@@ -129,7 +129,7 @@ class Config:
         return self._config_data.get(key, default)
 
     @property
-    def data(self):
+    def data(self) -> dict:
         return self._config_data
 
     def add_settings(self, config_settings: ConfigSetting | list[ConfigSetting],
@@ -256,7 +256,7 @@ class Config:
             MissingConfigValue: A required config value is missing.
             InvalidConfigValue: An invalid value was used in the config file.
         """
-        if self._config_data is None or not self._config_settings:
+        if not (self._config_data and self._config_settings):
             return
 
         mapped_config = self._map_config_settings(self._config_settings, self._config_data)

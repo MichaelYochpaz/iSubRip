@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import time
-from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 if TYPE_CHECKING:
     from isubrip.data_structures import SubtitlesFormatType, SubtitlesType
@@ -19,11 +19,11 @@ SubtitlesBlockT = TypeVar('SubtitlesBlockT', bound='SubtitlesBlock')
 class SubtitlesBlock(ABC):
     """Abstract base class for subtitles blocks."""
     @abstractmethod
-    def __str__(self):
+    def __str__(self) -> str:
         pass
 
     @abstractmethod
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         pass
 
 
@@ -114,7 +114,7 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
 
         return self
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.blocks == other.blocks
 
     def __str__(self) -> str:

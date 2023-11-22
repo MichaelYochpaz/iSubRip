@@ -23,20 +23,20 @@ class SingletonMeta(ABCMeta):
     """
     _instances: dict[object, object] = {}
 
-    def __call__(cls, *args, **kwargs) -> object:
+    def __call__(cls, *args: Any, **kwargs: Any) -> object:
         if cls._instances.get(cls) is None:
             cls._instances[cls] = super().__call__(*args, **kwargs)
 
         return cls._instances[cls]
 
 
-def check_type(value: Any, type_) -> bool:
+def check_type(value: Any, type_) -> bool:  # type: ignore[no-untyped-def]
     """
     Check if a value is of a certain type.
     Works with parameterized generics.
 
     Args:
-        value: Value to check.
+        value (Any): Value to check.
         type_: Type to check against.
 
     Returns:
@@ -316,7 +316,7 @@ def parse_url_params(url_params: str) -> dict:
     return {key: value for key, value in (param.split('=') for param in params_list)}
 
 
-def single_to_list(obj) -> list:
+def single_to_list(obj: Any) -> list:
     """
     Convert a single non-iterable object to a list.
     If None is passed, an empty list will be returned.

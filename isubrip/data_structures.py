@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from abc import ABC
 import datetime as dt  # noqa: TCH003
 from enum import Enum
 from typing import Generic, List, NamedTuple, Optional, TypeVar, Union
 
 from pydantic import BaseModel
 
-MediaData = TypeVar("MediaData", bound=Union["Movie", "Episode", "Season", "Series"])
+MediaData = TypeVar("MediaData", bound="MediaBase")
 
 
 class SubtitlesDownloadResults(NamedTuple):
@@ -84,7 +85,11 @@ class SubtitlesData(BaseModel):
         str_strip_whitespace = True
 
 
-class Movie(BaseModel):
+class MediaBase(BaseModel, ABC):
+    """A base class for media objects."""
+
+
+class Movie(MediaBase):
     """
     An object containing movie metadata.
 
@@ -109,7 +114,7 @@ class Movie(BaseModel):
     playlist: Union[str, List[str], None] = None
 
 
-class Episode(BaseModel):
+class Episode(MediaBase):
     """
     An object containing episode metadata.
 
@@ -142,7 +147,7 @@ class Episode(BaseModel):
     playlist: Union[str, List[str], None] = None
 
 
-class Season(BaseModel):
+class Season(MediaBase):
     """
     An object containing season metadata.
 
@@ -166,7 +171,7 @@ class Season(BaseModel):
     episodes: List[Episode] = []
 
 
-class Series(BaseModel):
+class Series(MediaBase):
     """
     An object containing series metadata.
 
