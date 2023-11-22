@@ -38,6 +38,14 @@ packages = [
 include = [
     "isubrip/resources", "README.md", "LICENSE"
 ]
+
+[tool.mypy]
+disallow_untyped_defs = true
+explicit_package_bases = true
+ignore_missing_imports = true
+python_version = "3.8"
+warn_return_any = true
+
 [tool.poetry.scripts]
 isubrip = "isubrip.__main__:main"
 
