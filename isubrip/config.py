@@ -45,9 +45,9 @@ class ConfigSetting(NamedTuple):
     Attributes:
         key (str): Dictionary key used to access the setting.
         type (type): Variable type of the value of the setting. Used for validation.
-        category (str | list[str], optional): A category that the setting is under.
+        category (str | tuple[str, ...], optional): A category that the setting is under.
             Categories are used to group related settings' keys together in a sub-dictionary.
-            A list can be used to nest categories (first item is the top-level category). Defaults to None.
+            A tuple can be used to nest categories (first item is the top-level category). Defaults to None.
         required (bool, optional): Whether the setting is required. Defaults to False.
         enum_type (type[Enum], optional): An Enum that the settings values will be converted to. Defaults to None.
         special_type (SpecialConfigType | list[SpecialConfigType], optional): A special property of the setting's value
@@ -57,7 +57,7 @@ class ConfigSetting(NamedTuple):
     # TODO: Use `types.UnionType` instead of `typing._UnionGenericAlias`, once minimum Python version >= 3.10.
     # TODO: Update 'InvalidConfigType' exception as well.
     type: type | typing._UnionGenericAlias  # type: ignore[name-defined]  # noqa: SLF001
-    category: str | list[str] | None = None
+    category: str | tuple[str, ...] | None = None
     required: bool = False
     enum_type: Type[Enum] | None = None
     special_type: SpecialConfigType | list[SpecialConfigType] | None = None

@@ -52,6 +52,7 @@ class SubtitlesCaptionBlock(SubtitlesBlock, ABC):
         # Add RLM char at the start of every line
         self.payload = RTL_CHAR + self.payload.replace("\n", f"\n{RTL_CHAR}")
 
+    @abstractmethod
     def to_srt(self) -> SubRipCaptionBlock:
         """
         Convert WebVTT caption block to SRT caption block.
@@ -59,9 +60,7 @@ class SubtitlesCaptionBlock(SubtitlesBlock, ABC):
         Returns:
             SubRipCaptionBlock: The caption block in SRT format.
         """
-        from isubrip.subtitle_formats.subrip import SubRipCaptionBlock
-
-        return SubRipCaptionBlock(self.start_time, self.end_time, self.payload)
+        ...
 
 
 class Subtitles(Generic[SubtitlesBlockT], ABC):

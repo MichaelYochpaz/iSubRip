@@ -10,7 +10,7 @@
 
 [general]
 # Check for updates before running, and show a note if a new version exists.
-# Value can be either "true" or "false".
+# Value can be either 'true' or 'false'.
 check-for-updates = true
 
 # Maximum number of log files to keep in the logs folder.
@@ -32,17 +32,17 @@ languages = []
 
 # Whether to overwrite existing subtitles files.
 # If set to false, names of existing subtitles will have a number appended to them to avoid overwriting.
-# Value can be either "true" or "false".
+# Value can be either 'true' or 'false'.
 overwrite-existing = false
 
 # Save files into a zip archive if there is more than one matching subtitles.
-# Value can be either "true" or "false".
+# Value can be either 'true' or 'false'.
 zip = false
 
 
 [subtitles]
-# Fix RTL for languages set on `fix-rtl-languages`.
-# Value can be either "true" or "false".
+# Fix RTL for languages set on 'fix-rtl-languages'.
+# Value can be either 'true' or 'false'.
 #
 # NOTE: This is off by default as some subtitles use other methods to fix RTL (like writing punctuations backwards).
 #       Using this option on these type of subtitles can break the already-fixed RTL issues.
@@ -54,11 +54,18 @@ fix-rtl = false
 rtl-languages = ["ar", "he"]
 
 # Remove duplicate paragraphs (same text and timestamps).
+# Value can be either 'true' or 'false'.
 remove-duplicates = true
 
 # Whether to convert subtitles to SRT format.
 # NOTE: This can cause loss of subtitles metadata that is not supported by SRT format.
 convert-to-srt = false
+
+[subtitles.webvtt]
+# Whether to add a '{\an8}' tag to lines that are aligned at the top when converting format from WebVTT to SubRip.
+# Relevant only if 'subtitles.convert-to-srt' is set to 'true'.
+# Value can be either 'true' or 'false'.
+subrip-alignment-conversion = false
 
 
 [scrapers]

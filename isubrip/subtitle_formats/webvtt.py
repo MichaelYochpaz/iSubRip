@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from abc import ABCMeta
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from isubrip.data_structures import SubtitlesFormatType
-from isubrip.subtitle_formats.subtitles import Subtitles, SubtitlesBlock, SubtitlesCaptionBlock
+from isubrip.subtitle_formats.subrip import SubRipCaptionBlock
+from isubrip.subtitle_formats.subtitles import RTL_CHAR, Subtitles, SubtitlesBlock, SubtitlesCaptionBlock
 from isubrip.utils import split_subtitles_timestamp
 
 if TYPE_CHECKING:
@@ -25,6 +26,8 @@ class WebVTTBlock(SubtitlesBlock, metaclass=ABCMeta):
 
 class Caption(SubtitlesCaptionBlock, WebVTTBlock):
     """An object representing a WebVTT caption block."""
+    subrip_alignment_conversion: ClassVar[bool] = False
+
     is_caption_block: bool = True
 
     def __init__(self, start_time: time, end_time: time, payload: str, settings: str = "", identifier: str = ""):
@@ -40,6 +43,21 @@ class Caption(SubtitlesCaptionBlock, WebVTTBlock):
         super().__init__(start_time=start_time, end_time=end_time, payload=payload)
         self.identifier = identifier
         self.settings = settings
+
+    def to_srt(self) -> SubRipCaptionBlock:
+        # Add a {\an8} tag at the start of the payload if it has 'line:0.00%' in the settings
+        if "line:0.00%" in self.settings and self.subrip_alignment_conversion:
+            # If the payload starts with an RTL control char, add the tag after it
+            if self.payload.startswith(RTL_CHAR):
+                payload = RTL_CHAR + WEBVTT_ALIGN_TOP_TAG + self.payload[len(RTL_CHAR):]
+
+            else:
+                payload = WEBVTT_ALIGN_TOP_TAG + self.payload
+
+        else:
+            payload = self.payload
+
+        return SubRipCaptionBlock(start_time=self.start_time, end_time=self.end_time, payload=payload)
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and \
@@ -262,6 +280,4 @@ WEBVTT_CAPTION_SETTINGS_REGEX = ("(?:"
 WEBVTT_CAPTION_BLOCK_REGEX = rf"^({WEBVTT_CAPTION_TIMINGS_REGEX})[ \t]*({WEBVTT_CAPTION_SETTINGS_REGEX})?"
 WEBVTT_COMMENT_HEADER_REGEX = rf"^{Comment.header}(?:$|[ \t])(.+)?"
 
-# Unicode
-RTL_CONTROL_CHARS = ('\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e')
-RTL_CHAR = '\u202b'
+WEBVTT_ALIGN_TOP_TAG = "{\\an8}"

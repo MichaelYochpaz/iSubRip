@@ -37,6 +37,7 @@ from isubrip.data_structures import (
 )
 from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
 from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperFactory
+from isubrip.subtitle_formats.webvtt import Caption as WebVTTCaption
 from isubrip.utils import (
     download_subtitles_to_file,
     generate_non_conflicting_path,
@@ -113,6 +114,12 @@ BASE_CONFIG_SETTINGS = [
         key="convert-to-srt",
         type=bool,
         category="subtitles",
+        required=False,
+    ),
+    ConfigSetting(
+        key="subrip-alignment-conversion",
+        type=bool,
+        category=("subtitles", "webvtt"),
         required=False,
     ),
     ConfigSetting(
@@ -505,6 +512,9 @@ def update_settings(config: Config) -> None:
     Scraper.subtitles_fix_rtl_languages = config.subtitles.get("rtl-languages")
     Scraper.subtitles_remove_duplicates = config.subtitles["remove-duplicates"]
     Scraper.default_user_agent = config.scrapers.get("user-agent", default_user_agent())
+    WebVTTCaption.subrip_alignment_conversion = (
+        config.subtitles.get("webvtt", {}).get("subrip-alignment-conversion", False)
+    )
 
     if log_rotation := config.general.get("log-rotation-size"):
         global LOG_ROTATION_SIZE
