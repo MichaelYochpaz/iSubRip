@@ -79,7 +79,8 @@ class ItunesScraper(HLSScraper):
 
         for matched_media in matched_media_items:
             try:
-                matched_media_playlist = m3u8.load(matched_media.absolute_uri)
+                m3u8_data = self._session.get(url=matched_media.absolute_uri)
+                matched_media_playlist = m3u8.loads(content=m3u8_data.text, uri=matched_media.absolute_uri)
                 subtitles = self.subtitles_class(language_code=matched_media.language)
                 for segment in self._download_segments_async(matched_media_playlist.segments):
                     subtitles.append_subtitles(subtitles.loads(segment.decode("utf-8")))

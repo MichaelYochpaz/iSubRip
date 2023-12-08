@@ -265,12 +265,13 @@ class HLSScraper(AsyncScraper, ABC):
         Returns:
             m3u8.M3U8: An M3U8 object representing the playlist.
         """
-        for _url in single_to_list(url):
+        for url_item in single_to_list(url):
             try:
-                return m3u8.load(uri=_url, timeout=5)
+                m3u8_data = self._session.get(url_item).text
+                return m3u8.loads(content=m3u8_data, uri=url_item)
 
             except Exception as e:
-                logger.debug(f"Failed to load M3U8 playlist '{_url}': {e}")
+                logger.debug(f"Failed to load M3U8 playlist '{url_item}': {e}")
                 continue
 
         return None
