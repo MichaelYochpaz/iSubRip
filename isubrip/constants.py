@@ -14,8 +14,8 @@ PREORDER_MESSAGE = ("'{movie_name}' is currently unavailable on {scraper_name}, 
                     "and will be available on {preorder_date}.")
 
 ANSI_COLORS = {
-    logging.DEBUG: "\x1b[38;20m",  # Grey
-    logging.INFO: "\x1b[34;20m",  # Blue
+    logging.DEBUG: "\x1b[37;20m",  # Light Grey
+    logging.INFO: "\x1b[38;20m",  # Grey
     logging.WARNING: "\x1b[33;20m",  # Yellow
     logging.ERROR: "\x1b[31;20m",  # Red
     logging.CRITICAL: "\x1b[31;1m",  # Bold Red
