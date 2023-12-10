@@ -91,9 +91,11 @@ class ItunesScraper(HLSScraper):
                     remove_duplicates=self.subtitles_remove_duplicates,
                 )
 
+                language_name = matched_media.name.replace(' (forced)', '').strip()
+
                 yield SubtitlesData(
                     language_code=matched_media.language,
-                    language_name=matched_media.name,
+                    language_name=language_name,
                     subtitles_format=SubtitlesFormatType.SUBRIP if subrip_conversion else SubtitlesFormatType.WEBVTT,
                     content=subtitles.to_srt().dump() if subrip_conversion else subtitles.dump(),
                     special_type=self.detect_subtitles_type(matched_media),
