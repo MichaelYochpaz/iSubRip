@@ -46,7 +46,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
         id (str): [Class Attribute] ID of the scraper.
         name (str): [Class Attribute] Name of the scraper.
         abbreviation (str): [Class Attribute] Abbreviation of the scraper.
-        url_regex (str): [Class Attribute] A RegEx pattern to find URLs matching the service.
+        url_regex (re.Pattern | list[re.Pattern]): [Class Attribute] A RegEx pattern to find URLs matching the service.
         subtitles_class (type[Subtitles]): [Class Attribute] Class of the subtitles format returned by the scraper.
         is_movie_scraper (bool): [Class Attribute] Whether the scraper is for movies.
         is_series_scraper (bool): [Class Attribute] Whether the scraper is for series.
@@ -63,7 +63,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
     id: ClassVar[str]
     name: ClassVar[str]
     abbreviation: ClassVar[str]
-    url_regex: ClassVar[str | list[str]]
+    url_regex: ClassVar[re.Pattern | list[re.Pattern]]
     subtitles_class: ClassVar[type[Subtitles]]
     is_movie_scraper: ClassVar[bool] = False
     is_series_scraper: ClassVar[bool] = False
@@ -115,12 +115,12 @@ class Scraper(ABC, metaclass=SingletonMeta):
         Raises:
             ValueError: If the URL doesn't match the regex and raise_error is True.
         """
-        if isinstance(cls.url_regex, str):
-            return re.fullmatch(pattern=cls.url_regex, string=url, flags=re.IGNORECASE)
+        if isinstance(cls.url_regex, re.Pattern):
+            return re.fullmatch(pattern=cls.url_regex, string=url)
 
         # isinstance(cls.url_regex, list):
         for url_regex_item in cls.url_regex:
-            if result := re.fullmatch(pattern=url_regex_item, string=url, flags=re.IGNORECASE):
+            if result := re.fullmatch(pattern=url_regex_item, string=url):
                 return result
 
         if raise_error:

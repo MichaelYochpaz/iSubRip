@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Iterator
 
 import m3u8
@@ -19,7 +20,7 @@ class ItunesScraper(HLSScraper):
     id = "itunes"
     name = "iTunes"
     abbreviation = "iT"
-    url_regex = r"(?P<base_url>https?://itunes\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|tv-show|tv-season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>id\d{9,10}))(?:\?(?P<url_params>(?:).*))?"  # noqa: E501
+    url_regex = re.compile(r"(?P<base_url>https?://itunes\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|tv-show|tv-season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>id\d{9,10}))(?:\?(?P<url_params>.*))?", flags=re.IGNORECASE)  # noqa: E501
     subtitles_class = WebVTTSubtitles
     is_movie_scraper = True
     uses_scrapers = ["appletv"]

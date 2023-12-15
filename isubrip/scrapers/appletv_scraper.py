@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from enum import Enum
 import fnmatch
+import re
 from typing import Iterator
 
 from isubrip.data_structures import Episode, MediaData, Movie, ScrapedMediaResponse, Season, Series, SubtitlesData
@@ -17,7 +18,7 @@ class AppleTVScraper(HLSScraper):
     id = "appletv"
     name = "Apple TV"
     abbreviation = "ATV"
-    url_regex = r"(?P<base_url>https?://tv\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|episode|season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>umc\.cmc\.[a-z\d]{23,25}))(?:\?(?P<url_params>(?:).*))?"  # noqa: E501
+    url_regex = re.compile(r"(?P<base_url>https?://tv\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|episode|season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>umc\.cmc\.[a-z\d]{23,25}))(?:\?(?P<url_params>.*))?", flags=re.IGNORECASE)  # noqa: E501
     subtitles_class = WebVTTSubtitles
     is_movie_scraper = True
     is_series_scraper = True
