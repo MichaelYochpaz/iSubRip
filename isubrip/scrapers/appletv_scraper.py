@@ -6,6 +6,8 @@ import fnmatch
 import re
 from typing import Iterator
 
+from requests.exceptions import HTTPError
+
 from isubrip.data_structures import Episode, MediaData, Movie, ScrapedMediaResponse, Season, Series, SubtitlesData
 from isubrip.logger import logger
 from isubrip.scrapers.scraper import HLSScraper, ScraperError
@@ -119,7 +121,7 @@ class AppleTVScraper(HLSScraper):
         Raises:
             HttpError: If an HTTP error response is received.
         """
-        logger.debug(f"Calling API endpoint '{endpoint}' using storefront '{storefront_id}'.")
+        logger.debug(f"Preparing to fetch '{endpoint}' using storefront '{storefront_id}'.")
 
         if storefront_cached_local := self._storefront_locale_mapping_cache.get(storefront_id):
             logger.debug(f"Using cached locale for storefront '{storefront_id}': '{storefront_cached_local}'.")
@@ -150,12 +152,19 @@ class AppleTVScraper(HLSScraper):
         if additional_params:
             request_params.update(additional_params)
 
-        # Send request to fetch media data
         response = self._session.get(url=f"{self._api_base_url}{endpoint}", params=request_params)
-        logger.debug(f"API endpoint '{endpoint}' on storefront '{storefront_id}' responded with status code: "
-                     f"'{response.status_code}'.")
 
-        raise_for_status(response)
+        try:
+            raise_for_status(response)
+
+        except HTTPError as e:
+            if response.status_code == 404:
+                raise ScraperError(
+                    "Media not found. This could indicate that the provided URL is invalid."
+                ) from e
+
+            raise
+
         response_json: dict = response.json()
         response_data: dict = response_json.get("data", {})
 

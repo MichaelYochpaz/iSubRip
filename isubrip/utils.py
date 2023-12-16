@@ -287,11 +287,24 @@ def raise_for_status(response: requests.Response) -> None:
     Args:
         response (requests.Response): A response object.
     """
+    truncation_threshold = 1500
+
     if response.ok:
         return
 
-    logger.error(f"Response status code: {response.status_code}")
-    logger.error(f"Response text: {response.text}")
+    if len(response.text) > truncation_threshold:
+        # Truncate the response as in some cases there could be an unexpected long HTML response
+        response_text = response.text[:truncation_threshold].rstrip() + " <TRUNCATED...>"
+
+    else:
+        response_text = response.text
+
+    logger.debug(f"Response status code: {response.status_code}")
+
+    if response.headers.get('Content-Type'):
+        logger.debug(f"Response type: {response.headers['Content-Type']}")
+
+    logger.debug(f"Response text: {response_text}")
 
     response.raise_for_status()
 

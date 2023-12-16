@@ -4,6 +4,7 @@ import re
 from typing import TYPE_CHECKING, Iterator
 
 import m3u8
+from requests.exceptions import HTTPError
 
 from isubrip.data_structures import SubtitlesData, SubtitlesFormatType
 from isubrip.logger import logger
@@ -49,8 +50,19 @@ class ItunesScraper(HLSScraper):
         """
         regex_match = self.match_url(url, raise_error=True)
         url = regex_match.group(1)
+        logger.debug(f"Scraping iTunes URL: {url}.")
         response = self._session.get(url=url, allow_redirects=False)
-        raise_for_status(response=response)
+
+        try:
+            raise_for_status(response=response)
+
+        except HTTPError as e:
+            if response.status_code == 404:
+                raise ScraperError(
+                    "Media not found. This could indicate that the provided URL is invalid."
+                ) from e
+
+            raise
 
         redirect_location = response.headers.get("Location")
 
