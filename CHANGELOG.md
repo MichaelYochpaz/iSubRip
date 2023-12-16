@@ -1,7 +1,21 @@
 # Changelog
+## 2.5.0 [2023-12-16]
+### Added:
+* Added logs. See the new [Logs section in the README](https://github.com/MichaelYochpaz/iSubRip#logs) for more information.
+* Added a new `subtitles.webvtt.subrip-alignment-conversion` config setting (which is off by default), which if set to true, will add the `{\an8}` tag at the start of lines that are annotated at the top (with the `line:0.00%` WebVTT setting) when converting to SubRip. ([Issue #35](https://github.com/MichaelYochpaz/iSubRip/issues/35))
+* Implemented caching for AppleTV's storefront configuration data, which should reduce the amount of requests used when scraping multiple AppleTV URLs from the same storefront.
+
+### Changes:
+* Big backend changes to the structure of the code, mostly to improve modularity and allow for easier development in the future, and improve performance.
+* Updated the CLI output to utilize logs and print with colors according to log-level.
+* Improved error handling in some cases where an invalid URL is used.
+
+### Bug Fixes
+* Fixed an issue where if a movie is a pre-order with a set release date, a message with availability date wouldn't be printed in some cases.
+---
 ## 2.4.3 [2023-06-18]
 ### Bug Fixes:
-* Fixed an issue where some AppleTV URLs (or iTunes links that refer to such URLs) would not be matched in some cases, resulting in a `No matching scraper was found...` Error. ([Issue #46](https://github.com/MichaelYochpaz/iSubRip/issues/46))
+* Fixed an issue where some AppleTV URLs (or iTunes links that refer to such URLs) would not be matched in some cases, resulting in a "No matching scraper was found..." error. ([Issue #46](https://github.com/MichaelYochpaz/iSubRip/issues/46))
 ---
 ## 2.4.2 [2023-06-02]
 ### Changes:
@@ -12,7 +26,7 @@
 ---
 ## 2.4.1 [2023-05-25]
 ### Bug Fixes:
-* Fixed an issue where saving subtitles to a different drive than the OS drive would fail. ([Issue #41](https://github.com/MichaelYochpaz/iSubRip/issues/41)
+* Fixed an issue where saving subtitles to a different drive than the OS drive would fail. ([Issue #41](https://github.com/MichaelYochpaz/iSubRip/issues/41))
 * Fixed AppleTV URLs with multiple iTunes playlists causing an error. ([Issue #42](https://github.com/MichaelYochpaz/iSubRip/issues/42))
 ---
 ## 2.4.0 [2023-05-23]
