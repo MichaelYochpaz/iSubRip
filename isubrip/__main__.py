@@ -346,6 +346,7 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
                 media_data=media_data,
                 subtitles_data=subtitles_data,
                 output_path=temp_download_path,
+                source_abbreviation=scraper.abbreviation,
                 overwrite=overwrite_existing,
             ))
 
