@@ -1,4 +1,8 @@
 # Changelog
+## 2.5.1 [2023-12-23]
+### Bug Fixes
+* Fixed an issue where source abbreviation was missing from file names of downloaded subtitles files. ([Issue #53](https://github.com/MichaelYochpaz/iSubRip/issues/53))
+---
 ## 2.5.0 [2023-12-16]
 ### Added:
 * Added logs. See the new [Logs section in the README](https://github.com/MichaelYochpaz/iSubRip#logs) for more information.

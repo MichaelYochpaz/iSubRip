@@ -7,7 +7,7 @@ from tempfile import gettempdir
 
 # General
 PACKAGE_NAME = "isubrip"
-PACKAGE_VERSION = "2.5.0"
+PACKAGE_VERSION = "2.5.1"
 
 # Logging
 PREORDER_MESSAGE = ("'{movie_name}' is currently unavailable on {scraper_name}, "
