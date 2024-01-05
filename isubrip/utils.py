@@ -7,7 +7,16 @@ import re
 import sys
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin
 
-from isubrip.data_structures import Episode, Movie, SubtitlesData, SubtitlesFormatType, SubtitlesType
+from isubrip.data_structures import (
+    Episode,
+    MediaBase,
+    Movie,
+    Season,
+    Series,
+    SubtitlesData,
+    SubtitlesFormatType,
+    SubtitlesType,
+)
 from isubrip.logger import logger
 
 if TYPE_CHECKING:
@@ -138,6 +147,69 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
         f.write(subtitles_data.content)
 
     return file_path
+
+
+def generate_media_description(media_data: MediaBase) -> str:
+    """
+    Generate a short description string of a media object.
+
+    Args:
+        media_data (MediaBase): An object containing media data.
+
+    Returns:
+        str: A short description string of the media object.
+    """
+    if isinstance(media_data, Movie):
+        release_year = (
+            media_data.release_date.year
+            if isinstance(media_data.release_date, dt.datetime)
+            else media_data.release_date
+        )
+        description_str = f"{media_data.name} [{release_year}]"
+
+        if media_data.id:
+            description_str += f" (ID: {media_data.id})"
+
+        return description_str
+
+    if isinstance(media_data, Series):
+        description_str = f"{media_data.series_name}"
+
+        if media_data.series_release_date:
+            if isinstance(media_data.series_release_date, dt.datetime):
+                description_str += f" [{media_data.series_release_date.year}]"
+
+            else:
+                description_str += f" [{media_data.series_release_date}]"
+
+        if media_data.id:
+            description_str += f" (ID: {media_data.id})"
+
+        return description_str
+
+    if isinstance(media_data, Season):
+        description_str = f"{media_data.series_name} - Season {media_data.season_number:02d}"
+
+        if media_data.season_name:
+            description_str += f" - {media_data.season_name}"
+
+        if media_data.id:
+            description_str += f" (ID: {media_data.id})"
+
+        return description_str
+
+    if isinstance(media_data, Episode):
+        description_str = f"{media_data.series_name} - S{media_data.season_number:02d}E{media_data.episode_number:02d}"
+
+        if media_data.episode_name:
+            description_str += f" - {media_data.episode_name}"
+
+        if media_data.id:
+            description_str += f" (ID: {media_data.id})"
+
+        return description_str
+
+    raise ValueError(f"Unsupported media type: '{type(media_data)}'")
 
 
 def generate_non_conflicting_path(file_path: str | Path, has_extension: bool = True) -> Path:

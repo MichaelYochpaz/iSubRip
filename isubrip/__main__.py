@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import atexit
-import datetime as dt
 import logging
 from pathlib import Path
 import shutil
@@ -36,10 +35,11 @@ from isubrip.data_structures import (
     SubtitlesDownloadResults,
 )
 from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
-from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperFactory
+from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperError, ScraperFactory
 from isubrip.subtitle_formats.webvtt import Caption as WebVTTCaption
 from isubrip.utils import (
     download_subtitles_to_file,
+    generate_media_description,
     generate_non_conflicting_path,
     generate_release_name,
     raise_for_status,
@@ -132,54 +132,102 @@ BASE_CONFIG_SETTINGS = [
 
 
 def main() -> None:
-    # Assure at least one argument was passed
-    if len(sys.argv) < 2:
-        print_usage()
-        exit(0)
+    try:
+        # Assure at least one argument was passed
+        if len(sys.argv) < 2:
+            print_usage()
+            exit(0)
 
-    create_required_folders()
-    setup_loggers(stdout_loglevel=logging.INFO,
-                  file_loglevel=logging.DEBUG)
+        create_required_folders()
+        setup_loggers(stdout_loglevel=logging.INFO,
+                      file_loglevel=logging.DEBUG)
 
-    cli_args = " ".join(sys.argv[1:])
+        cli_args = " ".join(sys.argv[1:])
+        logger.debug(f"Used CLI Command: {PACKAGE_NAME} {cli_args}")
+        logger.debug(f"Python version: {sys.version}")
+        logger.debug(f"Package version: {PACKAGE_VERSION}")
+        logger.debug(f"OS: {sys.platform}")
 
-    logger.debug(f"Used CLI Command: {PACKAGE_NAME} {cli_args}")
-    logger.debug(f"Python version: {sys.version}")
-    logger.debug(f"Package version: {PACKAGE_VERSION}")
-    logger.debug(f"OS: {sys.platform}")
+        config = generate_config()
+        update_settings(config)
 
-    config = generate_config()
-    update_settings(config)
+        if config.general.get("check-for-updates", True):
+            check_for_updates(current_package_version=PACKAGE_VERSION)
 
-    if config.general.get("check-for-updates", True):
-        check_for_updates(current_package_version=PACKAGE_VERSION)
+        urls = single_to_list(sys.argv[1:])
+        download(urls=urls, config=config)
 
+    except Exception as ex:
+        logger.error(f"Error: {ex}")
+        logger.debug(f"Stack trace: {ex}", exc_info=True)
+        exit(1)
+
+    finally:
+        if log_rotation_size := LOG_ROTATION_SIZE:
+            handle_log_rotation(log_rotation_size=log_rotation_size)
+
+        scraper_factory = ScraperFactory()
+
+        # NOTE: This will only close scrapers that were initialized using the ScraperFactory.
+        for scraper in scraper_factory.get_initialized_scrapers():
+            scraper.close()
+
+
+def download(urls: list[str], config: Config) -> None:
+    """
+    Download subtitles from a given URL.
+
+    Args:
+        urls (list[str]): A list of URLs to download subtitles from.
+        config (Config): A config to use for downloading subtitles.
+    """
     scraper_factory = ScraperFactory()
 
-    for url in sys.argv[1:]:
-        logger.info(f"Scraping '{url}'...")
+    for url in urls:
+        try:
+            logger.info(f"Scraping '{url}'...")
 
-        scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
-        atexit.register(scraper.close)
-        scraper.config.check()  # Recheck config after scraper settings were loaded
+            scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
+            atexit.register(scraper.close)
+            scraper.config.check()  # Recheck config after scraper settings were loaded
 
-        scraper_response: ScrapedMediaResponse = scraper.get_data(url=url)
-        media_data: List[MediaBase] = single_to_list(scraper_response.media_data)
-        playlist_scraper = scraper_factory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
-                                                                config_data=config.data.get("scrapers"))
-
-        if not media_data:
-            logger.error(f"Error: No supported media was found for {url}.")
-            continue
-
-        for media_item in media_data:
             try:
-                download_media(scraper=playlist_scraper, media_item=media_item, config=config)
+                scraper_response: ScrapedMediaResponse = scraper.get_data(url=url)
 
-            except Exception as e:
-                logger.error(f"Error: Encountered an error while scraping '{url}': {e}")
-                logger.debug(f"Error details: {e}", exc_info=True)
+            except ScraperError as e:
+                logger.error(f"Error: {e}")
+                logger.debug("Debug information:", exc_info=True)
                 continue
+
+            media_data: List[MediaBase] = single_to_list(scraper_response.media_data)
+            playlist_scraper = scraper_factory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
+                                                                    config_data=config.data.get("scrapers"))
+
+            if not media_data:
+                logger.error(f"Error: No supported media was found for {url}.")
+                continue
+
+            for media_item in media_data:
+                try:
+                    object_type_str = media_item.__class__.__name__.lower()
+
+                    logger.info(f"Found {object_type_str}: {generate_media_description(media_data=media_item)}")
+                    download_media(scraper=playlist_scraper, media_item=media_item, config=config)
+
+                except Exception as e:
+                    if len(media_data) > 1:
+                        logger.warning(f"Error scraping media item "
+                                       f"'{generate_media_description(media_data=media_item)}': {e}\n"
+                                       f"Skipping to next media item...")
+                        logger.debug("Debug information:", exc_info=True)
+                        continue
+
+                    raise
+
+        except Exception as e:
+            logger.error(f"Error while scraping '{url}': {e}")
+            logger.debug("Debug information:", exc_info=True)
+            continue
 
 
 def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> None:
@@ -191,31 +239,16 @@ def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> N
         media_item (MediaData): A media data item to download subtitles for.
         config (Config): A config to use for downloading subtitles.
     """
-    if isinstance(media_item, Movie):
-        release_year = (
-            media_item.release_date.year
-            if isinstance(media_item.release_date, dt.datetime)
-            else media_item.release_date
-        )
-        id_str = f" (ID: {media_item.id})" if media_item.id else ""
-        logger.info(f"Found movie: {media_item.name} [{release_year}]" + id_str)
+    if isinstance(media_item, Series):
+        for season in media_item.seasons:
+            download_media(scraper=scraper, media_item=season, config=config)
+            return
 
-    elif isinstance(media_item, Episode):
-        episode_name = f" - {media_item.episode_name}" if media_item.episode_name else ""
-        id_str = f" (ID: {media_item.id})" if media_item.id else ""
-        logger.info(f"Found episode: '{media_item.series_name}' - "
-                    f"S{media_item.season_number:02d}E{media_item.episode_number:02d}{episode_name}" + id_str)
-
-    else:
-        if isinstance(media_item, Season):
-            for episode in media_item.episodes:
-                download_media(scraper=scraper, media_item=episode, config=config)
-
-        elif isinstance(media_item, Series):
-            for season in media_item.seasons:
-                download_media(scraper=scraper, media_item=season, config=config)
-
-        return
+    if isinstance(media_item, Season):
+        for episode in media_item.episodes:
+            logger.info(f"{generate_media_description(media_data=episode)}:")
+            download_media(scraper=scraper, media_item=episode, config=config)
+            return
 
     if media_item.playlist:
         download_subtitles_kwargs = {
@@ -555,20 +588,4 @@ def setup_loggers(stdout_loglevel: int, file_loglevel: int) -> None:
 
 
 if __name__ == "__main__":
-    try:
-        main()
-
-    except Exception as ex:
-        logger.error(f"Error: {ex}")
-        logger.debug(f"Stack trace: {ex}", exc_info=True)
-        exit(1)
-
-    finally:
-        if _log_rotation_size := LOG_ROTATION_SIZE:
-            handle_log_rotation(log_rotation_size=_log_rotation_size)
-
-        _scraper_factory = ScraperFactory()
-
-        # Note: This will only close scrapers that were initialized using the ScraperFactory.
-        for _scraper in _scraper_factory.get_initialized_scrapers():
-            _scraper.close()
+    main()

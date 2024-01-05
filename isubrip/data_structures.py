@@ -183,7 +183,6 @@ class Series(MediaBase):
             Defaults to None.
         seasons (list[Season]): A list of season objects containing metadata about seasons of the series.
     """
-
     series_name: str
     seasons: List[Season] = []
     id: Optional[str] = None

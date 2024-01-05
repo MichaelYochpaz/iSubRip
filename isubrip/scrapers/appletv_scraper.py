@@ -160,7 +160,7 @@ class AppleTVScraper(HLSScraper):
         except HTTPError as e:
             if response.status_code == 404:
                 raise ScraperError(
-                    "Media not found. This could indicate that the provided URL is invalid."
+                    "Media not found. This could indicate that the provided URL is invalid.",
                 ) from e
 
             raise

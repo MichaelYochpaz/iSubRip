@@ -415,7 +415,7 @@ class ScraperFactory(metaclass=SingletonMeta):
 
             if scraper_class in self._currently_initializing:
                 raise ScraperError(f"'{scraper_class.name}' scraper is already being initialized.\n"
-                                       f"Make sure there are no circular dependencies between scrapers.")
+                                   f"Make sure there are no circular dependencies between scrapers.")
 
             self._currently_initializing.append(scraper_class)
 
