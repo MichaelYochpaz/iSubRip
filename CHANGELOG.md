@@ -1,4 +1,8 @@
 # Changelog
+## 2.5.2 [2024-01-06]
+### Bug Fixes
+* Fixed an issue where errors would not be handled gracefully, and cause an unexpected crash. ([Issue #55](https://github.com/MichaelYochpaz/iSubRip/issues/55))
+---
 ## 2.5.1 [2023-12-23]
 ### Bug Fixes
 * Fixed an issue where source abbreviation was missing from file names of downloaded subtitles files. ([Issue #53](https://github.com/MichaelYochpaz/iSubRip/issues/53))
