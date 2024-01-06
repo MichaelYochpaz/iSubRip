@@ -1,7 +1,7 @@
 # --- Poetry ---
 [tool.poetry]
 name = "isubrip"
-version = "2.5.1"
+version = "2.5.2"
 description = "A Python package for scraping and downloading subtitles from AppleTV / iTunes movie pages."
 license = "MIT"
 authors = ["Michael Yochpaz"]
