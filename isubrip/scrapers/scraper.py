@@ -117,13 +117,13 @@ class Scraper(ABC, metaclass=SingletonMeta):
         Raises:
             ValueError: If the URL doesn't match the regex and raise_error is True.
         """
-        if isinstance(cls.url_regex, re.Pattern):
-            return re.fullmatch(pattern=cls.url_regex, string=url)
+        if isinstance(cls.url_regex, re.Pattern) and (match_result := re.fullmatch(pattern=cls.url_regex, string=url)):
+            return match_result
 
-        # isinstance(cls.url_regex, list):
-        for url_regex_item in cls.url_regex:
-            if result := re.fullmatch(pattern=url_regex_item, string=url):
-                return result
+        if isinstance(cls.url_regex, list):
+            for url_regex_item in cls.url_regex:
+                if result := re.fullmatch(pattern=url_regex_item, string=url):
+                    return result
 
         if raise_error:
             raise ValueError(f"URL '{url}' doesn't match the URL regex of {cls.name}.")
@@ -269,7 +269,7 @@ class HLSScraper(AsyncScraper, ABC):
         """
         for url_item in single_to_list(url):
             try:
-                m3u8_data = self._session.get(url_item).text
+                m3u8_data = self._session.get(url=url_item).text
 
             except Exception as e:
                 logger.debug(f"Failed to load M3U8 playlist '{url_item}': {e}")
