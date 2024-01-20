@@ -268,6 +268,10 @@ class HLSScraper(AsyncScraper, ABC):
         for url_item in single_to_list(url):
             try:
                 m3u8_data = self._session.get(url_item).text
+
+                if not m3u8_data:
+                    raise PlaylistLoadError("Received empty response for playlist from server.")
+
                 return m3u8.loads(content=m3u8_data, uri=url_item)
 
             except Exception as e:
