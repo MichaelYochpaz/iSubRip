@@ -166,10 +166,8 @@ def main() -> None:
         if log_rotation_size := LOG_ROTATION_SIZE:
             handle_log_rotation(log_rotation_size=log_rotation_size)
 
-        scraper_factory = ScraperFactory()
-
         # NOTE: This will only close scrapers that were initialized using the ScraperFactory.
-        for scraper in scraper_factory.get_initialized_scrapers():
+        for scraper in ScraperFactory.get_initialized_scrapers():
             scraper.close()
 
 
@@ -181,14 +179,12 @@ def download(urls: list[str], config: Config) -> None:
         urls (list[str]): A list of URLs to download subtitles from.
         config (Config): A config to use for downloading subtitles.
     """
-    scraper_factory = ScraperFactory()
-
     for url in urls:
         try:
             logger.info(f"Scraping '{url}'...")
 
-            scraper = scraper_factory.get_scraper_instance(url=url,
-                                                           kwargs={"config_data": config.data.get("scrapers")})
+            scraper = ScraperFactory.get_scraper_instance(url=url,
+                                                          kwargs={"config_data": config.data.get("scrapers")})
             atexit.register(scraper.close)
             scraper.config.check()  # Recheck config after scraper settings were loaded
 
@@ -201,9 +197,9 @@ def download(urls: list[str], config: Config) -> None:
                 continue
 
             media_data: List[MediaBase] = single_to_list(scraper_response.media_data)
-            playlist_scraper = scraper_factory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
-                                                                    kwargs={"config_data": config.data.get("scrapers")},
-                                                                    extract_scraper_config=True)
+            playlist_scraper = ScraperFactory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
+                                                                   kwargs={"config_data": config.data.get("scrapers")},
+                                                                   extract_scraper_config=True)
 
             if not media_data:
                 logger.error(f"Error: No supported media was found for {url}.")

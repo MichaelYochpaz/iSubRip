@@ -359,32 +359,33 @@ class HLSScraper(AsyncScraper, ABC):
         return results
 
 
-class ScraperFactory(metaclass=SingletonMeta):
-    def __init__(self) -> None:
-        self._scraper_classes_cache: list[type[Scraper]] | None = None
-        self._scraper_instances_cache: dict[type[Scraper], Scraper] = {}
-        self._currently_initializing: list[type[Scraper]] = []  # Used to prevent infinite recursion
+class ScraperFactory:
+    _scraper_classes_cache: list[type[Scraper]] | None = None
+    _scraper_instances_cache: dict[type[Scraper], Scraper] = {}
+    _currently_initializing: list[type[Scraper]] = []  # Used to prevent infinite recursion
 
-    def get_initialized_scrapers(self) -> list[Scraper]:
+    @classmethod
+    def get_initialized_scrapers(cls) -> list[Scraper]:
         """
         Get a list of all previously initialized scrapers.
 
         Returns:
             list[Scraper]: A list of initialized scrapers.
         """
-        return list(self._scraper_instances_cache.values())
+        return list(cls._scraper_instances_cache.values())
 
-    def get_scraper_classes(self) -> list[type[Scraper]]:
+    @classmethod
+    def get_scraper_classes(cls) -> list[type[Scraper]]:
         """
         Find all scraper classes in the scrapers directory.
 
         Returns:
             list[Scraper]: A Scraper subclass.
         """
-        if self._scraper_classes_cache is not None:
-            return self._scraper_classes_cache
+        if cls._scraper_classes_cache is not None:
+            return cls._scraper_classes_cache
 
-        self._scraper_classes_cache = []
+        cls._scraper_classes_cache = []
         scraper_modules_paths = Path(__file__).parent.glob(f"*{SCRAPER_MODULES_SUFFIX}.py")
 
         for scraper_module_path in scraper_modules_paths:
@@ -397,11 +398,12 @@ class ScraperFactory(metaclass=SingletonMeta):
                                              predicate=lambda x: inspect.isclass(x) and issubclass(x, Scraper)):
                 # Skip object if it's an abstract or imported from another module
                 if not inspect.isabstract(obj) and obj.__module__ == module.__name__:
-                    self._scraper_classes_cache.append(obj)
+                    cls._scraper_classes_cache.append(obj)
 
-        return self._scraper_classes_cache
+        return cls._scraper_classes_cache
 
-    def _get_scraper_instance(self, scraper_class: type[ScraperT], kwargs: dict | None = None,
+    @classmethod
+    def _get_scraper_instance(cls, scraper_class: type[ScraperT], kwargs: dict | None = None,
                               extract_scraper_config: bool = False) -> ScraperT:
         """
         Initialize and return a scraper instance.
@@ -419,14 +421,14 @@ class ScraperFactory(metaclass=SingletonMeta):
         logger.debug(f"Initializing '{scraper_class.name}' scraper...")
         kwargs = kwargs or {}
 
-        if scraper_class not in self._scraper_instances_cache:
+        if scraper_class not in cls._scraper_instances_cache:
             logger.debug(f"'{scraper_class.name}' scraper not found in cache, creating a new instance...")
 
-            if scraper_class in self._currently_initializing:
+            if scraper_class in cls._currently_initializing:
                 raise ScraperError(f"'{scraper_class.name}' scraper is already being initialized.\n"
                                    f"Make sure there are no circular dependencies between scrapers.")
 
-            self._currently_initializing.append(scraper_class)
+            cls._currently_initializing.append(scraper_class)
 
             if extract_scraper_config:
                 if kwargs.get("config_data"):
@@ -439,40 +441,45 @@ class ScraperFactory(metaclass=SingletonMeta):
                 else:
                     kwargs["config_data"] = None
 
-            self._scraper_instances_cache[scraper_class] = scraper_class(**kwargs)
-            self._currently_initializing.remove(scraper_class)
+            cls._scraper_instances_cache[scraper_class] = scraper_class(**kwargs)
+            cls._currently_initializing.remove(scraper_class)
 
         else:
             logger.debug(f"Cached '{scraper_class.name}' scraper instance found and will be used.")
 
-        return self._scraper_instances_cache[scraper_class]  # type: ignore[return-value]
+        return cls._scraper_instances_cache[scraper_class]  # type: ignore[return-value]
 
+    @classmethod
     @overload
-    def get_scraper_instance(self, scraper_class: type[ScraperT], scraper_id: str | None = ...,
+    def get_scraper_instance(cls, scraper_class: type[ScraperT], scraper_id: str | None = ...,
                              url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
                              raise_error: Literal[True] = ...) -> ScraperT:
         ...
 
+    @classmethod
     @overload
-    def get_scraper_instance(self, scraper_class: type[ScraperT], scraper_id: str | None = ...,
+    def get_scraper_instance(cls, scraper_class: type[ScraperT], scraper_id: str | None = ...,
                              url: str | None = ..., kwargs: dict | None = ...,
                              extract_scraper_config: bool = ...,
                              raise_error: Literal[False] = ...) -> ScraperT | None:
         ...
 
+    @classmethod
     @overload
-    def get_scraper_instance(self, scraper_class: None = ..., scraper_id: str | None = ...,
+    def get_scraper_instance(cls, scraper_class: None = ..., scraper_id: str | None = ...,
                              url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
                              raise_error: Literal[True] = ...) -> Scraper:
         ...
 
+    @classmethod
     @overload
-    def get_scraper_instance(self, scraper_class: None = ..., scraper_id: str | None = ...,
+    def get_scraper_instance(cls, scraper_class: None = ..., scraper_id: str | None = ...,
                              url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
                              raise_error: Literal[False] = ...) -> Scraper | None:
         ...
 
-    def get_scraper_instance(self, scraper_class: type[Scraper] | None = None, scraper_id: str | None = None,
+    @classmethod
+    def get_scraper_instance(cls, scraper_class: type[Scraper] | None = None, scraper_id: str | None = None,
                              url: str | None = None, kwargs: dict | None = None, extract_scraper_config: bool = False,
                              raise_error: bool = True) -> Scraper | None:
         """
@@ -495,23 +502,23 @@ class ScraperFactory(metaclass=SingletonMeta):
             ValueError: If no scraper was found and raise_error is True.
         """
         if scraper_class:
-            return self._get_scraper_instance(scraper_class=scraper_class, kwargs=kwargs,
-                                              extract_scraper_config=extract_scraper_config)
+            return cls._get_scraper_instance(scraper_class=scraper_class, kwargs=kwargs,
+                                             extract_scraper_config=extract_scraper_config)
 
         if not (scraper_id or url):
             raise ValueError("At least one of: 'scraper_class', 'scraper_id', or 'url' must be provided.")
 
         if scraper_id:
             logger.debug(f"Searching for a scraper object with ID '{scraper_id}'...")
-            for scraper in self.get_scraper_classes():
+            for scraper in cls.get_scraper_classes():
                 if scraper.id == scraper_id:
-                    return self._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
+                    return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
 
         elif url:
             logger.debug(f"Searching for a scraper object that matches URL '{url}'...")
-            for scraper in self.get_scraper_classes():
+            for scraper in cls.get_scraper_classes():
                 if scraper.match_url(url) is not None:
-                    return self._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
+                    return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
 
         if raise_error:
             raise ValueError(f"No matching scraper was found for URL '{url}'")
