@@ -78,8 +78,8 @@ class AppleTVScraper(HLSScraper):
         PRIME_VIDEO = "tvs.sbd.12962"
         STARZ = "tvs.sbd.1000308"
 
-    def __init__(self, config_data: dict | None = None):
-        super().__init__(config_data=config_data)
+    def __init__(self, user_agent: str | None = None, config_data: dict | None = None):
+        super().__init__(user_agent=user_agent, config_data=config_data)
         self._config_data = config_data
         self._storefront_locale_mapping_cache: dict[str, str] = {}
 
@@ -315,7 +315,7 @@ class AppleTVScraper(HLSScraper):
         raise NotImplementedError("Series scraping is not currently supported.")
 
     def get_data(self, url: str) -> ScrapedMediaResponse[MediaData]:
-        regex_match = self.match_url(url, raise_error=True)
+        regex_match = self.match_url(url=url, raise_error=True)
         url_data = regex_match.groupdict()
 
         media_type = url_data["media_type"]

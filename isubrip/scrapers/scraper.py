@@ -69,11 +69,12 @@ class Scraper(ABC, metaclass=SingletonMeta):
     is_series_scraper: ClassVar[bool] = False
     uses_scrapers: ClassVar[list[str]] = []
 
-    def __init__(self, config_data: dict | None = None):
+    def __init__(self, user_agent: str | None = None, config_data: dict | None = None):
         """
         Initialize a Scraper object.
 
         Args:
+            user_agent (str | None, optional): A user agent to use when making requests. Defaults to None.
             config_data (dict | None, optional): A dictionary containing scraper's configuration data. Defaults to None.
         """
         self._session = requests.Session()
@@ -88,7 +89,8 @@ class Scraper(ABC, metaclass=SingletonMeta):
             )],
             check_config=False)
 
-        self._session.headers.update({"User-Agent": self.config.get("user-agent") or self.default_user_agent})
+        self._user_agent = user_agent or self.config.get("user-agent") or self.default_user_agent
+        self._session.headers.update({"User-Agent": self._user_agent})
 
     @classmethod
     @overload
@@ -170,8 +172,8 @@ class Scraper(ABC, metaclass=SingletonMeta):
 
 class AsyncScraper(Scraper, ABC):
     """A base class for scrapers that utilize async requests."""
-    def __init__(self, config_data: dict | None = None):
-        super().__init__(config_data)
+    def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
+        super().__init__(user_agent=user_agent, config_data=config_data)
         self.async_session = aiohttp.ClientSession()
         self.async_session.headers.update(self._session.headers)
 
@@ -206,8 +208,8 @@ class HLSScraper(AsyncScraper, ABC):
         STABLE_RENDITION_ID = "stable-rendition-id"
         TYPE = "type"
 
-    def __init__(self, config_data: dict | None = None):
-        super().__init__(config_data)
+    def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
+        super().__init__(user_agent=user_agent, config_data=config_data)
 
         if self.config is None:
             self.config = Config()
@@ -269,14 +271,14 @@ class HLSScraper(AsyncScraper, ABC):
             try:
                 m3u8_data = self._session.get(url_item).text
 
-                if not m3u8_data:
-                    raise PlaylistLoadError("Received empty response for playlist from server.")
-
-                return m3u8.loads(content=m3u8_data, uri=url_item)
-
             except Exception as e:
                 logger.debug(f"Failed to load M3U8 playlist '{url_item}': {e}")
                 continue
+
+            if not m3u8_data:
+                raise PlaylistLoadError("Received empty response for playlist from server.")
+
+            return m3u8.loads(content=m3u8_data, uri=url_item)
 
         return None
 
@@ -399,20 +401,23 @@ class ScraperFactory(metaclass=SingletonMeta):
 
         return self._scraper_classes_cache
 
-    def _get_scraper_instance(self, scraper_class: type[ScraperT],
-                              scrapers_config_data: dict | None = None) -> ScraperT:
+    def _get_scraper_instance(self, scraper_class: type[ScraperT], kwargs: dict | None = None,
+                              extract_scraper_config: bool = False) -> ScraperT:
         """
         Initialize and return a scraper instance.
 
         Args:
             scraper_class (type[ScraperT]): A scraper class to initialize.
-            scrapers_config_data (dict, optional): A dictionary containing scrapers config data to use
-                when creating a new scraper. Defaults to None.
+            kwargs (dict | None, optional): A dictionary containing parameters to pass to the scraper's constructor.
+                Defaults to None.
+            extract_scraper_config (bool, optional): Whether the passed 'config_data' (within kwargs)
+                is a main config dictionary, and scraper's config should be extracted from it. Defaults to False.
 
         Returns:
             Scraper: An instance of the given scraper class.
         """
         logger.debug(f"Initializing '{scraper_class.name}' scraper...")
+        kwargs = kwargs or {}
 
         if scraper_class not in self._scraper_instances_cache:
             logger.debug(f"'{scraper_class.name}' scraper not found in cache, creating a new instance...")
@@ -423,17 +428,18 @@ class ScraperFactory(metaclass=SingletonMeta):
 
             self._currently_initializing.append(scraper_class)
 
-            # Set config data for the scraper and its dependencies, if any
-            if not scrapers_config_data:
-                config_data = None
+            if extract_scraper_config:
+                if kwargs.get("config_data"):
+                    required_scrapers_ids = [scraper_class.id, *scraper_class.uses_scrapers]
+                    kwargs["config_data"] = (
+                        {scraper_id: kwargs["config_data"][scraper_id] for scraper_id in required_scrapers_ids
+                         if kwargs["config_data"].get(scraper_id)}
+                    )
 
-            else:
-                required_scrapers_ids = [scraper_class.id, *scraper_class.uses_scrapers]
-                config_data = \
-                    {scraper_id: scrapers_config_data[scraper_id] for scraper_id in required_scrapers_ids
-                     if scrapers_config_data.get(scraper_id)}
+                else:
+                    kwargs["config_data"] = None
 
-            self._scraper_instances_cache[scraper_class] = scraper_class(config_data=config_data)
+            self._scraper_instances_cache[scraper_class] = scraper_class(**kwargs)
             self._currently_initializing.remove(scraper_class)
 
         else:
@@ -443,30 +449,31 @@ class ScraperFactory(metaclass=SingletonMeta):
 
     @overload
     def get_scraper_instance(self, scraper_class: type[ScraperT], scraper_id: str | None = ...,
-                             url: str | None = ..., config_data: dict | None = ...,
+                             url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
                              raise_error: Literal[True] = ...) -> ScraperT:
         ...
 
     @overload
     def get_scraper_instance(self, scraper_class: type[ScraperT], scraper_id: str | None = ...,
-                             url: str | None = ..., config_data: dict | None = ...,
+                             url: str | None = ..., kwargs: dict | None = ...,
+                             extract_scraper_config: bool = ...,
                              raise_error: Literal[False] = ...) -> ScraperT | None:
         ...
 
     @overload
     def get_scraper_instance(self, scraper_class: None = ..., scraper_id: str | None = ...,
-                             url: str | None = ..., config_data: dict | None = ...,
+                             url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
                              raise_error: Literal[True] = ...) -> Scraper:
         ...
 
     @overload
     def get_scraper_instance(self, scraper_class: None = ..., scraper_id: str | None = ...,
-                             url: str | None = ..., config_data: dict | None = ...,
+                             url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
                              raise_error: Literal[False] = ...) -> Scraper | None:
         ...
 
     def get_scraper_instance(self, scraper_class: type[Scraper] | None = None, scraper_id: str | None = None,
-                             url: str | None = None, config_data: dict | None = None,
+                             url: str | None = None, kwargs: dict | None = None, extract_scraper_config: bool = False,
                              raise_error: bool = True) -> Scraper | None:
         """
         Find, initialize and return a scraper that matches the given URL or ID.
@@ -475,8 +482,9 @@ class ScraperFactory(metaclass=SingletonMeta):
             scraper_class (type[ScraperT] | None, optional): A scraper class to initialize. Defaults to None.
             scraper_id (str | None, optional): ID of a scraper to initialize. Defaults to None.
             url (str | None, optional): A URL to match a scraper for to initialize. Defaults to None.
-            config_data (dict, optional): A dictionary containing scrapers config data to use
-                when creating a new scraper. Defaults to None.
+            kwargs (dict | None, optional): A dictionary containing parameters to pass to the scraper's constructor.
+                Defaults to None.
+            extract_scraper_config (bool, optional): Whether the passed 'config_data' (within kwargs)
             raise_error (bool, optional): Whether to raise an error if no scraper was found. Defaults to False.
 
         Returns:
@@ -487,8 +495,8 @@ class ScraperFactory(metaclass=SingletonMeta):
             ValueError: If no scraper was found and raise_error is True.
         """
         if scraper_class:
-            return self._get_scraper_instance(scraper_class=scraper_class,
-                                              scrapers_config_data=config_data)
+            return self._get_scraper_instance(scraper_class=scraper_class, kwargs=kwargs,
+                                              extract_scraper_config=extract_scraper_config)
 
         if not (scraper_id or url):
             raise ValueError("At least one of: 'scraper_class', 'scraper_id', or 'url' must be provided.")
@@ -497,13 +505,13 @@ class ScraperFactory(metaclass=SingletonMeta):
             logger.debug(f"Searching for a scraper object with ID '{scraper_id}'...")
             for scraper in self.get_scraper_classes():
                 if scraper.id == scraper_id:
-                    return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
+                    return self._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
 
         elif url:
             logger.debug(f"Searching for a scraper object that matches URL '{url}'...")
             for scraper in self.get_scraper_classes():
                 if scraper.match_url(url) is not None:
-                    return self._get_scraper_instance(scraper_class=scraper, scrapers_config_data=config_data)
+                    return self._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
 
         if raise_error:
             raise ValueError(f"No matching scraper was found for URL '{url}'")

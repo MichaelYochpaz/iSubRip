@@ -26,10 +26,10 @@ class ItunesScraper(HLSScraper):
     is_movie_scraper = True
     uses_scrapers = ["appletv"]
 
-    def __init__(self, config_data: dict | None = None):
-        super().__init__(config_data=config_data)
+    def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
+        super().__init__(user_agent=user_agent, config_data=config_data)
         self._appletv_scraper = ScraperFactory().get_scraper_instance(scraper_id="appletv",
-                                                                      config_data=self._config_data,
+                                                                      kwargs={"config_data": self._config_data},
                                                                       raise_error=True)
 
     def get_data(self, url: str) -> ScrapedMediaResponse[Movie]:

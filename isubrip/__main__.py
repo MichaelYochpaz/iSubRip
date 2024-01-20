@@ -187,7 +187,8 @@ def download(urls: list[str], config: Config) -> None:
         try:
             logger.info(f"Scraping '{url}'...")
 
-            scraper = scraper_factory.get_scraper_instance(url=url, config_data=config.data.get("scrapers"))
+            scraper = scraper_factory.get_scraper_instance(url=url,
+                                                           kwargs={"config_data": config.data.get("scrapers")})
             atexit.register(scraper.close)
             scraper.config.check()  # Recheck config after scraper settings were loaded
 
@@ -201,7 +202,8 @@ def download(urls: list[str], config: Config) -> None:
 
             media_data: List[MediaBase] = single_to_list(scraper_response.media_data)
             playlist_scraper = scraper_factory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
-                                                                    config_data=config.data.get("scrapers"))
+                                                                    kwargs={"config_data": config.data.get("scrapers")},
+                                                                    extract_scraper_config=True)
 
             if not media_data:
                 logger.error(f"Error: No supported media was found for {url}.")
