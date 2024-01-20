@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import atexit
 import logging
 from pathlib import Path
 import shutil
@@ -38,6 +37,7 @@ from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
 from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperError, ScraperFactory
 from isubrip.subtitle_formats.webvtt import Caption as WebVTTCaption
 from isubrip.utils import (
+    TempDirGenerator,
     download_subtitles_to_file,
     generate_media_description,
     generate_non_conflicting_path,
@@ -138,9 +138,10 @@ def main() -> None:
             print_usage()
             exit(0)
 
-        create_required_folders()
         setup_loggers(stdout_loglevel=logging.INFO,
                       file_loglevel=logging.DEBUG)
+
+        generate_project_folders()
 
         cli_args = " ".join(sys.argv[1:])
         logger.debug(f"Used CLI Command: {PACKAGE_NAME} {cli_args}")
@@ -170,6 +171,8 @@ def main() -> None:
         for scraper in ScraperFactory.get_initialized_scrapers():
             scraper.close()
 
+        TempDirGenerator.cleanup()
+
 
 def download(urls: list[str], config: Config) -> None:
     """
@@ -185,7 +188,6 @@ def download(urls: list[str], config: Config) -> None:
 
             scraper = ScraperFactory.get_scraper_instance(url=url,
                                                           kwargs={"config_data": config.data.get("scrapers")})
-            atexit.register(scraper.close)
             scraper.config.check()  # Recheck config after scraper settings were loaded
 
             try:
@@ -324,16 +326,15 @@ def check_for_updates(current_package_version: str) -> None:
         return
 
 
-def create_required_folders() -> None:
+def generate_project_folders() -> None:
     if not DATA_FOLDER_PATH.is_dir():
         logger.debug(f"'{DATA_FOLDER_PATH}' directory could not be found and will be created.")
         LOG_FILES_PATH.mkdir(parents=True, exist_ok=True)
 
-    else:
+    else:  # LOG_FILES_PATH is inside DATA_FOLDER_PATH
         if not LOG_FILES_PATH.is_dir():
             logger.debug(f"'{LOG_FILES_PATH}' directory could not be found and will be created.")
             LOG_FILES_PATH.mkdir()
-
 
 def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_path: Path,
                        language_filter: list[str] | None = None, convert_to_srt: bool = False,
@@ -355,10 +356,8 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
     Returns:
         SubtitlesDownloadResults: A SubtitlesDownloadResults object containing the results of the download.
     """
-    temp_download_path = generate_media_path(base_path=TEMP_FOLDER_PATH,
-                                             media_data=media_data,
-                                             source=scraper.abbreviation)
-    atexit.register(shutil.rmtree, TEMP_FOLDER_PATH, ignore_errors=False, onerror=None)
+    temp_dir_name = generate_media_folder_name(media_data=media_data, source=scraper.abbreviation)
+    temp_download_path = TempDirGenerator.generate(directory_name=temp_dir_name)
 
     successful_downloads: list[SubtitlesData] = []
     failed_downloads: list[SubtitlesData] = []
@@ -418,9 +417,6 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
             destination_path = generate_non_conflicting_path(download_path / file_name)
 
         shutil.move(src=str(archive_path), dst=destination_path)
-
-    shutil.rmtree(temp_download_path)
-    atexit.unregister(shutil.rmtree)
 
     return SubtitlesDownloadResults(
         movie_data=media_data,
@@ -517,12 +513,11 @@ def generate_media_folder_name(media_data: Movie | Episode, source: str | None =
     )
 
 
-def generate_media_path(base_path: Path, media_data: Movie | Episode, source: str | None = None) -> Path:
+def generate_temp_media_path(media_data: Movie | Episode, source: str | None = None) -> Path:
     """
-    Generate a temporary folder for downloading media data.
+    Generate a temporary directory for downloading media data.
 
     Args:
-        base_path (Path): A base path to generate the folder in.
         media_data (Movie | Episode): A movie or episode data object.
         source (str | None, optional): Abbreviation of the source to use for file names. Defaults to None.
 
@@ -530,10 +525,9 @@ def generate_media_path(base_path: Path, media_data: Movie | Episode, source: st
         Path: A path to the temporary folder.
     """
     temp_folder_name = generate_media_folder_name(media_data=media_data, source=source)
-    path = generate_non_conflicting_path(base_path / temp_folder_name, has_extension=False)
-    path.mkdir(parents=True, exist_ok=True)
+    path = generate_non_conflicting_path(file_path=TEMP_FOLDER_PATH / temp_folder_name, has_extension=False)
 
-    return path
+    return TempDirGenerator.generate(directory_name=path.name)
 
 
 def update_settings(config: Config) -> None:
