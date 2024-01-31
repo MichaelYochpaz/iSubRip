@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 import datetime as dt
+from functools import lru_cache
 from pathlib import Path
 import re
 import secrets
@@ -303,6 +304,7 @@ def generate_non_conflicting_path(file_path: str | Path, has_extension: bool = T
         i += 1
 
 
+@lru_cache
 def generate_release_name(title: str,
                           release_date: dt.datetime | int | None = None,
                           season_number: int | None = None,
@@ -333,7 +335,7 @@ def generate_release_name(title: str,
     Returns:
         str: Generated file name.
     """
-    file_name = standardize_title(title)
+    file_name = standardize_title(title).rstrip('.')
 
     if release_date is not None:
         if isinstance(release_date, dt.datetime):
@@ -344,14 +346,11 @@ def generate_release_name(title: str,
 
         file_name += f".{release_year}"
 
-    if season_number is not None:
-        file_name += f".S{season_number:02}"
-
-    if episode_number is not None:
-        file_name += f".E{episode_number:02}"
+    if season_number is not None and episode_number is not None:
+        file_name += f".S{season_number:02}E{episode_number:02}"
 
     if episode_name is not None:
-        file_name += f".{standardize_title(episode_name)}"
+        file_name += f".{standardize_title(episode_name).rstrip('.')}"
 
     if media_source is not None:
         file_name += f".{media_source}"
@@ -502,6 +501,7 @@ def split_subtitles_timestamp(timestamp: str) -> tuple[dt.time, dt.time]:
     return dt.time.fromisoformat(start_time), dt.time.fromisoformat(end_time)
 
 
+@lru_cache
 def standardize_title(title: str) -> str:
     """
     Format movie title to a standardized title that can be used as a file name.
@@ -528,6 +528,7 @@ def standardize_title(title: str) -> str:
         (' ', '.'),
         ('|', '.'),
         ('/', '.'),
+        ('…', '.'),
         ('<', ''),
         ('>', ''),
         ('(', ''),
