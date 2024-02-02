@@ -242,13 +242,13 @@ def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> N
     if isinstance(media_item, Series):
         for season in media_item.seasons:
             download_media(scraper=scraper, media_item=season, config=config)
-            return
+        return
 
     if isinstance(media_item, Season):
         for episode in media_item.episodes:
             logger.info(f"{generate_media_description(media_data=episode)}:")
             download_media(scraper=scraper, media_item=episode, config=config)
-            return
+        return
 
     if media_item.playlist:
         download_subtitles_kwargs = {
