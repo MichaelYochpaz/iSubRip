@@ -246,7 +246,7 @@ def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> N
 
     if isinstance(media_item, Season):
         for episode in media_item.episodes:
-            logger.info(f"{generate_media_description(media_data=episode)}:")
+            logger.info(f"{generate_media_description(media_data=episode, shortened=True)}:")
             download_media(scraper=scraper, media_item=episode, config=config)
         return
 

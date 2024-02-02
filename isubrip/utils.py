@@ -209,12 +209,13 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
     return file_path
 
 
-def generate_media_description(media_data: MediaBase) -> str:
+def generate_media_description(media_data: MediaBase, shortened: bool = False) -> str:
     """
     Generate a short description string of a media object.
 
     Args:
         media_data (MediaBase): An object containing media data.
+        shortened (bool, optional): Whether to generate a shortened description. Defaults to False.
 
     Returns:
         str: A short description string of the media object.
@@ -248,7 +249,11 @@ def generate_media_description(media_data: MediaBase) -> str:
         return description_str
 
     if isinstance(media_data, Season):
-        description_str = f"{media_data.series_name} - Season {media_data.season_number:02d}"
+        if shortened:
+            description_str = f"Season {media_data.season_number:02d}"
+
+        else:
+            description_str = f"{media_data.series_name} - Season {media_data.season_number:02d}"
 
         if media_data.season_name:
             description_str += f" - {media_data.season_name}"
@@ -259,7 +264,12 @@ def generate_media_description(media_data: MediaBase) -> str:
         return description_str
 
     if isinstance(media_data, Episode):
-        description_str = f"{media_data.series_name} - S{media_data.season_number:02d}E{media_data.episode_number:02d}"
+        if shortened:
+            description_str = f"S{media_data.season_number:02d}E{media_data.episode_number:02d}"
+
+        else:
+            description_str = (f"{media_data.series_name} - "
+                               f"S{media_data.season_number:02d}E{media_data.episode_number:02d}")
 
         if media_data.episode_name:
             description_str += f" - {media_data.episode_name}"
