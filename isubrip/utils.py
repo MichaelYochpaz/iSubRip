@@ -188,7 +188,7 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
                                           subtitles_type=subtitles_data.special_type,
                                           file_format=subtitles_data.subtitles_format)
     else:  # isinstance(media_data, Episode):
-        file_name = generate_release_name(title=media_data.name,
+        file_name = generate_release_name(title=media_data.series_name,
                                           release_date=media_data.release_date,
                                           season_number=media_data.season_number,
                                           episode_number=media_data.episode_number,
