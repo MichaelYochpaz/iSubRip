@@ -195,13 +195,13 @@ class ScrapedMediaResponse(BaseModel, Generic[MediaData]):
     An object containing scraped media data and metadata.
 
     Attributes:
-        media_data (Movie | list[Movie] | Episode | list[Episode] | Season | list[Season] | Series | list[Series]):
+        media_data (list[Movie] | list[Episode] | list[Season] | list[Series]):
             An object containing the scraped media data.
         metadata_scraper (str): ID of the scraper that was used to scrape metadata.
         playlist_scraper (str): ID of the scraper that should be used to parse and scrape the playlist.
         original_data (dict): Original raw data from the API that was used to extract media's data.
     """
-    media_data: Union[MediaData, List[MediaData]]
+    media_data: List[MediaData]
     metadata_scraper: str
     playlist_scraper: str
     original_data: dict

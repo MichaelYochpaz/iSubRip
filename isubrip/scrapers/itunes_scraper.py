@@ -82,7 +82,7 @@ class ItunesScraper(HLSScraper):
     def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | str | None = None,
                       subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
         playlist_filters = {self.M3U8Attribute.LANGUAGE.value: language_filter} if language_filter else None
-        main_playlist_m3u8 = self.load_m3u8(main_playlist)
+        main_playlist_m3u8 = self.load_m3u8(url=main_playlist)
 
         if main_playlist_m3u8 is None:
             raise PlaylistLoadError("Could not load M3U8 playlist.")

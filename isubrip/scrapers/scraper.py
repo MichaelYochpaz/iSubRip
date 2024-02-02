@@ -187,7 +187,7 @@ class AsyncScraper(Scraper, ABC):
 
 class HLSScraper(AsyncScraper, ABC):
     """A base class for HLS (m3u8) scrapers."""
-    playlist_filters_config_category = "playlist-filters"
+    _playlist_filters_config_category = "playlist-filters"
 
     class M3U8Attribute(Enum):
         """
@@ -217,7 +217,7 @@ class HLSScraper(AsyncScraper, ABC):
         # Add M3U8 filters settings
         self.config.add_settings([
             ConfigSetting(
-                category=self.playlist_filters_config_category,
+                category=self._playlist_filters_config_category,
                 key=m3u8_attribute.value,
                 type=Union[str, List[str]],
                 required=False,
@@ -255,7 +255,7 @@ class HLSScraper(AsyncScraper, ABC):
 
         return segment
 
-    def load_m3u8(self, url: str | list[str]) -> M3U8 | None:
+    def load_m3u8(self, url: str | list[str], headers: dict | None = None) -> M3U8 | None:
         """
         Load an M3U8 playlist from a URL to an M3U8 object.
         Multiple URLs can be given, in which case the first one that loads successfully will be returned.
@@ -263,22 +263,26 @@ class HLSScraper(AsyncScraper, ABC):
 
         Args:
             url (str | list[str]): URL of the M3U8 playlist to load. Can also be a list of URLs (for redundancy).
+            headers (dict | None, optional): A dictionary of headers to use when making the request.
+                Defaults to None (results in using session's configured headers).
 
         Returns:
             m3u8.M3U8: An M3U8 object representing the playlist.
         """
+        _headers = headers or self._session.headers
+
         for url_item in single_to_list(url):
             try:
-                m3u8_data = self._session.get(url=url_item).text
+                response = self._session.get(url=url_item, headers=_headers)
 
             except Exception as e:
                 logger.debug(f"Failed to load M3U8 playlist '{url_item}': {e}")
                 continue
 
-            if not m3u8_data:
+            if not response.text:
                 raise PlaylistLoadError("Received empty response for playlist from server.")
 
-            return m3u8.loads(content=m3u8_data, uri=url_item)
+            return m3u8.loads(content=response.text, uri=url_item)
 
         return None
 
@@ -320,7 +324,7 @@ class HLSScraper(AsyncScraper, ABC):
             list[Media]: A list of  matching Media objects.
         """
         results = []
-        default_filters: dict | None = self.config.get(HLSScraper.playlist_filters_config_category)
+        default_filters: dict | None = self.config.get(self._playlist_filters_config_category)
 
         if include_default_filters and default_filters:
             if not playlist_filters:
@@ -520,10 +524,12 @@ class ScraperFactory:
                 if scraper.match_url(url) is not None:
                     return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
 
-        if raise_error:
-            raise ValueError(f"No matching scraper was found for URL '{url}'")
+        error_message = "No matching scraper was found."
 
-        logger.debug("No matching scraper was found.")
+        if raise_error:
+            raise ValueError(error_message)
+
+        logger.debug(error_message)
         return None
 
 

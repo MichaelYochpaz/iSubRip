@@ -25,16 +25,8 @@ class AppleTVScraper(HLSScraper):
     is_movie_scraper = True
     is_series_scraper = True
     uses_scrapers = ["itunes"]
-
-    _api_base_url = "https://tv.apple.com/api/uts/v3"
-    _api_base_params = {
-        "utscf": "OjAAAAAAAAA~",
-        "caller": "js",
-        "v": "66",
-        "pfm": "web",
-    }
-    _default_storefront = "US"  # Has to be uppercase
-    _storefronts_mapping = {
+    default_storefront = "US"
+    storefronts_mapping = {
         "AF": "143610", "AO": "143564", "AI": "143538", "AL": "143575", "AD": "143611", "AE": "143481", "AR": "143505",
         "AM": "143524", "AG": "143540", "AU": "143460", "AT": "143445", "AZ": "143568", "BE": "143446", "BJ": "143576",
         "BF": "143578", "BD": "143490", "BG": "143526", "BH": "143559", "BS": "143539", "BA": "143612", "BY": "143565",
@@ -62,6 +54,14 @@ class AppleTVScraper(HLSScraper):
         "UG": "143537", "UA": "143492", "UY": "143514", "US": "143441", "UZ": "143566", "VC": "143550", "VE": "143502",
         "VG": "143543", "VN": "143471", "VU": "143609", "WS": "143607", "XK": "143624", "YE": "143571", "ZA": "143472",
         "ZM": "143622", "ZW": "143605",
+    }
+
+    _api_base_url = "https://tv.apple.com/api/uts/v3"
+    _api_base_params = {
+        "utscf": "OjAAAAAAAAA~",
+        "caller": "js",
+        "v": "66",
+        "pfm": "web",
     }
 
     class Channel(Enum):
@@ -256,9 +256,6 @@ class AppleTVScraper(HLSScraper):
         if len(return_data) > 1:
             logger.debug(f"{len(return_data)} iTunes playables were found for movie '{movie_id}'.")
 
-        else:
-            return_data = return_data[0]
-
         return ScrapedMediaResponse(
             media_data=return_data,
             metadata_scraper=self.id,
@@ -324,14 +321,14 @@ class AppleTVScraper(HLSScraper):
             storefront_code = storefront_code.upper()
 
         else:
-            storefront_code = self._default_storefront
+            storefront_code = self.default_storefront
 
         media_id = url_data["media_id"]
 
-        if storefront_code not in self._storefronts_mapping:
+        if storefront_code not in self.storefronts_mapping:
             raise ScraperError(f"ID mapping for storefront '{storefront_code}' could not be found.")
 
-        storefront_id = self._storefronts_mapping[storefront_code]
+        storefront_id = self.storefronts_mapping[storefront_code]
 
         if media_type == "movie":
             return self.get_movie_data(storefront_id=storefront_id, movie_id=media_id)

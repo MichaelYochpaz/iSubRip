@@ -10,7 +10,7 @@ import shutil
 import sys
 from typing import TYPE_CHECKING, Any, Type, Union, get_args, get_origin
 
-from isubrip.constants import TEMP_FOLDER_PATH
+from isubrip.constants import TEMP_FOLDER_PATH, TITLE_REPLACEMENT_STRINGS, WINDOWS_RESERVED_FILE_NAMES
 from isubrip.data_structures import (
     Episode,
     MediaBase,
@@ -282,13 +282,13 @@ def generate_media_description(media_data: MediaBase, shortened: bool = False) -
     raise ValueError(f"Unsupported media type: '{type(media_data)}'")
 
 
-def generate_non_conflicting_path(file_path: str | Path, has_extension: bool = True) -> Path:
+def generate_non_conflicting_path(file_path: Path, has_extension: bool = True) -> Path:
     """
     Generate a non-conflicting path for a file.
     If the file already exists, a number will be added to the end of the file name.
 
     Args:
-        file_path (str | Path): Path to a file.
+        file_path (Path): Path to a file.
         has_extension (bool, optional): Whether the name of the file includes file extension. Defaults to True.
 
     Returns:
@@ -400,6 +400,14 @@ def merge_dict_values(*dictionaries: dict) -> dict:
     Returns:
         dict: A merged dictionary.
     """
+    dictionaries = [d for d in dictionaries if d]
+
+    if len(dictionaries) == 0:
+        return {}
+
+    if len(dictionaries) == 1:
+        return dictionaries[0]
+
     result: dict = {}
 
     for dict_ in dictionaries:
@@ -522,34 +530,10 @@ def standardize_title(title: str) -> str:
     Returns:
         str: The movie title, in a file-name-friendly format.
     """
-    windows_reserved_file_names = ("CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4",
-                                   "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2",
-                                   "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9")
-
     title = title.strip()
 
-    # Replacements will be done in the same order of this list
-    replacement_pairs = [
-        (': ', '.'),
-        (':', '.'),
-        (' - ', '-'),
-        (', ', '.'),
-        ('. ', '.'),
-        (' ', '.'),
-        ('|', '.'),
-        ('/', '.'),
-        ('…', '.'),
-        ('<', ''),
-        ('>', ''),
-        ('(', ''),
-        (')', ''),
-        ('"', ''),
-        ('?', ''),
-        ('*', ''),
-    ]
-
-    for pair in replacement_pairs:
-        title = title.replace(pair[0], pair[1])
+    for string, replacement_string in TITLE_REPLACEMENT_STRINGS.items():
+        title = title.replace(string, replacement_string)
 
     title = re.sub(r"\.+", ".", title)  # Replace multiple dots with a single dot
 
@@ -557,7 +541,7 @@ def standardize_title(title: str) -> str:
     if sys.platform == 'win32':
         split_title = title.split('.')
 
-        if split_title[0].upper() in windows_reserved_file_names:
+        if split_title[0].upper() in WINDOWS_RESERVED_FILE_NAMES:
             if len(split_title) > 1:
                 return split_title[0] + split_title[1] + '.'.join(split_title[2:])
 

@@ -180,6 +180,10 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
             Subtitles: The current subtitles object.
         """
         rtl_language = rtl_languages or RTL_LANGUAGES
+
+        if not any((fix_rtl, remove_duplicates)):
+            return self
+
         previous_block: SubtitlesBlockT | None = None
 
         for block in self.blocks:

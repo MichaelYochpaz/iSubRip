@@ -24,7 +24,6 @@ from isubrip.constants import (
 )
 from isubrip.data_structures import (
     Episode,
-    MediaBase,
     MediaData,
     Movie,
     ScrapedMediaResponse,
@@ -191,6 +190,7 @@ def download(urls: list[str], config: Config) -> None:
             scraper.config.check()  # Recheck config after scraper settings were loaded
 
             try:
+                logger.debug(f"Fetching '{url}'...")
                 scraper_response: ScrapedMediaResponse = scraper.get_data(url=url)
 
             except ScraperError as e:
@@ -198,7 +198,7 @@ def download(urls: list[str], config: Config) -> None:
                 logger.debug("Debug information:", exc_info=True)
                 continue
 
-            media_data: List[MediaBase] = single_to_list(scraper_response.media_data)
+            media_data = scraper_response.media_data
             playlist_scraper = ScraperFactory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
                                                                    kwargs={"config_data": config.data.get("scrapers")},
                                                                    extract_scraper_config=True)
@@ -399,7 +399,7 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
                 new_path = download_path / file_path.name
 
             else:
-                new_path = generate_non_conflicting_path(download_path / file_path.name)
+                new_path = generate_non_conflicting_path(file_path=download_path / file_path.name)
 
             # str conversion needed only for Python <= 3.8 - https://github.com/python/cpython/issues/76870
             shutil.move(src=str(file_path), dst=new_path)
@@ -418,7 +418,7 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
             destination_path = download_path / file_name
 
         else:
-            destination_path = generate_non_conflicting_path(download_path / file_name)
+            destination_path = generate_non_conflicting_path(file_path=download_path / file_name)
 
         shutil.move(src=str(archive_path), dst=destination_path)
 
@@ -576,7 +576,7 @@ def setup_loggers(stdout_loglevel: int, file_loglevel: int) -> None:
     logger.addHandler(stdout_handler)
 
     # Setup logfile logger
-    logfile_path = generate_non_conflicting_path(LOG_FILES_PATH / LOG_FILE_NAME)
+    logfile_path = generate_non_conflicting_path(file_path=LOG_FILES_PATH / LOG_FILE_NAME)
     logfile_handler = logging.FileHandler(filename=logfile_path, encoding="utf-8")
     logfile_handler.setLevel(file_loglevel)
     logfile_handler.setFormatter(CustomLogFileFormatter())
