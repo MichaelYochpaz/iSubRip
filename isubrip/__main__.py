@@ -366,7 +366,11 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
     for subtitles_data in scraper.get_subtitles(main_playlist=media_data.playlist,  # type: ignore[arg-type]
                                                 language_filter=language_filter,
                                                 subrip_conversion=convert_to_srt):
-        language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
+        if subtitles_data.language_name:
+            language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
+
+        else:
+            language_data = subtitles_data.language_code
 
         if subtitles_type := subtitles_data.special_type:
             language_data += f" [{subtitles_type.value}]"
