@@ -394,33 +394,38 @@ def merge_dict_values(*dictionaries: dict) -> dict:
     A function for merging the values of multiple dictionaries using the same keys.
     If a key already exists, the value will be added to a list of values mapped to that key.
 
+    Note:
+        This function support only merging of lists, without any nesting.
+
     Args:
         *dictionaries (dict): Dictionaries to merge.
 
     Returns:
         dict: A merged dictionary.
     """
-    dictionaries = [d for d in dictionaries if d]
+    _dictionaries = [d for d in dictionaries if d]
 
-    if len(dictionaries) == 0:
+    if len(_dictionaries) == 0:
         return {}
 
-    if len(dictionaries) == 1:
-        return dictionaries[0]
+    if len(_dictionaries) == 1:
+        return _dictionaries[0]
 
     result: dict = {}
 
-    for dict_ in dictionaries:
-        for key, value in dict_.items():
+    for _dict in _dictionaries:
+        for key, value in _dict.items():
             if key in result:
-                if isinstance(result[key], list) and value not in result[key]:
-                    result[key].append(value)
-
-                elif isinstance(result[key], tuple) and value not in result[key]:
-                    result[key] = result[key] + (value,)
-
-                elif value != result[key]:
-                    result[key] = [result[key], value]
+                if isinstance(result[key], list):
+                    if isinstance(value, list):
+                        result[key].extend(value)
+                    else:
+                        result[key].append(value)
+                else:
+                    if isinstance(value, list):
+                        result[key] = [result[key], *value]
+                    else:
+                        result[key] = [result[key], value]
             else:
                 result[key] = value
 
