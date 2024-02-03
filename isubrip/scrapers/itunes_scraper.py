@@ -10,7 +10,7 @@ from isubrip.data_structures import SubtitlesData, SubtitlesFormatType
 from isubrip.logger import logger
 from isubrip.scrapers.scraper import HLSScraper, PlaylistLoadError, ScraperError, ScraperFactory
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
-from isubrip.utils import raise_for_status
+from isubrip.utils import merge_dict_values, raise_for_status
 
 if TYPE_CHECKING:
     from isubrip.data_structures import Movie, ScrapedMediaResponse
@@ -25,6 +25,11 @@ class ItunesScraper(HLSScraper):
     subtitles_class = WebVTTSubtitles
     is_movie_scraper = True
     uses_scrapers = ["appletv"]
+
+    _subtitles_filters = {
+        HLSScraper.M3U8Attribute.GROUP_ID.value: ["subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"],
+        **HLSScraper._subtitles_filters,
+    }
 
     def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
         super().__init__(user_agent=user_agent, config_data=config_data)
@@ -81,11 +86,15 @@ class ItunesScraper(HLSScraper):
 
     def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | str | None = None,
                       subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
-        playlist_filters = {self.M3U8Attribute.LANGUAGE.value: language_filter} if language_filter else None
+        language_filters = {self.M3U8Attribute.LANGUAGE.value: language_filter} if language_filter else None
         main_playlist_m3u8 = self.load_m3u8(url=main_playlist)
 
         if main_playlist_m3u8 is None:
             raise PlaylistLoadError("Could not load M3U8 playlist.")
+
+        playlist_filters = (merge_dict_values(self._subtitles_filters, language_filters)
+                            if language_filters
+                            else self._subtitles_filters)
 
         matched_media_items = self.get_media_playlists(main_playlist=main_playlist_m3u8,
                                                        playlist_filters=playlist_filters)

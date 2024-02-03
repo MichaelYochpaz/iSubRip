@@ -187,8 +187,6 @@ class AsyncScraper(Scraper, ABC):
 
 class HLSScraper(AsyncScraper, ABC):
     """A base class for HLS (m3u8) scrapers."""
-    _playlist_filters_config_category = "playlist-filters"
-
     class M3U8Attribute(Enum):
         """
         An enum representing all possible M3U8 attributes.
@@ -207,6 +205,11 @@ class HLSScraper(AsyncScraper, ABC):
         NAME = "name"
         STABLE_RENDITION_ID = "stable-rendition-id"
         TYPE = "type"
+
+    _playlist_filters_config_category = "playlist-filters"
+    _subtitles_filters = {
+        M3U8Attribute.TYPE.value: "SUBTITLES",
+    }
 
     def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
         super().__init__(user_agent=user_agent, config_data=config_data)
@@ -306,8 +309,7 @@ class HLSScraper(AsyncScraper, ABC):
         return None
 
     def get_media_playlists(self, main_playlist: M3U8,
-                            playlist_filters: dict[str, str | list[str]] | None = None,
-                            include_default_filters: bool = True) -> list[Media]:
+                            playlist_filters: dict[str, str | list[str]] | None = None) -> list[Media]:
         """
         Find and yield playlists of media within an M3U8 main_playlist using optional filters.
 
@@ -315,23 +317,15 @@ class HLSScraper(AsyncScraper, ABC):
             main_playlist (m3u8.M3U8): An M3U8 object of the main main_playlist.
             playlist_filters (dict[str, str | list[str], optional):
                 A dictionary of filters to use when searching for subtitles.
-                Will be added to filters set by the config (unless `include_default_filters` is set to false).
-                Defaults to None.
-            include_default_filters (bool, optional): Whether to include the default filters set by the config or not.
-                Defaults to True.
+                Will be added to filters set by the config. Defaults to None.
 
         Returns:
             list[Media]: A list of  matching Media objects.
         """
         results = []
-        default_filters: dict | None = self.config.get(self._playlist_filters_config_category)
-
-        if include_default_filters and default_filters:
-            if not playlist_filters:
-                playlist_filters = default_filters
-
-            else:
-                playlist_filters = merge_dict_values(default_filters, playlist_filters)
+        config_filters: dict | None = self.config.get(self._playlist_filters_config_category)
+        # Merge filtering dictionaries to a single dictionary
+        playlist_filters = merge_dict_values(*[item for item in (playlist_filters, config_filters) if item])
 
         for media in main_playlist.media:
             if not playlist_filters:
