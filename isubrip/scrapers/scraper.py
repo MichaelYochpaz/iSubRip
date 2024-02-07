@@ -10,7 +10,7 @@ import re
 import sys
 from typing import TYPE_CHECKING, ClassVar, Iterator, List, Literal, Type, TypeVar, Union, overload
 
-import aiohttp
+import httpx
 import m3u8
 from m3u8 import M3U8, Media, Segment, SegmentList
 import requests
@@ -174,15 +174,15 @@ class AsyncScraper(Scraper, ABC):
     """A base class for scrapers that utilize async requests."""
     def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
         super().__init__(user_agent=user_agent, config_data=config_data)
-        self.async_session = aiohttp.ClientSession()
-        self.async_session.headers.update(self._session.headers)
+        self._async_session = httpx.AsyncClient()
+        self._async_session.headers.update(self._session.headers)
 
     def close(self) -> None:
-        asyncio.get_event_loop().run_until_complete(self._async_close())
+        asyncio.get_event_loop().run_until_complete(self._async_session.aclose())
         super().close()
 
     async def _async_close(self) -> None:
-        await self.async_session.close()
+        await self._async_session.aclose()
 
 
 class HLSScraper(AsyncScraper, ABC):
@@ -227,7 +227,7 @@ class HLSScraper(AsyncScraper, ABC):
             ) for m3u8_attribute in self.M3U8Attribute],
             check_config=False)
 
-    def _download_segments_async(self, segments: SegmentList[Segment]) -> list[bytes]:
+    def _download_segments(self, segments: SegmentList[Segment]) -> list[bytes]:
         """
         Download M3U8 segments asynchronously.
 
@@ -237,11 +237,24 @@ class HLSScraper(AsyncScraper, ABC):
         Returns:
             list[bytes]: List of downloaded segments.
         """
-        loop = asyncio.get_event_loop()
-        async_tasks = [loop.create_task(self._download_segment_async(segment.absolute_uri)) for segment in segments]
-        segments_bytes = loop.run_until_complete(asyncio.gather(*async_tasks))
+        return asyncio.get_event_loop().run_until_complete(self._download_segments_async(segments))
 
-        return list(segments_bytes)
+    async def _download_segments_async(self, segments: SegmentList[Segment]) -> list[bytes]:
+        """
+        Download M3U8 segments asynchronously.
+
+        Args:
+            segments (m3u8.SegmentList[m3u8.Segment]): List of segments to download.
+
+        Returns:
+            list[bytes]: List of downloaded segments.
+        """
+        async_tasks = [
+            self._download_segment_async(url=segment.absolute_uri)
+            for segment in segments
+        ]
+
+        return await asyncio.gather(*async_tasks)
 
     async def _download_segment_async(self, url: str) -> bytes:
         """
@@ -253,10 +266,8 @@ class HLSScraper(AsyncScraper, ABC):
         Returns:
             bytes: Downloaded segment.
         """
-        async with self.async_session.get(url) as response:
-            segment: bytes = await response.read()
-
-        return segment
+        response = await self._async_session.get(url)
+        return response.content
 
     def load_m3u8(self, url: str | list[str], headers: dict | None = None) -> M3U8 | None:
         """
