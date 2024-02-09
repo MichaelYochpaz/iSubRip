@@ -100,12 +100,19 @@ class ItunesScraper(HLSScraper):
                                                        playlist_filters=playlist_filters)
 
         for matched_media in matched_media_items:
+            language_name = matched_media.name.replace(' (forced)', '').strip()
+            language_code = matched_media.language
+            language_info_str = f"{language_name} ({language_code})"
+
             try:
                 m3u8_data = self._session.get(url=matched_media.absolute_uri)
                 matched_media_playlist = m3u8.loads(content=m3u8_data.text, uri=matched_media.absolute_uri)
-                subtitles = self.subtitles_class(language_code=matched_media.language)
-                for segment in self._download_segments(matched_media_playlist.segments):
-                    subtitles.append_subtitles(subtitles.loads(segment.decode("utf-8")))
+
+                subtitles_segments = self._download_segments(matched_media_playlist.segments)
+                subtitles = self.subtitles_class.load(data=subtitles_segments[0], language_code=language_code)
+
+                for segment in subtitles_segments[1:]:
+                    subtitles.append_subtitles(subtitles.load(data=segment, language_code=language_code))
 
                 subtitles.polish(
                     fix_rtl=self.subtitles_fix_rtl,
@@ -116,15 +123,16 @@ class ItunesScraper(HLSScraper):
                 language_name = matched_media.name.replace(' (forced)', '').strip()
 
                 yield SubtitlesData(
-                    language_code=matched_media.language,
+                    language_code=language_code,
                     language_name=language_name,
                     subtitles_format=SubtitlesFormatType.SUBRIP if subrip_conversion else SubtitlesFormatType.WEBVTT,
                     content=subtitles.to_srt().dump() if subrip_conversion else subtitles.dump(),
+                    content_encoding=subtitles.encoding,
                     special_type=self.detect_subtitles_type(matched_media),
                 )
 
             except Exception as e:
-                logger.warning(f"Failed to download {matched_media.name} ({matched_media.language}) subtitles. "
+                logger.warning(f"Failed to download {language_info_str} subtitles. "
                                f"Skipping...")
                 logger.debug(e, exc_info=True)
                 continue

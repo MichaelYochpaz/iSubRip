@@ -5,7 +5,7 @@ from datetime import time
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from isubrip.data_structures import SubtitlesFormatType, SubtitlesType
+    from isubrip.data_structures import SubtitlesFormatType
     from isubrip.subtitle_formats.subrip import SubRipCaptionBlock, SubRipSubtitles
 
 RTL_CONTROL_CHARS = ('\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e')
@@ -69,25 +69,24 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
 
     Attributes:
         format (SubtitlesFormatType): [Class Attribute] Format of the subtitles (contains name and file extension).
+        language_code (str): Language code of the subtitles.
         blocks (list[SubtitlesBlock]): A list of subtitles blocks that make up the subtitles.
-        language_code (str | None): Language code of the subtitles.
-        special_type (SubtitlesType | None): Special type of the subtitles (if any).
+        encoding (str): Encoding of the subtitles.
     """
     format: ClassVar[SubtitlesFormatType]
 
-    def __init__(self, blocks: list[SubtitlesBlockT] | None = None,
-                 language_code: str | None = None, special_type: SubtitlesType | None = None):
+    def __init__(self, language_code: str, blocks: list[SubtitlesBlockT] | None = None, encoding: str = "utf-8"):
         """
         Initialize a new Subtitles object.
 
         Args:
+            language_code (str): Language code of the subtitles.
             blocks (list[SubtitlesBlock] | None, optional): A list of subtitles to initialize the object with.
                 Defaults to None.
-            language_code (str | None, optional): Language code of the subtitles. Defaults to None.
-            special_type (SubtitlesType | None, optional): Special type of the subtitles (if any). Defaults to None.
+            encoding (str, optional): Encoding of the subtitles. Defaults to "utf-8".
         """
         self.language_code = language_code
-        self.special_type = special_type
+        self.encoding = encoding
 
         if blocks is None:
             self.blocks = []
@@ -119,14 +118,23 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
     def __str__(self) -> str:
         return self.dumps()
 
+    def dump(self) -> bytes:
+        return self.dumps().encode(encoding=self.encoding)
+
     @abstractmethod
     def dumps(self) -> str:
         """Dump subtitles object to a string representing the subtitles."""
+        ...
 
-    @staticmethod
+    @classmethod
+    def load(cls, data: bytes, language_code: str, encoding: str = "utf-8") -> Subtitles:
+        parsed_data = data.decode(encoding=encoding)
+        return cls.loads(data=parsed_data, language_code=language_code, encoding=encoding)
+
+    @classmethod
     @abstractmethod
-    def loads(subtitles_data: str) -> Subtitles:
-        pass
+    def loads(cls, data: str, language_code: str, encoding: str = "utf-8") -> Subtitles:
+        ...
 
     def add_block(self: SubtitlesT, block: SubtitlesBlockT | list[SubtitlesBlockT]) -> SubtitlesT:
         """
@@ -149,7 +157,7 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
 
     def append_subtitles(self: SubtitlesT, subtitles: SubtitlesT) -> SubtitlesT:
         """
-        Append an existing subtitles object.
+        Append subtitles to an existing subtitles object.
 
         Args:
             subtitles (Subtitles): Subtitles object to append to current subtitles.
@@ -161,9 +169,6 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
             self.add_block(block)
 
         return self
-
-    def dump(self) -> bytes:
-        return self.dumps().encode(encoding="UTF-8")
 
     def polish(self: SubtitlesT, fix_rtl: bool = False,
                rtl_languages: list[str] | None = None, remove_duplicates: bool = False) -> SubtitlesT:
@@ -179,16 +184,19 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
         Returns:
             Subtitles: The current subtitles object.
         """
-        rtl_language = rtl_languages or RTL_LANGUAGES
+        rtl_language = rtl_languages if rtl_languages is not None else RTL_LANGUAGES
+        rtl_fix_needed = (fix_rtl and self.language_code in rtl_language)
 
-        if not any((fix_rtl, remove_duplicates)):
+        if not any((
+                rtl_fix_needed,
+                remove_duplicates,
+        )):
             return self
 
         previous_block: SubtitlesBlockT | None = None
 
         for block in self.blocks:
-            if fix_rtl and isinstance(block, SubtitlesCaptionBlock) and \
-                    self.language_code in rtl_language:
+            if rtl_fix_needed:
                 block.fix_rtl()
 
             if remove_duplicates and previous_block is not None and block == previous_block:
@@ -208,9 +216,9 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
         from isubrip.subtitle_formats.subrip import SubRipSubtitles
 
         return SubRipSubtitles(
-            blocks=[block.to_srt() for block in self.blocks if isinstance(block, SubtitlesCaptionBlock)],
             language_code=self.language_code,
-            special_type=self.special_type,
+            blocks=[block.to_srt() for block in self.blocks if isinstance(block, SubtitlesCaptionBlock)],
+            encoding=self.encoding,
         )
 
 

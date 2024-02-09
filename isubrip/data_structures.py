@@ -73,11 +73,13 @@ class SubtitlesData(BaseModel):
         language_name (str | None, optional): Name of the language the subtitles are in.
         subtitles_format (SubtitlesFormatType): Format of the subtitles.
         content (bytes): Content of the subtitles in binary format.
+        content_encoding (str): Encoding of subtitles content (ex. "utf-8").
         special_type (SubtitlesType | None, optional): Type of the subtitles, if they're not regular. Defaults to None.
     """
     language_code: str
     subtitles_format: SubtitlesFormatType
     content: bytes
+    content_encoding: str
     language_name: Optional[str] = None
     special_type: Union[SubtitlesType, None] = None
 

@@ -166,20 +166,22 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
         return subtitles_str.rstrip('\n')
 
-    @staticmethod
-    def loads(subtitles_data: str) -> WebVTTSubtitles:
+    @classmethod
+    def loads(cls, data: str, language_code: str, encoding: str = "utf-8") -> WebVTTSubtitles:
         """
         Load WebVTT subtitles from a string.
 
         Args:
-            subtitles_data (str): Subtitles data to load.
+            data (str): Subtitles data to load.
+            language_code (str): Language code of the subtitles.
+            encoding (str, optional): Encoding of the subtitles. Defaults to "utf-8".
 
         Returns:
             WebVTTSubtitles: A WebVTTSubtitles object representing the subtitles.
         """
-        subtitles_obj = WebVTTSubtitles()
+        subtitles_obj = WebVTTSubtitles(language_code=language_code, encoding=encoding)
         prev_line: str = ""
-        lines_iterator = iter(subtitles_data.splitlines())
+        lines_iterator = iter(data.splitlines())
 
         for line in lines_iterator:
             # If the line is a timestamp

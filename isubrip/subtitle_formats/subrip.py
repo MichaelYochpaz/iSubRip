@@ -39,6 +39,6 @@ class SubRipSubtitles(Subtitles[SubRipCaptionBlock]):
 
         return subtitles_str.rstrip('\n')
 
-    @staticmethod
-    def loads(subtitles_data: str) -> SubRipSubtitles:
+    @classmethod
+    def loads(cls, data: str, language_code: str, encoding: str = "utf-8") -> SubRipSubtitles:
         raise NotImplementedError("SubRip subtitles loading is not supported.")
