@@ -279,7 +279,7 @@ WEBVTT_CAPTION_SETTINGS_REGEX = ("(?:"
                                  f"(?:[ \t]+)"
                                  ")*")
 
-WEBVTT_CAPTION_BLOCK_REGEX = rf"^({WEBVTT_CAPTION_TIMINGS_REGEX})[ \t]*({WEBVTT_CAPTION_SETTINGS_REGEX})?"
-WEBVTT_COMMENT_HEADER_REGEX = rf"^{Comment.header}(?:$|[ \t])(.+)?"
+WEBVTT_CAPTION_BLOCK_REGEX = re.compile(rf"^({WEBVTT_CAPTION_TIMINGS_REGEX})[ \t]*({WEBVTT_CAPTION_SETTINGS_REGEX})?")
+WEBVTT_COMMENT_HEADER_REGEX = re.compile(rf"^{Comment.header}(?:$|[ \t])(.+)?")
 
 WEBVTT_ALIGN_TOP_TAG = "{\\an8}"
