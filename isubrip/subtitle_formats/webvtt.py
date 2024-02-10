@@ -125,7 +125,7 @@ class Style(WebVTTBlock):
         return isinstance(other, type(self)) and self.payload == other.payload
 
     def __str__(self) -> str:
-        return f"{self.header} {self.payload}"
+        return f"{self.header}\n{self.payload}"
 
 
 class Region(WebVTTBlock):
@@ -251,7 +251,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
                     style_payload += additional_line + "\n"
 
-                subtitles_obj.add_block(Region(style_payload.rstrip("\n")))
+                subtitles_obj.add_block(Style(style_payload.rstrip("\n")))
 
             prev_line = line
         return subtitles_obj
