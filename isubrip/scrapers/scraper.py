@@ -78,9 +78,9 @@ class Scraper(ABC, metaclass=SingletonMeta):
             config_data (dict | None, optional): A dictionary containing scraper's configuration data. Defaults to None.
         """
         self._session = requests.Session()
-        self._config_data = config_data
         self.config = Config(config_data=config_data.get(self.id) if config_data else None)
 
+        # Add a "user-agent" setting by default to all scrapers
         self.config.add_settings([
             ConfigSetting(
                 key="user-agent",
@@ -213,9 +213,6 @@ class HLSScraper(AsyncScraper, ABC):
 
     def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
         super().__init__(user_agent=user_agent, config_data=config_data)
-
-        if self.config is None:
-            self.config = Config()
 
         # Add M3U8 filters settings
         self.config.add_settings([
@@ -521,13 +518,15 @@ class ScraperFactory:
             logger.debug(f"Searching for a scraper object with ID '{scraper_id}'...")
             for scraper in cls.get_scraper_classes():
                 if scraper.id == scraper_id:
-                    return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
+                    return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs,
+                                                     extract_scraper_config=extract_scraper_config)
 
         elif url:
             logger.debug(f"Searching for a scraper object that matches URL '{url}'...")
             for scraper in cls.get_scraper_classes():
                 if scraper.match_url(url) is not None:
-                    return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs)
+                    return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs,
+                                                     extract_scraper_config=extract_scraper_config)
 
         error_message = "No matching scraper was found."
 

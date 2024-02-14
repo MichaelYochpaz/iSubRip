@@ -33,9 +33,12 @@ class ItunesScraper(HLSScraper):
 
     def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
         super().__init__(user_agent=user_agent, config_data=config_data)
-        self._appletv_scraper = ScraperFactory.get_scraper_instance(scraper_id="appletv",
-                                                                    kwargs={"config_data": self._config_data},
-                                                                    raise_error=True)
+        self._appletv_scraper = ScraperFactory.get_scraper_instance(
+            scraper_id="appletv",
+            kwargs={"config_data": config_data},
+            extract_scraper_config=True,
+            raise_error=True,
+        )
 
     def get_data(self, url: str) -> ScrapedMediaResponse[Movie]:
         """

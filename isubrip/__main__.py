@@ -186,7 +186,8 @@ def download(urls: list[str], config: Config) -> None:
             logger.info(f"Scraping '{url}'...")
 
             scraper = ScraperFactory.get_scraper_instance(url=url,
-                                                          kwargs={"config_data": config.data.get("scrapers")})
+                                                          kwargs={"config_data": config.data.get("scrapers")},
+                                                          extract_scraper_config=True)
             scraper.config.check()  # Recheck config after scraper settings were loaded
 
             try:

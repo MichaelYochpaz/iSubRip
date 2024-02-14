@@ -80,7 +80,6 @@ class AppleTVScraper(HLSScraper):
 
     def __init__(self, user_agent: str | None = None, config_data: dict | None = None):
         super().__init__(user_agent=user_agent, config_data=config_data)
-        self._config_data = config_data
         self._storefront_locale_mapping_cache: dict[str, str] = {}
 
     def _decide_locale(self, preferred_locales: str | list[str], default_locale: str, locales: list[str]) -> str:
