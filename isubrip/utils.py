@@ -181,22 +181,22 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
         raise ValueError(f"Invalid path: {output_path}")
 
     if isinstance(media_data, Movie):
-        file_name = generate_release_name(title=media_data.name,
-                                          release_date=media_data.release_date,
-                                          media_source=source_abbreviation,
-                                          language_code=subtitles_data.language_code,
-                                          subtitles_type=subtitles_data.special_type,
-                                          file_format=subtitles_data.subtitles_format)
+        file_name = format_release_name(title=media_data.name,
+                                        release_date=media_data.release_date,
+                                        media_source=source_abbreviation,
+                                        language_code=subtitles_data.language_code,
+                                        subtitles_type=subtitles_data.special_type,
+                                        file_format=subtitles_data.subtitles_format)
     else:  # isinstance(media_data, Episode):
-        file_name = generate_release_name(title=media_data.series_name,
-                                          release_date=media_data.release_date,
-                                          season_number=media_data.season_number,
-                                          episode_number=media_data.episode_number,
-                                          episode_name=media_data.episode_name,
-                                          media_source=source_abbreviation,
-                                          language_code=subtitles_data.language_code,
-                                          subtitles_type=subtitles_data.special_type,
-                                          file_format=subtitles_data.subtitles_format)
+        file_name = format_release_name(title=media_data.series_name,
+                                        release_date=media_data.release_date,
+                                        season_number=media_data.season_number,
+                                        episode_number=media_data.episode_number,
+                                        episode_name=media_data.episode_name,
+                                        media_source=source_abbreviation,
+                                        language_code=subtitles_data.language_code,
+                                        subtitles_type=subtitles_data.special_type,
+                                        file_format=subtitles_data.subtitles_format)
 
     file_path = output_path / file_name
 
@@ -209,7 +209,7 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
     return file_path
 
 
-def generate_media_description(media_data: MediaBase, shortened: bool = False) -> str:
+def format_media_description(media_data: MediaBase, shortened: bool = False) -> str:
     """
     Generate a short description string of a media object.
 
@@ -282,52 +282,20 @@ def generate_media_description(media_data: MediaBase, shortened: bool = False) -
     raise ValueError(f"Unsupported media type: '{type(media_data)}'")
 
 
-def generate_non_conflicting_path(file_path: Path, has_extension: bool = True) -> Path:
-    """
-    Generate a non-conflicting path for a file.
-    If the file already exists, a number will be added to the end of the file name.
-
-    Args:
-        file_path (Path): Path to a file.
-        has_extension (bool, optional): Whether the name of the file includes file extension. Defaults to True.
-
-    Returns:
-        Path: A non-conflicting file path.
-    """
-    if isinstance(file_path, str):
-        file_path = Path(file_path)
-
-    if not file_path.exists():
-        return file_path
-
-    i = 1
-    while True:
-        if has_extension:
-            new_file_path = file_path.parent / f"{file_path.stem}-{i}{file_path.suffix}"
-
-        else:
-            new_file_path = file_path.parent / f"{file_path}-{i}"
-
-        if not new_file_path.exists():
-            return new_file_path
-
-        i += 1
-
-
 @lru_cache
-def generate_release_name(title: str,
-                          release_date: dt.datetime | int | None = None,
-                          season_number: int | None = None,
-                          episode_number: int | None = None,
-                          episode_name: str | None = None,
-                          media_source: str | None = None,
-                          source_type: str | None = "WEB",
-                          additional_info: str | list[str] | None = None,
-                          language_code: str | None = None,
-                          subtitles_type: SubtitlesType | None = None,
-                          file_format: str | SubtitlesFormatType | None = None) -> str:
+def format_release_name(title: str,
+                        release_date: dt.datetime | int | None = None,
+                        season_number: int | None = None,
+                        episode_number: int | None = None,
+                        episode_name: str | None = None,
+                        media_source: str | None = None,
+                        source_type: str | None = "WEB",
+                        additional_info: str | list[str] | None = None,
+                        language_code: str | None = None,
+                        subtitles_type: SubtitlesType | None = None,
+                        file_format: str | SubtitlesFormatType | None = None) -> str:
     """
-    Generate a release name.
+    Format a release name.
 
     Args:
         title (str): Media title.
@@ -387,6 +355,52 @@ def generate_release_name(title: str,
         file_name += f".{file_format}"
 
     return file_name
+
+
+def format_subtitles_description(language_code: str, language_name: str | None = None,
+                                 special_type: SubtitlesType | None = None) -> str:
+    if language_name:
+        language_str = f"{language_name} ({language_code})"
+
+    else:
+        language_str = language_code
+
+    if special_type:
+        language_str += f" [{special_type.value}]"
+
+    return language_str
+
+
+def generate_non_conflicting_path(file_path: Path, has_extension: bool = True) -> Path:
+    """
+    Generate a non-conflicting path for a file.
+    If the file already exists, a number will be added to the end of the file name.
+
+    Args:
+        file_path (Path): Path to a file.
+        has_extension (bool, optional): Whether the name of the file includes file extension. Defaults to True.
+
+    Returns:
+        Path: A non-conflicting file path.
+    """
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
+
+    if not file_path.exists():
+        return file_path
+
+    i = 1
+    while True:
+        if has_extension:
+            new_file_path = file_path.parent / f"{file_path.stem}-{i}{file_path.suffix}"
+
+        else:
+            new_file_path = file_path.parent / f"{file_path}-{i}"
+
+        if not new_file_path.exists():
+            return new_file_path
+
+        i += 1
 
 
 def merge_dict_values(*dictionaries: dict) -> dict:

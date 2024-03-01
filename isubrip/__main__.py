@@ -38,9 +38,10 @@ from isubrip.subtitle_formats.webvtt import Caption as WebVTTCaption
 from isubrip.utils import (
     TempDirGenerator,
     download_subtitles_to_file,
-    generate_media_description,
+    format_media_description,
+    format_release_name,
+    format_subtitles_description,
     generate_non_conflicting_path,
-    generate_release_name,
     raise_for_status,
     single_to_list,
 )
@@ -212,13 +213,13 @@ def download(urls: list[str], config: Config) -> None:
                 try:
                     object_type_str = media_item.__class__.__name__.lower()
 
-                    logger.info(f"Found {object_type_str}: {generate_media_description(media_data=media_item)}")
+                    logger.info(f"Found {object_type_str}: {format_media_description(media_data=media_item)}")
                     download_media(scraper=playlist_scraper, media_item=media_item, config=config)
 
                 except Exception as e:
                     if len(media_data) > 1:
                         logger.warning(f"Error scraping media item "
-                                       f"'{generate_media_description(media_data=media_item)}': {e}\n"
+                                       f"'{format_media_description(media_data=media_item)}': {e}\n"
                                        f"Skipping to next media item...")
                         logger.debug("Debug information:", exc_info=True)
                         continue
@@ -247,7 +248,7 @@ def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> N
 
     if isinstance(media_item, Season):
         for episode in media_item.episodes:
-            logger.info(f"{generate_media_description(media_data=episode, shortened=True)}:")
+            logger.info(f"{format_media_description(media_data=episode, shortened=True)}:")
             download_media(scraper=scraper, media_item=episode, config=config)
         return
 
@@ -367,14 +368,10 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
     for subtitles_data in scraper.get_subtitles(main_playlist=media_data.playlist,  # type: ignore[arg-type]
                                                 language_filter=language_filter,
                                                 subrip_conversion=convert_to_srt):
-        if subtitles_data.language_name:
-            language_data = f"{subtitles_data.language_name} ({subtitles_data.language_code})"
 
-        else:
-            language_data = subtitles_data.language_code
-
-        if subtitles_type := subtitles_data.special_type:
-            language_data += f" [{subtitles_type.value}]"
+        language_info = format_subtitles_description(language_code=subtitles_data.language_code,
+                                                     language_name=subtitles_data.language_name,
+                                                     special_type=subtitles_data.special_type)
 
         try:
             temp_downloads.append(download_subtitles_to_file(
@@ -385,11 +382,11 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
                 overwrite=overwrite_existing,
             ))
 
-            logger.info(f"{language_data} subtitles were successfully downloaded.")
+            logger.info(f"{language_info} subtitles were successfully downloaded.")
             successful_downloads.append(subtitles_data)
 
         except Exception as e:
-            logger.error(f"Error: Failed to download '{language_data}' subtitles: {e}")
+            logger.error(f"Error: Failed to download '{language_info}' subtitles: {e}")
             logger.debug("Stack trace:", exc_info=True)
             failed_downloads.append(subtitles_data)
             continue
@@ -504,14 +501,14 @@ def generate_media_folder_name(media_data: Movie | Episode, source: str | None =
         str: A folder name for the media data.
     """
     if isinstance(media_data, Movie):
-        return generate_release_name(
+        return format_release_name(
             title=media_data.name,
             release_date=media_data.release_date,
             media_source=source,
         )
 
     # elif isinstance(media_data, Episode):
-    return generate_release_name(
+    return format_release_name(
         title=media_data.series_name,
         season_number=media_data.season_number,
         media_source=source,
