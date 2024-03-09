@@ -128,6 +128,18 @@ BASE_CONFIG_SETTINGS = [
         category="scrapers",
         required=True,
     ),
+    ConfigSetting(
+        key="proxy",
+        type=str,
+        category="scrapers",
+        required=False,
+    ),
+    ConfigSetting(
+        key="verify-ssl",
+        type=bool,
+        category="scrapers",
+        required=False,
+    ),
 ]
 
 
@@ -543,6 +555,13 @@ def update_settings(config: Config) -> None:
     Scraper.subtitles_fix_rtl_languages = config.subtitles.get("rtl-languages")
     Scraper.subtitles_remove_duplicates = config.subtitles["remove-duplicates"]
     Scraper.default_user_agent = config.scrapers.get("user-agent", default_user_agent())
+    Scraper.default_proxy = config.scrapers.get("proxy")
+    Scraper.default_verify_ssl = config.scrapers.get("verify-ssl", True)
+
+    if not Scraper.default_verify_ssl:
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
     WebVTTCaption.subrip_alignment_conversion = (
         config.subtitles.get("webvtt", {}).get("subrip-alignment-conversion", False)
     )

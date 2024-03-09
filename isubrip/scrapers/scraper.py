@@ -37,6 +37,8 @@ class Scraper(ABC, metaclass=SingletonMeta):
     Attributes:
         default_user_agent (str): [Class Attribute]
             Default user agent to use if no other user agent is specified when making requests.
+        default_proxy (str | None): [Class Attribute] Default proxy to use when making requests.
+        default_verify_ssl (bool): [Class Attribute] Whether to verify SSL certificates by default.
         subtitles_fix_rtl (bool): [Class Attribute] Whether to fix RTL from downloaded subtitles.
         subtitles_fix_rtl_languages (list[str] | None): [Class Attribute]
             A list of languages to fix RTL on. If None, a default list will be used.
@@ -53,9 +55,14 @@ class Scraper(ABC, metaclass=SingletonMeta):
         uses_scrapers (list[str]): [Class Attribute] A list of IDs for other scraper classes that this scraper uses.
             This assures that the config data for the other scrapers is passed as well.
         _session (requests.Session): A requests session to use for making requests.
+        _user_agent (str): A user agent to use when making requests.
+        _proxy (str | None): A proxy to use when making requests.
+        _verify_ssl (bool): Whether to verify SSL certificates when making requests.
         config (Config): A Config object containing the scraper's configuration.
     """
     default_user_agent: ClassVar[str] = requests.utils.default_user_agent()
+    default_proxy: ClassVar[str | None] = None
+    default_verify_ssl: ClassVar[bool] = True
     subtitles_fix_rtl: ClassVar[bool] = False
     subtitles_fix_rtl_languages: ClassVar[list | None] = ["ar", "he"]
     subtitles_remove_duplicates: ClassVar[bool] = True
@@ -69,12 +76,15 @@ class Scraper(ABC, metaclass=SingletonMeta):
     is_series_scraper: ClassVar[bool] = False
     uses_scrapers: ClassVar[list[str]] = []
 
-    def __init__(self, user_agent: str | None = None, config_data: dict | None = None):
+    def __init__(self, user_agent: str | None = None, proxy: str | None = None,
+                 verify_ssl: bool | None = None, config_data: dict | None = None):
         """
         Initialize a Scraper object.
 
         Args:
             user_agent (str | None, optional): A user agent to use when making requests. Defaults to None.
+            proxy (str | None, optional): A proxy to use when making requests. Defaults to None.
+            verify_ssl (bool | None, optional): Whether to verify SSL certificates. Defaults to None.
             config_data (dict | None, optional): A dictionary containing scraper's configuration data. Defaults to None.
         """
         self._session = requests.Session()
@@ -86,11 +96,73 @@ class Scraper(ABC, metaclass=SingletonMeta):
                 key="user-agent",
                 type=str,
                 required=False,
-            )],
+            ),
+            ConfigSetting(
+                key="proxy",
+                type=str,
+                required=False,
+            ),
+            ConfigSetting(
+                key="verify-ssl",
+                type=bool,
+                required=False,
+            ),
+        ],
             check_config=False)
 
-        self._user_agent = user_agent or self.config.get("user-agent") or self.default_user_agent
+        self._user_agent: str
+        self._proxy: str | None
+        self._verify_ssl: bool
+
+        # User-Agent Configuration
+        if user_agent is not None:
+            self._user_agent = user_agent
+
+        elif "user-agent" in self.config:
+            self._user_agent = self.config["user-agent"]
+
+        else:
+            self._user_agent = self.default_user_agent
+
+        if self._user_agent != self.default_user_agent:
+            logger.debug(f"Initializing '{self.name}' scraper with user-agent: '{user_agent}'.")
+
+        # Proxy Configuration
+        if proxy is not None:
+            self._proxy = proxy
+
+        elif "proxy" in self.config:
+            self._proxy = self.config["proxy"]
+
+        else:
+            self._proxy = self.default_proxy
+
+        if self._proxy != self.default_proxy:
+            logger.debug(f"Initializing '{self.name}' scraper with proxy: '{proxy}'.")
+
+        # SSL Verification Configuration
+        if verify_ssl is not None:
+            self._verify_ssl = verify_ssl
+
+        elif "verify-ssl" in self.config:
+            self._verify_ssl = self.config["verify-ssl"]
+
+        else:
+            self._verify_ssl = self.default_verify_ssl
+
+        if self._verify_ssl != self.default_verify_ssl:
+            logger.debug(f"Initializing '{self.name}' scraper with SSL verification set to: '{verify_ssl}'.")
+
         self._session.headers.update({"User-Agent": self._user_agent})
+
+        if self._proxy:
+            self._session.proxies.update({"http": self._proxy, "https": self._proxy})
+
+        self._session.verify = self._verify_ssl
+
+        if not self._verify_ssl:
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     @classmethod
     @overload
@@ -174,8 +246,11 @@ class AsyncScraper(Scraper, ABC):
     """A base class for scrapers that utilize async requests."""
     def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
         super().__init__(user_agent=user_agent, config_data=config_data)
-        self._async_session = httpx.AsyncClient()
-        self._async_session.headers.update(self._session.headers)
+        self._async_session = httpx.AsyncClient(
+            headers={"User-Agent": self._user_agent},
+            proxy=(httpx.Proxy(url=self._proxy) if self._proxy else None),
+            verify=self._verify_ssl,
+        )
 
     def close(self) -> None:
         asyncio.get_event_loop().run_until_complete(self._async_session.aclose())

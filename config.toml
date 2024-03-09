@@ -69,20 +69,31 @@ subrip-alignment-conversion = false
 
 
 [scrapers]
-# User-Agent to use by default for all HTTP requests.
-# Will be overridden by scraper-specific user-agent (if set).
-default-user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
-
-
-[scrapers.itunes]
-# User-Agent to use while scraping from iTunes.
-# Changing this setting is not recommended.
-# This setting is not set by default.
-user-agent = "iTunes-AppleTV/15.2"
-
-
-[scrapers.appletv]
-# User-Agent to use while scraping from AppleTV.
-# Changing this setting is not recommended.
-# This setting is not set by default.
+# User-Agent to use by default for requests sent by all scrapers.
+# Will be overridden by scraper-specific user-agent configuration, if set.
 user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
+
+# Proxy to use by default for requests sent by all scrapers.
+# Will be overridden by scraper-specific proxy configuration, if set.
+proxy = "http://127.0.0.1:8080"
+
+
+# Whether to verify SSL certificates when making requests for all scrapers.
+# Value can be either 'true' or 'false'.
+# Will be overridden by scraper-specific verify-ssl configuration, if set.
+verify-ssl = true
+
+
+# The following are scraper-specific settings (can be set for each scraper separately).
+# Replace 'enter-scraper-name-here' with the name of the scraper you want to configure.
+# Available scrapers: itunes, appletv
+[scrapers.enter-scraper-name-here]
+# User-Agent to use for requests sent by the scraper.
+user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
+
+# Proxy to use for requests sent by the scraper.
+proxy = "http://127.0.0.1:8080"
+
+# Whether to verify SSL certificates when making requests for the scraper.
+# Value can be either 'true' or 'false'.
+verify-ssl = true

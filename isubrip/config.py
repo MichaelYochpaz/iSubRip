@@ -88,6 +88,18 @@ class Config:
         if config_data:
             self._config_data = deepcopy(config_data)
 
+    def __contains__(self, item: Any) -> bool:
+        """
+        Allow checking if a key exists in the config using the 'in' operator.
+
+        Args:
+            item (Any): The key to check for.
+
+        Returns:
+            bool: True if the key exists in the config, False otherwise.
+        """
+        return item in self._config_data
+
     def __getattr__(self, key: str) -> Any:
         """
         Allow access to config settings using attributes.
