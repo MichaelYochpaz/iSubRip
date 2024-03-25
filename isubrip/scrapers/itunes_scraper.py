@@ -119,7 +119,6 @@ class ItunesScraper(HLSScraper):
 
                 subtitles.polish(
                     fix_rtl=self.subtitles_fix_rtl,
-                    rtl_languages=self.subtitles_fix_rtl_languages,
                     remove_duplicates=self.subtitles_remove_duplicates,
                 )
 

@@ -552,7 +552,6 @@ def update_settings(config: Config) -> None:
         config (Config): An instance of a config to set settings according to.
     """
     Scraper.subtitles_fix_rtl = config.subtitles["fix-rtl"]
-    Scraper.subtitles_fix_rtl_languages = config.subtitles.get("rtl-languages")
     Scraper.subtitles_remove_duplicates = config.subtitles["remove-duplicates"]
     Scraper.default_user_agent = config.scrapers.get("user-agent", default_user_agent())
     Scraper.default_proxy = config.scrapers.get("proxy")

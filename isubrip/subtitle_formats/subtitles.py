@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 RTL_CONTROL_CHARS = ('\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e')
 RTL_CHAR = '\u202b'
-RTL_LANGUAGES = ["ar", "he"]
+RTL_LANGUAGES = ["ar", "he", "he-il"]
 
 SubtitlesT = TypeVar('SubtitlesT', bound='Subtitles')
 SubtitlesBlockT = TypeVar('SubtitlesBlockT', bound='SubtitlesBlock')
@@ -170,25 +170,24 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
 
         return self
 
-    def polish(self: SubtitlesT, fix_rtl: bool = False,
-               rtl_languages: list[str] | None = None, remove_duplicates: bool = False) -> SubtitlesT:
+    def polish(self: SubtitlesT,
+               fix_rtl: bool = False,
+               remove_duplicates: bool = True,
+               ) -> SubtitlesT:
         """
         Apply various fixes to subtitles.
 
         Args:
             fix_rtl (bool, optional): Whether to fix text direction of RTL languages. Defaults to False.
-            rtl_languages (list[str] | None, optional): Language code of the RTL language.
-                If not set, a default list of RTL languages will be used. Defaults to None.
             remove_duplicates (bool, optional): Whether to remove duplicate captions. Defaults to False.
 
         Returns:
             Subtitles: The current subtitles object.
         """
-        rtl_language = rtl_languages if rtl_languages is not None else RTL_LANGUAGES
-        rtl_fix_needed = (fix_rtl and self.language_code in rtl_language)
+        fix_rtl = (fix_rtl and self.language_code in RTL_LANGUAGES)
 
         if not any((
-                rtl_fix_needed,
+                fix_rtl,
                 remove_duplicates,
         )):
             return self
@@ -196,7 +195,7 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
         previous_block: SubtitlesBlockT | None = None
 
         for block in self.blocks:
-            if rtl_fix_needed:
+            if fix_rtl:
                 block.fix_rtl()
 
             if remove_duplicates and previous_block is not None and block == previous_block:

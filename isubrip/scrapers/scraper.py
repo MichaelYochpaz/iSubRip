@@ -40,7 +40,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
         default_proxy (str | None): [Class Attribute] Default proxy to use when making requests.
         default_verify_ssl (bool): [Class Attribute] Whether to verify SSL certificates by default.
         subtitles_fix_rtl (bool): [Class Attribute] Whether to fix RTL from downloaded subtitles.
-        subtitles_fix_rtl_languages (list[str] | None): [Class Attribute]
             A list of languages to fix RTL on. If None, a default list will be used.
         subtitles_remove_duplicates (bool): [Class Attribute]
             Whether to remove duplicate lines from downloaded subtitles.
@@ -64,7 +63,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
     default_proxy: ClassVar[str | None] = None
     default_verify_ssl: ClassVar[bool] = True
     subtitles_fix_rtl: ClassVar[bool] = False
-    subtitles_fix_rtl_languages: ClassVar[list | None] = ["ar", "he"]
     subtitles_remove_duplicates: ClassVar[bool] = True
 
     id: ClassVar[str]

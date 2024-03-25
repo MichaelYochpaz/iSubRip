@@ -41,17 +41,12 @@ zip = false
 
 
 [subtitles]
-# Fix RTL for languages set on 'fix-rtl-languages'.
+# Fix RTL for RTL languages (Arabic & Hebrew).
 # Value can be either 'true' or 'false'.
 #
 # NOTE: This is off by default as some subtitles use other methods to fix RTL (like writing punctuations backwards).
 #       Using this option on these type of subtitles can break the already-fixed RTL issues.
 fix-rtl = false
-
-# List of iTunes language codes to fix RTL on.
-# This setting is optional, and is used for overriding the default list of languages to fix RTL on.
-# This setting is not set by default.
-rtl-languages = ["ar", "he"]
 
 # Remove duplicate paragraphs (same text and timestamps).
 # Value can be either 'true' or 'false'.
