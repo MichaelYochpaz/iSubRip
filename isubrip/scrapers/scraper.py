@@ -8,7 +8,7 @@ import inspect
 from pathlib import Path
 import re
 import sys
-from typing import TYPE_CHECKING, ClassVar, Iterator, List, Literal, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Iterator, List, Literal, Type, TypeVar, Union, overload
 
 import httpx
 import m3u8
@@ -280,7 +280,7 @@ class HLSScraper(AsyncScraper, ABC):
         TYPE = "type"
 
     _playlist_filters_config_category = "playlist-filters"
-    _subtitles_filters = {
+    _subtitles_filters: dict[str, Any] = {
         M3U8Attribute.TYPE.value: "SUBTITLES",
     }
 

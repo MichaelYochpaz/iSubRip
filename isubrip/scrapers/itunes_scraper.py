@@ -112,10 +112,12 @@ class ItunesScraper(HLSScraper):
                 matched_media_playlist = m3u8.loads(content=m3u8_data.text, uri=matched_media.absolute_uri)
 
                 subtitles_segments = self._download_segments(matched_media_playlist.segments)
-                subtitles = self.subtitles_class.load(data=subtitles_segments[0], language_code=language_code)
+                subtitles = self.subtitles_class(data=subtitles_segments[0], language_code=language_code)
 
                 for segment in subtitles_segments[1:]:
-                    subtitles.append_subtitles(subtitles.load(data=segment, language_code=language_code))
+                    subtitles.append_subtitles(
+                        subtitles=self.subtitles_class(data=segment, language_code=language_code),
+                    )
 
                 subtitles.polish(
                     fix_rtl=self.subtitles_fix_rtl,

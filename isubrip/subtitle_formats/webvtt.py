@@ -92,6 +92,7 @@ class Comment(WebVTTBlock):
         Args:
             payload (str): Comment payload.
         """
+        super().__init__()
         self.payload = payload
         self.inline = inline
 
@@ -119,6 +120,7 @@ class Style(WebVTTBlock):
         Args:
             payload (str): Style payload.
         """
+        super().__init__()
         self.payload = payload
 
     def __eq__(self, other: Any) -> bool:
@@ -139,6 +141,7 @@ class Region(WebVTTBlock):
         Args:
             payload (str): Region payload.
         """
+        super().__init__()
         self.payload = payload
 
     def __eq__(self, other: Any) -> bool:
@@ -152,7 +155,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
     """An object representing a WebVTT subtitles file."""
     format = SubtitlesFormatType.WEBVTT
 
-    def dumps(self) -> str:
+    def _dumps(self) -> str:
         """
         Dump subtitles to a string representing the subtitles in a WebVTT format.
 
@@ -166,20 +169,13 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
         return subtitles_str.rstrip('\n')
 
-    @classmethod
-    def loads(cls, data: str, language_code: str, encoding: str = "utf-8") -> WebVTTSubtitles:
+    def _loads(self, data: str) -> None:
         """
-        Load WebVTT subtitles from a string.
+        Load and parse WebVTT subtitles data from a string.
 
         Args:
-            data (str): Subtitles data to load.
-            language_code (str): Language code of the subtitles.
-            encoding (str, optional): Encoding of the subtitles. Defaults to "utf-8".
-
-        Returns:
-            WebVTTSubtitles: A WebVTTSubtitles object representing the subtitles.
+            data (bytes): Subtitles data to load.
         """
-        subtitles_obj = WebVTTSubtitles(language_code=language_code, encoding=encoding)
         prev_line: str = ""
         lines_iterator = iter(data.splitlines())
 
@@ -205,7 +201,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
                     caption_payload += additional_line + "\n"
 
                 caption_payload = caption_payload.rstrip("\n")
-                subtitles_obj.add_block(Caption(
+                self.blocks.append(Caption(
                     identifier=caption_identifier,
                     start_time=caption_timestamps[0],
                     end_time=caption_timestamps[1],
@@ -227,7 +223,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
                     comment_payload += additional_line + "\n"
 
-                subtitles_obj.add_block(Comment(comment_payload.rstrip("\n"), inline=inline))
+                self.blocks.append(Comment(comment_payload.rstrip("\n"), inline=inline))
 
             elif line.rstrip(' \t') == Region.header:
                 region_payload = ""
@@ -239,7 +235,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
                     region_payload += additional_line + "\n"
 
-                subtitles_obj.add_block(Region(region_payload.rstrip("\n")))
+                self.blocks.append(Region(region_payload.rstrip("\n")))
 
             elif line.rstrip(' \t') == Style.header:
                 style_payload = ""
@@ -251,10 +247,9 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
                     style_payload += additional_line + "\n"
 
-                subtitles_obj.add_block(Style(style_payload.rstrip("\n")))
+                self.blocks.append(Style(style_payload.rstrip("\n")))
 
             prev_line = line
-        return subtitles_obj
 
 
 # --- Constants ---

@@ -29,7 +29,7 @@ class SubRipSubtitles(Subtitles[SubRipCaptionBlock]):
     """An object representing a SubRip subtitles file."""
     format = SubtitlesFormatType.SUBRIP
 
-    def dumps(self) -> str:
+    def _dumps(self) -> str:
         subtitles_str = ""
         count = 0
 
@@ -39,6 +39,5 @@ class SubRipSubtitles(Subtitles[SubRipCaptionBlock]):
 
         return subtitles_str.rstrip('\n')
 
-    @classmethod
-    def loads(cls, data: str, language_code: str, encoding: str = "utf-8") -> SubRipSubtitles:
+    def _loads(self, data: str) -> None:
         raise NotImplementedError("SubRip subtitles loading is not supported.")

@@ -350,6 +350,7 @@ def generate_project_folders() -> None:
             logger.debug(f"'{LOG_FILES_PATH}' directory could not be found and will be created.")
             LOG_FILES_PATH.mkdir()
 
+
 def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_path: Path,
                        language_filter: list[str] | None = None, convert_to_srt: bool = False,
                        overwrite_existing: bool = True, zip_files: bool = False) -> SubtitlesDownloadResults:
