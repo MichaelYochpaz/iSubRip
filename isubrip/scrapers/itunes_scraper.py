@@ -115,9 +115,9 @@ class ItunesScraper(HLSScraper):
                 subtitles = self.subtitles_class(data=subtitles_segments[0], language_code=language_code)
 
                 for segment in subtitles_segments[1:]:
-                    subtitles.append_subtitles(
-                        subtitles=self.subtitles_class(data=segment, language_code=language_code),
-                    )
+                    segment_subtitles_obj = self.subtitles_class(data=segment, language_code=language_code)
+                    segment_subtitles_obj.remove_head_blocks()
+                    subtitles.append_subtitles(segment_subtitles_obj)
 
                 subtitles.polish(
                     fix_rtl=self.subtitles_fix_rtl,

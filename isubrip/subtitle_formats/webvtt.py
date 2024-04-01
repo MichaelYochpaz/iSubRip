@@ -251,6 +251,21 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
             prev_line = line
 
+    def remove_head_blocks(self) -> None:
+        """
+        Remove all head blocks (Style / Region) from the subtitles.
+
+        NOTE:
+            Comment blocks are removed as well if they are before the first caption block (since they're probably
+            related to the head blocks).
+        """
+        for block in self.blocks:
+            if isinstance(block, Caption):
+                break
+
+            if isinstance(block, (Comment, Style, Region)):
+                self.blocks.remove(block)
+
 
 # --- Constants ---
 WEBVTT_PERCENTAGE_REGEX = r"\d{1,3}(?:\.\d+)?%"
