@@ -1,12 +1,16 @@
-# This is an example config file using the default settings.
+# ---------------- ⚠️ IMPORTANT - READ BEFORE USING ⚠️ ----------------
+# This is an example config file with all available settings and their default values (if they have one).
+# All settings are optional, and setting them in the config file will override their default values.
 #
-# All settings in this file are optional. If a setting is not defined, its default value will be used.
-# Define only settings that you want to change from their default values (which are the values specified in this file).
+# In your config file, set only settings you wish to change from their default values.
+# Do NOT copy this file and use it as your config, as it will override ALL settings with the values specified here.
+# Use this file only as a reference to understand what different settings do,
+# and to decide which settings you should use in your config.
 #
-# A config file will be looked for in one of the following paths (according to OS):
-#  - Windows: %USERPROFILE%\.isubrip\config.toml
-#  - Linux / macOS: $HOME/.isubrip/config.toml
-# ------------------------------------------------------------
+# Your config file should be saved in the following path (according to OS):
+#   - Windows: %USERPROFILE%\.isubrip\config.toml
+#   - Linux / macOS: $HOME/.isubrip/config.toml
+# ---------------------------------------------------------------------
 
 [general]
 # Check for updates before running, and show a note if a new version exists.

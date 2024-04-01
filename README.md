@@ -65,7 +65,7 @@ fix-rtl = true
 subrip-alignment-conversion = true
 ```
 
-A complete config with all the available options and explanations for each configuration can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml).
+An example config with details and explanations for all available settings can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml).
 
 ## Logs
 A log file, containing debug information, will be created for each run on one of the following paths (according to OS):
