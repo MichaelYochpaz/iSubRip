@@ -1,4 +1,3 @@
-# --- Poetry ---
 [tool.poetry]
 name = "isubrip"
 version = "2.5.2"
@@ -74,10 +73,12 @@ replace = 'PACKAGE_VERSION = "{new_version}"'
 search = 'Latest version: {current_version}'
 replace = 'Latest version: {new_version}'
 
-# --- Ruff ---
+
 [tool.ruff]
 line-length = 120
 target-version = "py38"
+
+[tool.ruff.lint]
 select = [
     "ARG",
     "ASYNC",
@@ -95,8 +96,7 @@ select = [
     "PGH",
     "PT",
     "PTH",
-    "Q002",
-    "Q003",
+    "Q",
     "RSE",
     "RET",
     "RUF",
@@ -107,25 +107,28 @@ select = [
     "TCH",
     "TID",
     "TRY",
-#    "UP",
+    "UP",
 ]
 ignore = [
     "C416",
+    "Q000",
     "RUF010",
     "RUF012",
     "SIM108",
     "TD002",
     "TD003",
     "TRY003",
-#    "UP015",
 ]
 unfixable = ["ARG"]
 
-[tool.ruff.flake8-tidy-imports]
+[tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
-[tool.ruff.flake8-quotes]
+[tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 force-sort-within-sections = true
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
