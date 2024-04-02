@@ -31,11 +31,9 @@ class SubRipSubtitles(Subtitles[SubRipCaptionBlock]):
 
     def _dumps(self) -> str:
         subtitles_str = ""
-        count = 0
 
-        for block in self.blocks:
-            subtitles_str += f"{(count + 1)}\n{str(block)}\n\n"
-            count += 1
+        for i, block in enumerate(iterable=self.blocks, start=1):
+            subtitles_str += f"{i}\n{str(block)}\n\n"
 
         return subtitles_str.rstrip('\n')
 

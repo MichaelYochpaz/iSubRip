@@ -21,14 +21,14 @@ class ItunesScraper(HLSScraper):
     id = "itunes"
     name = "iTunes"
     abbreviation = "iT"
-    url_regex = re.compile(r"(?i)(?P<base_url>https?://itunes\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|tv-show|tv-season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>id\d{9,10}))(?:\?(?P<url_params>.*))?")  # noqa: E501
+    url_regex = re.compile(r"(?i)(?P<base_url>https?://itunes\.apple\.com/(?:(?P<country_code>[a-z]{2})/)?(?P<media_type>movie|tv-show|tv-season|show)/(?:(?P<media_name>[\w\-%]+)/)?(?P<media_id>id\d{9,10}))(?:\?(?P<url_params>.*))?")
     subtitles_class = WebVTTSubtitles
     is_movie_scraper = True
     uses_scrapers = ["appletv"]
 
     _subtitles_filters = {
         HLSScraper.M3U8Attribute.GROUP_ID.value: ["subtitles_ak", "subtitles_vod-ak-amt.tv.apple.com"],
-        **HLSScraper._subtitles_filters,
+        **HLSScraper._subtitles_filters,  # noqa: SLF001
     }
 
     def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):

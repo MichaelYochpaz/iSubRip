@@ -44,7 +44,7 @@ class ConfigSetting(NamedTuple):
 
     Attributes:
         key (str): Dictionary key used to access the setting.
-        type (type): Variable type of the value of the setting. Used for validation.
+        value_type (type): Variable type of the value of the setting. Used for validation.
         category (str | tuple[str, ...], optional): A category that the setting is under.
             Categories are used to group related settings' keys together in a sub-dictionary.
             A tuple can be used to nest categories (first item is the top-level category). Defaults to None.
@@ -56,7 +56,7 @@ class ConfigSetting(NamedTuple):
     key: str
     # TODO: Use `types.UnionType` instead of `typing._UnionGenericAlias`, once minimum Python version >= 3.10.
     # TODO: Update 'InvalidConfigType' exception as well.
-    type: type | typing._UnionGenericAlias  # type: ignore[name-defined]  # noqa: SLF001
+    value_type: type | typing._UnionGenericAlias  # type: ignore[name-defined]
     category: str | tuple[str, ...] | None = None
     required: bool = False
     enum_type: Type[Enum] | None = None
@@ -113,7 +113,7 @@ class Config:
         if self._config_data and key in self._config_data:
             return self._config_data[key]
 
-        raise AttributeError(f"Attribute \'{key}\' does not exist.")
+        raise AttributeError(f"Attribute '{key}' does not exist.")
 
     def __getitem__(self, key: str) -> Any:
         """
@@ -289,8 +289,8 @@ class Config:
 
                 continue
 
-            if setting.enum_type is None and not check_type(value, setting.type):
-                raise InvalidConfigTypeError(setting_path=setting_path, value=value, expected_type=setting.type)
+            if setting.enum_type is None and not check_type(value, setting.value_type):
+                raise InvalidConfigTypeError(setting_path=setting_path, value=value, expected_type=setting.value_type)
 
             special_types = single_to_list(setting.special_type)
 
@@ -337,7 +337,7 @@ class InvalidEnumConfigValueError(InvalidConfigValueError):
 class InvalidConfigTypeError(InvalidConfigValueError):
     """An invalid config value type has been set."""
     def __init__(self, setting_path: str,
-                 expected_type: type | typing._UnionGenericAlias,  # type: ignore[name-defined] # noqa: SLF001
+                 expected_type: type | typing._UnionGenericAlias,  # type: ignore[name-defined]
                  value: Any):
         expected_type_str = expected_type.__name__ if hasattr(expected_type, '__name__') else str(expected_type)
         value_type_str = type(value).__name__ if hasattr(type(value), '__name__') else str(type(value))

@@ -92,17 +92,17 @@ class Scraper(ABC, metaclass=SingletonMeta):
         self.config.add_settings([
             ConfigSetting(
                 key="user-agent",
-                type=str,
+                value_type=str,
                 required=False,
             ),
             ConfigSetting(
                 key="proxy",
-                type=str,
+                value_type=str,
                 required=False,
             ),
             ConfigSetting(
                 key="verify-ssl",
-                type=bool,
+                value_type=bool,
                 required=False,
             ),
         ],
@@ -292,7 +292,7 @@ class HLSScraper(AsyncScraper, ABC):
             ConfigSetting(
                 category=self._playlist_filters_config_category,
                 key=m3u8_attribute.value,
-                type=Union[str, List[str]],
+                value_type=Union[str, List[str]],
                 required=False,
             ) for m3u8_attribute in self.M3U8Attribute],
             check_config=False)
