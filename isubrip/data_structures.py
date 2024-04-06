@@ -15,12 +15,12 @@ class SubtitlesDownloadResults(NamedTuple):
     A named tuple containing download results.
 
     Attributes:
-        movie_data (Movie): Movie data object.
+        media_data (Movie | Episode): An object containing metadata about the media the subtitles were downloaded for.
         successful_subtitles (list[SubtitlesData]): List of subtitles that were successfully downloaded.
         failed_subtitles (list[SubtitlesData]): List of subtitles that failed to download.
         is_zip (bool): Whether the subtitles were saved in a zip file.
     """
-    movie_data: Movie
+    media_data: Movie | Episode
     successful_subtitles: list[SubtitlesData]
     failed_subtitles: list[SubtitlesData]
     is_zip: bool

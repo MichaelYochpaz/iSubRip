@@ -256,14 +256,17 @@ def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> N
     if isinstance(media_item, Series):
         for season in media_item.seasons:
             download_media(scraper=scraper, media_item=season, config=config)
-        return
 
-    if isinstance(media_item, Season):
+    elif isinstance(media_item, Season):
         for episode in media_item.episodes:
             logger.info(f"{format_media_description(media_data=episode, shortened=True)}:")
-            download_media(scraper=scraper, media_item=episode, config=config)
-        return
+            download_media_item(scraper=scraper, media_item=episode, config=config)
 
+    elif isinstance(media_item, (Movie, Episode)):
+        download_media_item(scraper=scraper, media_item=media_item, config=config)
+
+
+def download_media_item(scraper: Scraper, media_item: Movie | Episode, config: Config) -> None:
     if media_item.playlist:
         download_subtitles_kwargs = {
             "download_path": Path(config.downloads["folder"]),
@@ -434,7 +437,7 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
         shutil.move(src=str(archive_path), dst=destination_path)
 
     return SubtitlesDownloadResults(
-        movie_data=media_data,
+        media_data=media_data,
         successful_subtitles=successful_downloads,
         failed_subtitles=failed_downloads,
         is_zip=zip_files,

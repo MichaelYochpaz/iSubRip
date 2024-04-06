@@ -8,7 +8,7 @@ from typing import Iterator
 
 from requests.exceptions import HTTPError
 
-from isubrip.data_structures import Episode, MediaData, Movie, ScrapedMediaResponse, Season, Series, SubtitlesData
+from isubrip.data_structures import Episode, Movie, ScrapedMediaResponse, Season, Series, SubtitlesData
 from isubrip.logger import logger
 from isubrip.scrapers.scraper import HLSScraper, ScraperError
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
@@ -310,7 +310,7 @@ class AppleTVScraper(HLSScraper):
     def get_show_data(self, storefront_id: str, show_id: str) -> ScrapedMediaResponse[Series]:
         raise NotImplementedError("Series scraping is not currently supported.")
 
-    def get_data(self, url: str) -> ScrapedMediaResponse[MediaData]:
+    def get_data(self, url: str) -> ScrapedMediaResponse:
         regex_match = self.match_url(url=url, raise_error=True)
         url_data = regex_match.groupdict()
 
