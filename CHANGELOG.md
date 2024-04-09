@@ -1,4 +1,16 @@
 # Changelog
+## 2.5.3 [2024-04-09]
+### Added:
+* Added new `proxy` and `verify-ssl` settings to the config file, for allowing the usage of a proxy when making requests, and disabling SSL verification. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml) for usage examples.
+
+### Changes:
+* `subtitles.rtl-languages` config setting is no longer supported, and its values are now hardcoded and can't be modified.
+
+### Bug Fixes:
+* Fixed an issue where in some cases, `STYLE` blocks would repeat throughout the subtitles file, and cause inaccurate cue count. ([Issue #63](https://github.com/MichaelYochpaz/iSubRip/issues/63))
+* Fixed an issue where the WebVTT Style blocks would have their `STYLE` tag replaced with a `REGION` tag in downloaded subtitles.
+* Fixed an issue where an empty playlist (with a size of 0 bytes) would be reported as a valid playlist with no matching subtitles. ([Issue #65](https://github.com/MichaelYochpaz/iSubRip/issues/65))
+---
 ## 2.5.2 [2024-01-06]
 ### Bug Fixes
 * Fixed an issue where errors would not be handled gracefully, and cause an unexpected crash. ([Issue #55](https://github.com/MichaelYochpaz/iSubRip/issues/55))
