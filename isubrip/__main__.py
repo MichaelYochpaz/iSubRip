@@ -150,13 +150,14 @@ def main() -> None:
             print_usage()
             exit(0)
 
+        if not DATA_FOLDER_PATH.is_dir():
+            DATA_FOLDER_PATH.mkdir(parents=True)
+
         setup_loggers(stdout_loglevel=logging.INFO,
                       file_loglevel=logging.DEBUG)
 
-        generate_project_folders()
-
         cli_args = " ".join(sys.argv[1:])
-        logger.debug(f"Used CLI Command: {PACKAGE_NAME} {cli_args}")
+        logger.debug(f"CLI Command: {PACKAGE_NAME} {cli_args}")
         logger.debug(f"Python version: {sys.version}")
         logger.debug(f"Package version: {PACKAGE_VERSION}")
         logger.debug(f"OS: {sys.platform}")
@@ -341,17 +342,6 @@ def check_for_updates(current_package_version: str) -> None:
         logger.warning(f"Update check failed: {e}")
         logger.debug(f"Stack trace: {e}", exc_info=True)
         return
-
-
-def generate_project_folders() -> None:
-    if not DATA_FOLDER_PATH.is_dir():
-        logger.debug(f"'{DATA_FOLDER_PATH}' directory could not be found and will be created.")
-        LOG_FILES_PATH.mkdir(parents=True, exist_ok=True)
-
-    else:  # LOG_FILES_PATH is inside DATA_FOLDER_PATH
-        if not LOG_FILES_PATH.is_dir():
-            logger.debug(f"'{LOG_FILES_PATH}' directory could not be found and will be created.")
-            LOG_FILES_PATH.mkdir()
 
 
 def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_path: Path,
@@ -596,10 +586,15 @@ def setup_loggers(stdout_loglevel: int, file_loglevel: int) -> None:
     logger.addHandler(stdout_handler)
 
     # Setup logfile logger
+    if not LOG_FILES_PATH.is_dir():
+        logger.debug("Logs directory could not be found and will be created.")
+        LOG_FILES_PATH.mkdir()
+
     logfile_path = generate_non_conflicting_path(file_path=LOG_FILES_PATH / LOG_FILE_NAME)
     logfile_handler = logging.FileHandler(filename=logfile_path, encoding="utf-8")
     logfile_handler.setLevel(file_loglevel)
     logfile_handler.setFormatter(CustomLogFileFormatter())
+    logger.debug(f"Log file location: '{logfile_path}'")
     logger.addHandler(logfile_handler)
 
 
