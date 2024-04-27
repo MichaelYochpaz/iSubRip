@@ -224,7 +224,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
 
     @abstractmethod
     def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | None = None,
-                      subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
+                      subrip_conversion: bool = False) -> Iterator[SubtitlesData | SubtitlesDownloadError]:
         """
         Find and yield subtitles data from a main_playlist.
 
@@ -235,8 +235,8 @@ class Scraper(ABC, metaclass=SingletonMeta):
             subrip_conversion (bool, optional): Whether to convert the subtitles to SubRip format. Defaults to False.
 
         Yields:
-            SubtitlesData: A SubtitlesData object for each subtitle found
-                in the main playlist (matching the filters, if given).
+            SubtitlesData | SubtitlesDownloadError: A SubtitlesData object containing subtitles data,
+                or a SubtitlesDownloadError object if an error occurred.
         """
 
 
@@ -616,3 +616,22 @@ class ScraperError(Exception):
 
 class PlaylistLoadError(ScraperError):
     pass
+
+
+class SubtitlesDownloadError(ScraperError):
+    def __init__(self, language_code: str, language_name: str | None = None, special_type: SubtitlesType | None = None,
+                 original_exc: Exception | None = None, *args: Any, **kwargs: dict[str, Any]):
+        """
+        Initialize a SubtitlesDownloadError instance.
+
+        Args:
+            language_code (str): Language code of the subtitles that failed to download.
+            language_name (str | None, optional): Language name of the subtitles that failed to download.
+            special_type (SubtitlesType | None, optional): Type of the subtitles that failed to download.
+            original_exc (Exception | None, optional): The original exception that caused the error.
+        """
+        super().__init__(*args, **kwargs)
+        self.language_code = language_code
+        self.language_name = language_name
+        self.special_type = special_type
+        self.original_exc = original_exc

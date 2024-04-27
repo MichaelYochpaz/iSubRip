@@ -8,7 +8,7 @@ from requests.exceptions import HTTPError
 
 from isubrip.data_structures import SubtitlesData, SubtitlesFormatType
 from isubrip.logger import logger
-from isubrip.scrapers.scraper import HLSScraper, PlaylistLoadError, ScraperError, ScraperFactory
+from isubrip.scrapers.scraper import HLSScraper, PlaylistLoadError, ScraperError, ScraperFactory, SubtitlesDownloadError
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
 from isubrip.utils import merge_dict_values, raise_for_status
 
@@ -88,7 +88,7 @@ class ItunesScraper(HLSScraper):
         return self._appletv_scraper.get_data(redirect_location)
 
     def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | str | None = None,
-                      subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
+                      subrip_conversion: bool = False) -> Iterator[SubtitlesData | SubtitlesDownloadError]:
         language_filters = {self.M3U8Attribute.LANGUAGE.value: language_filter} if language_filter else None
         main_playlist_m3u8 = self.load_m3u8(url=main_playlist)
 
@@ -105,7 +105,7 @@ class ItunesScraper(HLSScraper):
         for matched_media in matched_media_items:
             language_name = matched_media.name.replace(' (forced)', '').strip()
             language_code = matched_media.language
-            language_info_str = f"{language_name} ({language_code})"
+            special_type = self.detect_subtitles_type(subtitles_media=matched_media)
 
             try:
                 m3u8_data = self._session.get(url=matched_media.absolute_uri)
@@ -126,17 +126,27 @@ class ItunesScraper(HLSScraper):
 
                 language_name = matched_media.name.replace(' (forced)', '').strip()
 
+                if subrip_conversion:
+                    subtitles_format = SubtitlesFormatType.SUBRIP
+                    content = subtitles.to_srt().dump()
+
+                else:
+                    subtitles_format = SubtitlesFormatType.WEBVTT
+                    content = subtitles.dump()
+
                 yield SubtitlesData(
                     language_code=language_code,
                     language_name=language_name,
-                    subtitles_format=SubtitlesFormatType.SUBRIP if subrip_conversion else SubtitlesFormatType.WEBVTT,
-                    content=subtitles.to_srt().dump() if subrip_conversion else subtitles.dump(),
+                    subtitles_format=subtitles_format,
+                    content=content,
                     content_encoding=subtitles.encoding,
-                    special_type=self.detect_subtitles_type(matched_media),
+                    special_type=special_type,
                 )
 
             except Exception as e:
-                logger.warning(f"Failed to download {language_info_str} subtitles. "
-                               f"Skipping...")
-                logger.debug(e, exc_info=True)
-                continue
+                yield SubtitlesDownloadError(
+                    language_code=language_code,
+                    language_name=language_name,
+                    special_type=special_type,
+                    original_exc=e,
+                )

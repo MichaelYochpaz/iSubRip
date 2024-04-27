@@ -3,9 +3,12 @@ from __future__ import annotations
 from abc import ABC
 import datetime as dt  # noqa: TCH003
 from enum import Enum
-from typing import Generic, List, NamedTuple, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, List, NamedTuple, Optional, TypeVar, Union
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from isubrip.scrapers.scraper import SubtitlesDownloadError
 
 MediaData = TypeVar("MediaData", bound="MediaBase")
 
@@ -22,7 +25,7 @@ class SubtitlesDownloadResults(NamedTuple):
     """
     media_data: Movie | Episode
     successful_subtitles: list[SubtitlesData]
-    failed_subtitles: list[SubtitlesData]
+    failed_subtitles: list[SubtitlesDownloadError]
     is_zip: bool
 
 

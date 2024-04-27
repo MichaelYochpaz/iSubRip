@@ -33,7 +33,7 @@ from isubrip.data_structures import (
     SubtitlesDownloadResults,
 )
 from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
-from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperError, ScraperFactory
+from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperError, ScraperFactory, SubtitlesDownloadError
 from isubrip.subtitle_formats.webvtt import Caption as WebVTTCaption
 from isubrip.utils import (
     TempDirGenerator,
@@ -173,7 +173,7 @@ def main() -> None:
 
     except Exception as ex:
         logger.error(f"Error: {ex}")
-        logger.debug(f"Stack trace: {ex}", exc_info=True)
+        logger.debug("Debug information:", exc_info=True)
         exit(1)
 
     finally:
@@ -285,12 +285,9 @@ def download_media_item(scraper: Scraper, media_item: Movie | Episode, config: C
             success_count = len(results.successful_subtitles)
             failed_count = len(results.failed_subtitles)
 
-            if success_count:
+            if success_count or failed_count:
                 logger.info(f"{success_count}/{success_count + failed_count} matching subtitles "
-                            f"have been successfully downloaded.")
-
-            elif failed_count:
-                logger.info(f"{failed_count} subtitles were matched, but failed to download.")
+                            f"were successfully downloaded.")
 
             else:
                 logger.info("No matching subtitles were found.")
@@ -340,7 +337,7 @@ def check_for_updates(current_package_version: str) -> None:
 
     except Exception as e:
         logger.warning(f"Update check failed: {e}")
-        logger.debug(f"Stack trace: {e}", exc_info=True)
+        logger.debug("Debug information:", exc_info=True)
         return
 
 
@@ -368,16 +365,21 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
     temp_download_path = TempDirGenerator.generate(directory_name=temp_dir_name)
 
     successful_downloads: list[SubtitlesData] = []
-    failed_downloads: list[SubtitlesData] = []
+    failed_downloads: list[SubtitlesDownloadError] = []
     temp_downloads: list[Path] = []
 
     for subtitles_data in scraper.get_subtitles(main_playlist=media_data.playlist,  # type: ignore[arg-type]
                                                 language_filter=language_filter,
                                                 subrip_conversion=convert_to_srt):
-
         language_info = format_subtitles_description(language_code=subtitles_data.language_code,
                                                      language_name=subtitles_data.language_name,
                                                      special_type=subtitles_data.special_type)
+
+        if isinstance(subtitles_data, SubtitlesDownloadError):
+            logger.warning(f"Failed to download '{language_info}' subtitles. Skipping...")
+            logger.debug("Debug information:", exc_info=subtitles_data.original_exc)
+            failed_downloads.append(subtitles_data)
+            continue
 
         try:
             temp_downloads.append(download_subtitles_to_file(
@@ -388,14 +390,20 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
                 overwrite=overwrite_existing,
             ))
 
-            logger.info(f"{language_info} subtitles were successfully downloaded.")
+            logger.info(f"'{language_info}' subtitles were successfully downloaded.")
             successful_downloads.append(subtitles_data)
 
         except Exception as e:
-            logger.error(f"Error: Failed to download '{language_info}' subtitles: {e}")
-            logger.debug("Stack trace:", exc_info=True)
-            failed_downloads.append(subtitles_data)
-            continue
+            logger.error(f"Error: Failed to save '{language_info}' subtitles: {e}")
+            logger.debug("Debug information:", exc_info=True)
+            failed_downloads.append(
+                SubtitlesDownloadError(
+                    language_code=subtitles_data.language_code,
+                    language_name=subtitles_data.language_name,
+                    special_type=subtitles_data.special_type,
+                    original_exc=e,
+                ),
+            )
 
     if not zip_files or len(temp_downloads) == 1:
         for file_path in temp_downloads:
