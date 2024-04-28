@@ -1,4 +1,9 @@
 # Changelog
+## 2.5.4 [2024-04-28]
+### Bug Fixes:
+* Fixed an issue where if the `logs` directory does not exist, the folder isn't created, causing an error. ([Issue #67](https://github.com/MichaelYochpaz/iSubRip/issues/67))
+* Fixed an issue where the summary log of successful and failed download would not account for failed downloads. ([Issue #68](https://github.com/MichaelYochpaz/iSubRip/issues/68))
+---
 ## 2.5.3 [2024-04-09]
 ### Added:
 * Added new `proxy` and `verify-ssl` settings to the config file, for allowing the usage of a proxy when making requests, and disabling SSL verification. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml) for usage examples.
@@ -12,11 +17,11 @@
 * Fixed an issue where an empty playlist (with a size of 0 bytes) would be reported as a valid playlist with no matching subtitles. ([Issue #65](https://github.com/MichaelYochpaz/iSubRip/issues/65))
 ---
 ## 2.5.2 [2024-01-06]
-### Bug Fixes
+### Bug Fixes:
 * Fixed an issue where errors would not be handled gracefully, and cause an unexpected crash. ([Issue #55](https://github.com/MichaelYochpaz/iSubRip/issues/55))
 ---
 ## 2.5.1 [2023-12-23]
-### Bug Fixes
+### Bug Fixes:
 * Fixed an issue where source abbreviation was missing from file names of downloaded subtitles files. ([Issue #53](https://github.com/MichaelYochpaz/iSubRip/issues/53))
 ---
 ## 2.5.0 [2023-12-16]
@@ -30,7 +35,7 @@
 * Updated the CLI output to utilize logs and print with colors according to log-level.
 * Improved error handling in some cases where an invalid URL is used.
 
-### Bug Fixes
+### Bug Fixes:
 * Fixed an issue where if a movie is a pre-order with a set release date, a message with availability date wouldn't be printed in some cases.
 ---
 ## 2.4.3 [2023-06-18]
