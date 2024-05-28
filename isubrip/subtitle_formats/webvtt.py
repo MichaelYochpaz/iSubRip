@@ -24,7 +24,7 @@ class WebVTTBlock(SubtitlesBlock, metaclass=ABCMeta):
     is_caption_block: bool = False
 
 
-class Caption(SubtitlesCaptionBlock, WebVTTBlock):
+class WebVTTCaptionBlock(SubtitlesCaptionBlock, WebVTTBlock):
     """An object representing a WebVTT caption block."""
     subrip_alignment_conversion: ClassVar[bool] = False
 
@@ -81,7 +81,7 @@ class Caption(SubtitlesCaptionBlock, WebVTTBlock):
         return result_str
 
 
-class Comment(WebVTTBlock):
+class WebVTTCommentBlock(WebVTTBlock):
     """An object representing a WebVTT comment block."""
     header = "NOTE"
 
@@ -109,7 +109,7 @@ class Comment(WebVTTBlock):
         return self.header
 
 
-class Style(WebVTTBlock):
+class WebVTTStyleBlock(WebVTTBlock):
     """An object representing a WebVTT style block."""
     header = "STYLE"
 
@@ -130,7 +130,7 @@ class Style(WebVTTBlock):
         return f"{self.header}\n{self.payload}"
 
 
-class Region(WebVTTBlock):
+class WebVTTRegionBlock(WebVTTBlock):
     """An object representing a WebVTT region block."""
     header = "REGION"
 
@@ -201,7 +201,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
                     caption_payload += additional_line + "\n"
 
                 caption_payload = caption_payload.rstrip("\n")
-                self.blocks.append(Caption(
+                self.blocks.append(WebVTTCaptionBlock(
                     identifier=caption_identifier,
                     start_time=caption_timestamps[0],
                     end_time=caption_timestamps[1],
@@ -223,9 +223,9 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
                     comment_payload += additional_line + "\n"
 
-                self.blocks.append(Comment(comment_payload.rstrip("\n"), inline=inline))
+                self.blocks.append(WebVTTCommentBlock(comment_payload.rstrip("\n"), inline=inline))
 
-            elif line.rstrip(' \t') == Region.header:
+            elif line.rstrip(' \t') == WebVTTRegionBlock.header:
                 region_payload = ""
 
                 for additional_line in lines_iterator:
@@ -235,9 +235,9 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
                     region_payload += additional_line + "\n"
 
-                self.blocks.append(Region(region_payload.rstrip("\n")))
+                self.blocks.append(WebVTTRegionBlock(region_payload.rstrip("\n")))
 
-            elif line.rstrip(' \t') == Style.header:
+            elif line.rstrip(' \t') == WebVTTStyleBlock.header:
                 style_payload = ""
 
                 for additional_line in lines_iterator:
@@ -247,7 +247,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
                     style_payload += additional_line + "\n"
 
-                self.blocks.append(Style(style_payload.rstrip("\n")))
+                self.blocks.append(WebVTTStyleBlock(style_payload.rstrip("\n")))
 
             prev_line = line
 
@@ -260,10 +260,10 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
             related to the head blocks).
         """
         for block in self.blocks:
-            if isinstance(block, Caption):
+            if isinstance(block, WebVTTCaptionBlock):
                 break
 
-            if isinstance(block, (Comment, Style, Region)):
+            if isinstance(block, (WebVTTCommentBlock, WebVTTStyleBlock, WebVTTRegionBlock)):
                 self.blocks.remove(block)
 
 
@@ -290,6 +290,6 @@ WEBVTT_CAPTION_SETTINGS_REGEX = ("(?:"
                                  ")*")
 
 WEBVTT_CAPTION_BLOCK_REGEX = re.compile(rf"^({WEBVTT_CAPTION_TIMINGS_REGEX})[ \t]*({WEBVTT_CAPTION_SETTINGS_REGEX})?")
-WEBVTT_COMMENT_HEADER_REGEX = re.compile(rf"^{Comment.header}(?:$|[ \t])(.+)?")
+WEBVTT_COMMENT_HEADER_REGEX = re.compile(rf"^{WebVTTCommentBlock.header}(?:$|[ \t])(.+)?")
 
 WEBVTT_ALIGN_TOP_TAG = "{\\an8}"

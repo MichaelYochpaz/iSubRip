@@ -34,7 +34,7 @@ from isubrip.data_structures import (
 )
 from isubrip.logger import CustomLogFileFormatter, CustomStdoutFormatter, logger
 from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperError, ScraperFactory, SubtitlesDownloadError
-from isubrip.subtitle_formats.webvtt import Caption as WebVTTCaption
+from isubrip.subtitle_formats.webvtt import WebVTTCaptionBlock
 from isubrip.utils import (
     TempDirGenerator,
     download_subtitles_to_file,
@@ -563,7 +563,7 @@ def update_settings(config: Config) -> None:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    WebVTTCaption.subrip_alignment_conversion = (
+    WebVTTCaptionBlock.subrip_alignment_conversion = (
         config.subtitles.get("webvtt", {}).get("subrip-alignment-conversion", False)
     )
 
