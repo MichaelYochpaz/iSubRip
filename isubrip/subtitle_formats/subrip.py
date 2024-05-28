@@ -8,6 +8,10 @@ from isubrip.subtitle_formats.subtitles import Subtitles, SubtitlesCaptionBlock
 
 class SubRipCaptionBlock(SubtitlesCaptionBlock):
     """A subtitles caption block based on the SUBRIP format."""
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, type(self)) and \
+               self.start_time == other.start_time and self.end_time == other.end_time and self.payload == other.payload
+
     def __str__(self) -> str:
         result_str = ""
         time_format = "%H:%M:%S,%f"
@@ -16,10 +20,6 @@ class SubRipCaptionBlock(SubtitlesCaptionBlock):
         result_str += f"{self.payload}"
 
         return result_str
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, type(self)) and \
-               self.start_time == other.start_time and self.end_time == other.end_time and self.payload == other.payload
 
     def to_srt(self) -> SubRipCaptionBlock:
         return self

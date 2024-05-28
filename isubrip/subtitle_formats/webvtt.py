@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta
+from copy import deepcopy
 import re
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -43,6 +44,12 @@ class WebVTTCaptionBlock(SubtitlesCaptionBlock, WebVTTBlock):
         super().__init__(start_time=start_time, end_time=end_time, payload=payload)
         self.identifier = identifier
         self.settings = settings
+
+    def __copy__(self) -> WebVTTCaptionBlock:
+        copy = self.__class__(start_time=self.start_time, end_time=self.end_time, payload=self.payload,
+                              settings=self.settings, identifier=self.identifier)
+        copy.modified = self.modified
+        return copy
 
     def to_srt(self) -> SubRipCaptionBlock:
         # Add a {\an8} tag at the start of the payload if it has 'line:0.00%' in the settings
@@ -96,6 +103,11 @@ class WebVTTCommentBlock(WebVTTBlock):
         self.payload = payload
         self.inline = inline
 
+    def __copy__(self) -> WebVTTCommentBlock:
+        copy = self.__class__(payload=self.payload, inline=self.inline)
+        copy.modified = self.modified
+        return copy
+
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.inline == other.inline and self.payload == other.payload
 
@@ -123,6 +135,11 @@ class WebVTTStyleBlock(WebVTTBlock):
         super().__init__()
         self.payload = payload
 
+    def __copy__(self) -> WebVTTStyleBlock:
+        copy = self.__class__(payload=self.payload)
+        copy.modified = self.modified
+        return copy
+
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.payload == other.payload
 
@@ -143,6 +160,11 @@ class WebVTTRegionBlock(WebVTTBlock):
         """
         super().__init__()
         self.payload = payload
+
+    def __copy__(self) -> WebVTTRegionBlock:
+        copy = self.__class__(payload=self.payload)
+        copy.modified = self.modified
+        return copy
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.payload == other.payload
@@ -250,6 +272,21 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
                 self.blocks.append(WebVTTStyleBlock(style_payload.rstrip("\n")))
 
             prev_line = line
+
+    def append_subtitles(self: WebVTTSubtitles,
+                         subtitles: WebVTTSubtitles) -> WebVTTSubtitles:
+        if subtitles.blocks:
+            subtitles_copy = deepcopy(subtitles)
+
+            # Remove head blocks from the subtitles that will be appended
+            subtitles_copy.remove_head_blocks()
+
+            self.add_blocks(subtitles_copy.blocks)
+
+            if subtitles_copy.modified:
+                self._modified = True
+
+        return self
 
     def remove_head_blocks(self) -> None:
         """

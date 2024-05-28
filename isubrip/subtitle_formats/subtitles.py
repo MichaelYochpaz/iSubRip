@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from datetime import time
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
@@ -30,12 +31,16 @@ class SubtitlesBlock(ABC):
         self.modified: bool = False
 
     @abstractmethod
-    def __str__(self) -> str:
-        pass
+    def __copy__(self) -> SubtitlesBlock:
+        """Create a copy of the block."""
 
     @abstractmethod
     def __eq__(self, other: Any) -> bool:
-        pass
+        """Check if two objects are equal."""
+
+    @abstractmethod
+    def __str__(self) -> str:
+        """Return a string representation of the block."""
 
 
 class SubtitlesCaptionBlock(SubtitlesBlock, ABC):
@@ -61,6 +66,11 @@ class SubtitlesCaptionBlock(SubtitlesBlock, ABC):
         self.start_time = start_time
         self.end_time = end_time
         self.payload = payload
+
+    def __copy__(self):
+        copy = self.__class__(self.start_time, self.end_time, self.payload)
+        copy.modified = self.modified
+        return copy
 
     def fix_rtl(self) -> None:
         """Fix payload's text direction to RTL."""
@@ -142,6 +152,14 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
             logger.warning(f"Cannot add object of type '{type(obj)}' to '{type(self)}' object. Skipping...")
 
         return self
+
+    def __copy__(self: SubtitlesT) -> SubtitlesT:
+        """Create a copy of the subtitles object."""
+        copy = self.__class__(data=None, language_code=self.language_code, encoding=self.encoding)
+        copy.raw_data = self.raw_data
+        copy.blocks = [block.__copy__() for block in self.blocks]
+        copy._modified = self._modified
+        return copy
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.blocks == other.blocks
@@ -255,11 +273,11 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
         Returns:
             Subtitles: The current subtitles object.
         """
-        if not subtitles.blocks:
-            return self
+        if subtitles.blocks:
+            self.add_blocks(deepcopy(subtitles.blocks))
 
-        for block in subtitles.blocks:
-            self.add_blocks(block)
+            if subtitles.modified:
+                self._modified = True
 
         return self
 
