@@ -67,7 +67,7 @@ class SubtitlesCaptionBlock(SubtitlesBlock, ABC):
         self.end_time = end_time
         self.payload = payload
 
-    def __copy__(self):
+    def __copy__(self) -> SubtitlesCaptionBlock:
         copy = self.__class__(self.start_time, self.end_time, self.payload)
         copy.modified = self.modified
         return copy
@@ -158,7 +158,7 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
         copy = self.__class__(data=None, language_code=self.language_code, encoding=self.encoding)
         copy.raw_data = self.raw_data
         copy.blocks = [block.__copy__() for block in self.blocks]
-        copy._modified = self._modified
+        copy._modified = self.modified()  # noqa: SLF001
         return copy
 
     def __eq__(self, other: Any) -> bool:
@@ -276,7 +276,7 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
         if subtitles.blocks:
             self.add_blocks(deepcopy(subtitles.blocks))
 
-            if subtitles.modified:
+            if subtitles.modified():
                 self._modified = True
 
         return self

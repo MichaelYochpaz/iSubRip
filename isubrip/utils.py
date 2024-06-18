@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from os import PathLike
     from types import TracebackType
 
-    import requests
+    import httpx
 
 
 class SingletonMeta(ABCMeta):
@@ -408,8 +408,13 @@ def merge_dict_values(*dictionaries: dict) -> dict:
     A function for merging the values of multiple dictionaries using the same keys.
     If a key already exists, the value will be added to a list of values mapped to that key.
 
+    Examples:
+        merge_dict_values({'a': 1, 'b': 3}, {'a': 2, 'b': 4}) -> {'a': [1, 2], 'b': [3, 4]}
+        merge_dict_values({'a': 1, 'b': 2}, {'a': 1, 'b': [2, 3]}) -> {'a': 1, 'b': [2, 3]}
+
     Note:
-        This function support only merging of lists, without any nesting.
+        This function support only merging of lists or single items (no tuples or other iterables),
+        and without any nesting (lists within lists).
 
     Args:
         *dictionaries (dict): Dictionaries to merge.
@@ -417,7 +422,7 @@ def merge_dict_values(*dictionaries: dict) -> dict:
     Returns:
         dict: A merged dictionary.
     """
-    _dictionaries = [d for d in dictionaries if d]
+    _dictionaries: list[dict] = [d for d in dictionaries if d]
 
     if len(_dictionaries) == 0:
         return {}
@@ -446,17 +451,17 @@ def merge_dict_values(*dictionaries: dict) -> dict:
     return result
 
 
-def raise_for_status(response: requests.Response) -> None:
+def raise_for_status(response: httpx.Response) -> None:
     """
     Raise an exception if the response status code is invalid.
     Uses 'response.raise_for_status()' internally, with additional logging.
 
     Args:
-        response (requests.Response): A response object.
+        response (httpx.Response): A response object.
     """
     truncation_threshold = 1500
 
-    if response.ok:
+    if not response.is_error:
         return
 
     if len(response.text) > truncation_threshold:

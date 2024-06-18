@@ -5,10 +5,14 @@ import datetime as dt  # noqa: TCH003
 from enum import Enum
 from typing import TYPE_CHECKING, Generic, List, NamedTuple, Optional, TypeVar, Union
 
+import m3u8
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from isubrip.scrapers.scraper import SubtitlesDownloadError
+
+MainPlaylist = TypeVar("MainPlaylist", bound=m3u8.M3U8)
+PlaylistMediaItem = TypeVar("PlaylistMediaItem", bound=m3u8.Media)
 
 MediaData = TypeVar("MediaData", bound="MediaBase")
 

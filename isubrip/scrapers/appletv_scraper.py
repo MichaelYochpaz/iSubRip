@@ -4,11 +4,10 @@ import datetime as dt
 from enum import Enum
 import fnmatch
 import re
-from typing import Iterator
 
-from requests.exceptions import HTTPError
+from httpx import HTTPError
 
-from isubrip.data_structures import Episode, Movie, ScrapedMediaResponse, Season, Series, SubtitlesData
+from isubrip.data_structures import Episode, Movie, ScrapedMediaResponse, Season, Series
 from isubrip.logger import logger
 from isubrip.scrapers.scraper import HLSScraper, ScraperError
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
@@ -106,7 +105,7 @@ class AppleTVScraper(HLSScraper):
 
         return default_locale
 
-    def _fetch_api_data(self, storefront_id: str, endpoint: str, additional_params: dict | None = None) -> dict:
+    async def _fetch_api_data(self, storefront_id: str, endpoint: str, additional_params: dict | None = None) -> dict:
         """
         Send a request to AppleTV's API and return the JSON response.
 
@@ -151,7 +150,7 @@ class AppleTVScraper(HLSScraper):
         if additional_params:
             request_params.update(additional_params)
 
-        response = self._session.get(url=f"{self._api_base_url}{endpoint}", params=request_params)
+        response = await self._async_session.get(url=f"{self._api_base_url}{endpoint}", params=request_params)
 
         try:
             raise_for_status(response)
@@ -231,8 +230,8 @@ class AppleTVScraper(HLSScraper):
 
         return mapped_playables
 
-    def get_movie_data(self, storefront_id: str, movie_id: str) -> ScrapedMediaResponse[Movie]:
-        data = self._fetch_api_data(
+    async def get_movie_data(self, storefront_id: str, movie_id: str) -> ScrapedMediaResponse[Movie]:
+        data = await self._fetch_api_data(
             storefront_id=storefront_id,
             endpoint=f"/movies/{movie_id}",
         )
@@ -301,16 +300,16 @@ class AppleTVScraper(HLSScraper):
             playlist=movie_playlists if movie_playlists else None,
         )
 
-    def get_episode_data(self, storefront_id: str, episode_id: str) -> ScrapedMediaResponse[Episode]:
+    async def get_episode_data(self, storefront_id: str, episode_id: str) -> ScrapedMediaResponse[Episode]:
         raise NotImplementedError("Series scraping is not currently supported.")
 
-    def get_season_data(self, storefront_id: str, season_id: str, show_id: str) -> ScrapedMediaResponse[Season]:
+    async def get_season_data(self, storefront_id: str, season_id: str, show_id: str) -> ScrapedMediaResponse[Season]:
         raise NotImplementedError("Series scraping is not currently supported.")
 
-    def get_show_data(self, storefront_id: str, show_id: str) -> ScrapedMediaResponse[Series]:
+    async def get_show_data(self, storefront_id: str, show_id: str) -> ScrapedMediaResponse[Series]:
         raise NotImplementedError("Series scraping is not currently supported.")
 
-    def get_data(self, url: str) -> ScrapedMediaResponse:
+    async def get_data(self, url: str) -> ScrapedMediaResponse:
         regex_match = self.match_url(url=url, raise_error=True)
         url_data = regex_match.groupdict()
 
@@ -330,22 +329,18 @@ class AppleTVScraper(HLSScraper):
         storefront_id = self.storefronts_mapping[storefront_code]
 
         if media_type == "movie":
-            return self.get_movie_data(storefront_id=storefront_id, movie_id=media_id)
+            return await self.get_movie_data(storefront_id=storefront_id, movie_id=media_id)
 
         if media_type == "episode":
-            return self.get_episode_data(storefront_id=storefront_id, episode_id=media_id)
+            return await self.get_episode_data(storefront_id=storefront_id, episode_id=media_id)
 
         if media_type == "season":
             if (url_params := url_data.get("url_params")) and (show_id := parse_url_params(url_params).get("showId")):
-                return self.get_season_data(storefront_id=storefront_id, season_id=media_id, show_id=show_id)
+                return await self.get_season_data(storefront_id=storefront_id, season_id=media_id, show_id=show_id)
 
             raise ScraperError("Invalid AppleTV URL: Missing 'showId' parameter.")
 
         if media_type == "show":
-            return self.get_show_data(storefront_id=storefront_id, show_id=media_id)
+            return await self.get_show_data(storefront_id=storefront_id, show_id=media_id)
 
         raise ScraperError(f"Invalid media type '{media_type}'.")
-
-    def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | str | None = None,
-                      subrip_conversion: bool = False) -> Iterator[SubtitlesData]:
-        raise NotImplementedError("Subtitles scraping for AppleTV+ is not currently supported.")

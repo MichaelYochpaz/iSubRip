@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import logging
 from pathlib import Path
@@ -8,6 +9,9 @@ from tempfile import gettempdir
 # General
 PACKAGE_NAME = "isubrip"
 PACKAGE_VERSION = "2.5.4"
+
+# Async
+EVENT_LOOP = asyncio.get_event_loop()
 
 # Logging
 PREORDER_MESSAGE = ("'{movie_name}' is currently unavailable on {scraper_name}, "

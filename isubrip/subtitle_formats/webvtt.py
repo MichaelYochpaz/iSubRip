@@ -283,7 +283,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
 
             self.add_blocks(subtitles_copy.blocks)
 
-            if subtitles_copy.modified:
+            if subtitles_copy.modified():
                 self._modified = True
 
         return self

@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 import shutil
 import sys
 from typing import List
 
-import requests
-from requests.utils import default_user_agent
+import httpx
 
 from isubrip.config import Config, ConfigError, ConfigSetting, SpecialConfigType
 from isubrip.constants import (
     ARCHIVE_FORMAT,
     DATA_FOLDER_PATH,
     DEFAULT_CONFIG_PATH,
+    EVENT_LOOP,
     LOG_FILE_NAME,
     LOG_FILES_PATH,
     PACKAGE_NAME,
@@ -169,7 +170,7 @@ def main() -> None:
             check_for_updates(current_package_version=PACKAGE_VERSION)
 
         urls = single_to_list(sys.argv[1:])
-        download(urls=urls, config=config)
+        EVENT_LOOP.run_until_complete(download(urls=urls, config=config))
 
     except Exception as ex:
         logger.error(f"Error: {ex}")
@@ -181,13 +182,18 @@ def main() -> None:
             handle_log_rotation(log_rotation_size=log_rotation_size)
 
         # NOTE: This will only close scrapers that were initialized using the ScraperFactory.
+        async_cleanup_coroutines = []
         for scraper in ScraperFactory.get_initialized_scrapers():
+            # Log scraper.requests_count
+            logger.debug(f"Requests count for '{scraper.name}' scraper: {scraper.requests_count}")
             scraper.close()
+            async_cleanup_coroutines.append(scraper.async_close())
 
+        EVENT_LOOP.run_until_complete(asyncio.gather(*async_cleanup_coroutines))
         TempDirGenerator.cleanup()
 
 
-def download(urls: list[str], config: Config) -> None:
+async def download(urls: list[str], config: Config) -> None:
     """
     Download subtitles from a given URL.
 
@@ -206,7 +212,7 @@ def download(urls: list[str], config: Config) -> None:
 
             try:
                 logger.debug(f"Fetching '{url}'...")
-                scraper_response: ScrapedMediaResponse = scraper.get_data(url=url)
+                scraper_response: ScrapedMediaResponse = await scraper.get_data(url=url)
 
             except ScraperError as e:
                 logger.error(f"Error: {e}")
@@ -227,7 +233,7 @@ def download(urls: list[str], config: Config) -> None:
                     object_type_str = media_item.__class__.__name__.lower()
 
                     logger.info(f"Found {object_type_str}: {format_media_description(media_data=media_item)}")
-                    download_media(scraper=playlist_scraper, media_item=media_item, config=config)
+                    await download_media(scraper=playlist_scraper, media_item=media_item, config=config)
 
                 except Exception as e:
                     if len(media_data) > 1:
@@ -245,7 +251,7 @@ def download(urls: list[str], config: Config) -> None:
             continue
 
 
-def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> None:
+async def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> None:
     """
     Download a media item.
 
@@ -256,18 +262,18 @@ def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> N
     """
     if isinstance(media_item, Series):
         for season in media_item.seasons:
-            download_media(scraper=scraper, media_item=season, config=config)
+            await download_media(scraper=scraper, media_item=season, config=config)
 
     elif isinstance(media_item, Season):
         for episode in media_item.episodes:
             logger.info(f"{format_media_description(media_data=episode, shortened=True)}:")
-            download_media_item(scraper=scraper, media_item=episode, config=config)
+            await download_media_item(scraper=scraper, media_item=episode, config=config)
 
     elif isinstance(media_item, (Movie, Episode)):
-        download_media_item(scraper=scraper, media_item=media_item, config=config)
+        await download_media_item(scraper=scraper, media_item=media_item, config=config)
 
 
-def download_media_item(scraper: Scraper, media_item: Movie | Episode, config: Config) -> None:
+async def download_media_item(scraper: Scraper, media_item: Movie | Episode, config: Config) -> None:
     if media_item.playlist:
         download_subtitles_kwargs = {
             "download_path": Path(config.downloads["folder"]),
@@ -278,9 +284,9 @@ def download_media_item(scraper: Scraper, media_item: Movie | Episode, config: C
         }
 
         try:
-            results = download_subtitles(scraper=scraper,
-                                         media_data=media_item,
-                                         **download_subtitles_kwargs)
+            results = await download_subtitles(scraper=scraper,
+                                               media_data=media_item,
+                                               **download_subtitles_kwargs)
 
             success_count = len(results.successful_subtitles)
             failed_count = len(results.failed_subtitles)
@@ -317,7 +323,7 @@ def check_for_updates(current_package_version: str) -> None:
     api_url = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
     logger.debug("Checking for package updates on PyPI...")
     try:
-        response = requests.get(
+        response = httpx.get(
             url=api_url,
             headers={"Accept": "application/json"},
             timeout=5,
@@ -341,9 +347,9 @@ def check_for_updates(current_package_version: str) -> None:
         return
 
 
-def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_path: Path,
-                       language_filter: list[str] | None = None, convert_to_srt: bool = False,
-                       overwrite_existing: bool = True, zip_files: bool = False) -> SubtitlesDownloadResults:
+async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_path: Path,
+                             language_filter: list[str] | None = None, convert_to_srt: bool = False,
+                             overwrite_existing: bool = True, zip_files: bool = False) -> SubtitlesDownloadResults:
     """
     Download subtitles for the given media data.
 
@@ -368,9 +374,16 @@ def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_p
     failed_downloads: list[SubtitlesDownloadError] = []
     temp_downloads: list[Path] = []
 
-    for subtitles_data in scraper.get_subtitles(main_playlist=media_data.playlist,  # type: ignore[arg-type]
-                                                language_filter=language_filter,
-                                                subrip_conversion=convert_to_srt):
+    if not media_data.playlist:
+        raise PlaylistLoadError("No playlist was found for provided media data.")
+
+    main_playlist = scraper.load_playlist(url=media_data.playlist)
+    matching_subtitles = scraper.find_matching_subtitles(main_playlist=main_playlist,  # type: ignore[var-annotated]
+                                                         language_filter=language_filter)
+
+    for matching_subtitles_item in matching_subtitles:
+        subtitles_data = await scraper.download_subtitles(media_data=matching_subtitles_item,
+                                                          subrip_conversion=convert_to_srt)
         language_info = format_subtitles_description(language_code=subtitles_data.language_code,
                                                      language_name=subtitles_data.language_name,
                                                      special_type=subtitles_data.special_type)
@@ -555,7 +568,7 @@ def update_settings(config: Config) -> None:
     """
     Scraper.subtitles_fix_rtl = config.subtitles["fix-rtl"]
     Scraper.subtitles_remove_duplicates = config.subtitles["remove-duplicates"]
-    Scraper.default_user_agent = config.scrapers.get("user-agent", default_user_agent())
+    Scraper.default_user_agent = config.scrapers.get("user-agent", httpx._client.USER_AGENT)  # noqa: SLF001
     Scraper.default_proxy = config.scrapers.get("proxy")
     Scraper.default_verify_ssl = config.scrapers.get("verify-ssl", True)
 

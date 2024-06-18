@@ -8,17 +8,21 @@ import inspect
 from pathlib import Path
 import re
 import sys
-from typing import TYPE_CHECKING, Any, ClassVar, Iterator, List, Literal, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, Type, TypeVar, Union, overload
 
 import httpx
 import m3u8
-from m3u8 import M3U8, Media, Segment, SegmentList
-import requests
-import requests.utils
 
 from isubrip.config import Config, ConfigSetting
 from isubrip.constants import PACKAGE_NAME, SCRAPER_MODULES_SUFFIX
-from isubrip.data_structures import ScrapedMediaResponse, SubtitlesData, SubtitlesType
+from isubrip.data_structures import (
+    MainPlaylist,
+    PlaylistMediaItem,
+    ScrapedMediaResponse,
+    SubtitlesData,
+    SubtitlesFormatType,
+    SubtitlesType,
+)
 from isubrip.logger import logger
 from isubrip.utils import SingletonMeta, merge_dict_values, single_to_list
 
@@ -35,6 +39,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
     A base class for scrapers.
 
     Attributes:
+        _playlist_filters_config_category (ClassVar[str]): Config category to look for playlist filters.
         default_user_agent (str): [Class Attribute]
             Default user agent to use if no other user agent is specified when making requests.
         default_proxy (str | None): [Class Attribute] Default proxy to use when making requests.
@@ -53,13 +58,12 @@ class Scraper(ABC, metaclass=SingletonMeta):
         is_series_scraper (bool): [Class Attribute] Whether the scraper is for series.
         uses_scrapers (list[str]): [Class Attribute] A list of IDs for other scraper classes that this scraper uses.
             This assures that the config data for the other scrapers is passed as well.
-        _session (requests.Session): A requests session to use for making requests.
-        _user_agent (str): A user agent to use when making requests.
-        _proxy (str | None): A proxy to use when making requests.
-        _verify_ssl (bool): Whether to verify SSL certificates when making requests.
-        config (Config): A Config object containing the scraper's configuration.
+        _session (httpx.Client): A synchronous HTTP client session.
+        _async_session (httpx.AsyncClient): An asynchronous HTTP client session.
+        config (Config): A Config object containing scraper's configuration.
     """
-    default_user_agent: ClassVar[str] = requests.utils.default_user_agent()
+    _playlist_filters_config_category: ClassVar[str] = "playlist-filters"
+    default_user_agent: ClassVar[str] = httpx._client.USER_AGENT  # noqa: SLF001
     default_proxy: ClassVar[str | None] = None
     default_verify_ssl: ClassVar[bool] = True
     subtitles_fix_rtl: ClassVar[bool] = False
@@ -85,7 +89,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
             verify_ssl (bool | None, optional): Whether to verify SSL certificates. Defaults to None.
             config_data (dict | None, optional): A dictionary containing scraper's configuration data. Defaults to None.
         """
-        self._session = requests.Session()
         self.config = Config(config_data=config_data.get(self.id) if config_data else None)
 
         # Add a "user-agent" setting by default to all scrapers
@@ -127,7 +130,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
 
         # Proxy Configuration
         if proxy is not None:
-            self._proxy = proxy
+            self._proxy = proxy or self.config.get("proxy") or self.default_proxy
 
         elif "proxy" in self.config:
             self._proxy = self.config["proxy"]
@@ -151,16 +154,43 @@ class Scraper(ABC, metaclass=SingletonMeta):
         if self._verify_ssl != self.default_verify_ssl:
             logger.debug(f"Initializing '{self.name}' scraper with SSL verification set to: '{verify_ssl}'.")
 
+        self._requests_counter = 0
+        clients_params: dict[str, Any] = {
+            "headers": {"User-Agent": self._user_agent},
+            "verify": self._verify_ssl,
+            "proxy": self._proxy,
+            "timeout": 10,
+        }
+        self._session = httpx.Client(
+            **clients_params,
+            event_hooks={
+                "request": [self._increment_requests_counter],
+            },
+        )
+        self._async_session = httpx.AsyncClient(
+            **clients_params,
+            event_hooks={
+                "request": [self._async_increment_requests_counter],
+            },
+        )
+
+        # Update session settings according to configurations
         self._session.headers.update({"User-Agent": self._user_agent})
-
-        if self._proxy:
-            self._session.proxies.update({"http": self._proxy, "https": self._proxy})
-
-        self._session.verify = self._verify_ssl
+        self._async_session.headers.update({"User-Agent": self._user_agent})
 
         if not self._verify_ssl:
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    def _increment_requests_counter(self, request: httpx.Request) -> None:  # noqa: ARG002
+        self._requests_counter += 1
+
+    async def _async_increment_requests_counter(self, request: httpx.Request) -> None:  # noqa: ARG002
+        self._requests_counter += 1
+
+    @property
+    def requests_count(self) -> int:
+        return self._requests_counter
 
     @classmethod
     @overload
@@ -207,11 +237,14 @@ class Scraper(ABC, metaclass=SingletonMeta):
                  exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
         self.close()
 
+    async def async_close(self) -> None:
+        await self._async_session.aclose()
+
     def close(self) -> None:
         self._session.close()
 
     @abstractmethod
-    def get_data(self, url: str) -> ScrapedMediaResponse:
+    async def get_data(self, url: str) -> ScrapedMediaResponse:
         """
         Scrape media information about the media on a URL.
 
@@ -223,42 +256,65 @@ class Scraper(ABC, metaclass=SingletonMeta):
         """
 
     @abstractmethod
-    def get_subtitles(self, main_playlist: str | list[str], language_filter: list[str] | None = None,
-                      subrip_conversion: bool = False) -> Iterator[SubtitlesData | SubtitlesDownloadError]:
+    async def download_subtitles(self, media_data: PlaylistMediaItem, subrip_conversion: bool = False) -> SubtitlesData:
         """
-        Find and yield subtitles data from a main_playlist.
+        Download subtitles from a media object.
 
         Args:
-            main_playlist(str | list[str]): A URL or a list of URLs (for redundancy) of the main playlist.
-            language_filter (list[str] | str | None, optional):
-                A language or a list of languages to filter for. Defaults to None.
+            media_data (PlaylistMediaItem): A media object to download subtitles from.
             subrip_conversion (bool, optional): Whether to convert the subtitles to SubRip format. Defaults to False.
 
-        Yields:
-            SubtitlesData | SubtitlesDownloadError: A SubtitlesData object containing subtitles data,
-                or a SubtitlesDownloadError object if an error occurred.
+        Returns:
+            SubtitlesData: A SubtitlesData object containing downloaded subtitles.
+        """
+
+    @abstractmethod
+    def find_matching_media(self, main_playlist: MainPlaylist,
+                            filters: dict[str, str | list[str]] | None = None) -> list:
+        """
+        Find media items that match the given filters in the main playlist (or all media items if no filters are given).
+
+        Args:
+            main_playlist (MainPlaylist): Main playlist to search for media items in.
+            filters (dict[str, str | list[str]] | None, optional): A dictionary of filters to match media items against.
+                Defaults to None.
+
+        Returns:
+            list: A list of media items that match the given filters.
+        """
+
+    @abstractmethod
+    def find_matching_subtitles(self, main_playlist: MainPlaylist,
+                                language_filter: list[str] | None = None) -> list[PlaylistMediaItem]:
+        """
+        Find subtitles that match the given language filter in the main playlist.
+
+        Args:
+            main_playlist (MainPlaylist): Main playlist to search for subtitles in.
+            language_filter (list[str] | None, optional): A list of language codes to filter subtitles by.
+                Defaults to None.
+
+        Returns:
+            list[PlaylistMediaItem]: A list of subtitles that match the given language filter.
+        """
+
+    @abstractmethod
+    def load_playlist(self, url: str | list[str], headers: dict | None = None) -> MainPlaylist | None:
+        """
+        Load a playlist from a URL to a representing object.
+        Multiple URLs can be given, in which case the first one that loads successfully will be returned.
+
+        Args:
+            url (str | list[str]): URL of the M3U8 playlist to load. Can also be a list of URLs (for redundancy).
+            headers (dict | None, optional): A dictionary of headers to use when making the request.
+                Defaults to None (results in using session's configured headers).
+
+        Returns:
+            MainPlaylist | None: A playlist object (matching the type), or None if the playlist couldn't be loaded.
         """
 
 
-class AsyncScraper(Scraper, ABC):
-    """A base class for scrapers that utilize async requests."""
-    def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
-        super().__init__(user_agent=user_agent, config_data=config_data)
-        self._async_session = httpx.AsyncClient(
-            headers={"User-Agent": self._user_agent},
-            proxy=(httpx.Proxy(url=self._proxy) if self._proxy else None),
-            verify=self._verify_ssl,
-        )
-
-    def close(self) -> None:
-        asyncio.get_event_loop().run_until_complete(self._async_session.aclose())
-        super().close()
-
-    async def _async_close(self) -> None:
-        await self._async_session.aclose()
-
-
-class HLSScraper(AsyncScraper, ABC):
+class HLSScraper(Scraper, ABC):
     """A base class for HLS (m3u8) scrapers."""
     class M3U8Attribute(Enum):
         """
@@ -279,8 +335,7 @@ class HLSScraper(AsyncScraper, ABC):
         STABLE_RENDITION_ID = "stable-rendition-id"
         TYPE = "type"
 
-    _playlist_filters_config_category = "playlist-filters"
-    _subtitles_filters: dict[str, Any] = {
+    _subtitles_filters: dict[str, str | list[str]] = {
         M3U8Attribute.TYPE.value: "SUBTITLES",
     }
 
@@ -297,67 +352,27 @@ class HLSScraper(AsyncScraper, ABC):
             ) for m3u8_attribute in self.M3U8Attribute],
             check_config=False)
 
-    def _download_segments(self, segments: SegmentList[Segment]) -> list[bytes]:
+    def parse_language_name(self, media_data: m3u8.Media) -> str | None:
         """
-        Download M3U8 segments asynchronously.
+        Parse the language name from an M3U8 Media object.
+        Can be overridden in subclasses for normalization.
 
         Args:
-            segments (m3u8.SegmentList[m3u8.Segment]): List of segments to download.
+            media_data (m3u8.Media): Media object to parse the language name from.
 
         Returns:
-            list[bytes]: List of downloaded segments.
+            str | None: The language name if found, None otherwise.
         """
-        return asyncio.get_event_loop().run_until_complete(self._download_segments_async(segments))
+        name: str | None = media_data.name
+        return name
 
-    async def _download_segments_async(self, segments: SegmentList[Segment]) -> list[bytes]:
-        """
-        Download M3U8 segments asynchronously.
-
-        Args:
-            segments (m3u8.SegmentList[m3u8.Segment]): List of segments to download.
-
-        Returns:
-            list[bytes]: List of downloaded segments.
-        """
-        async_tasks = [
-            self._download_segment_async(url=segment.absolute_uri)
-            for segment in segments
-        ]
-
-        return await asyncio.gather(*async_tasks)
-
-    async def _download_segment_async(self, url: str) -> bytes:
-        """
-        Download an M3U8 segment asynchronously.
-
-        Args:
-            url (str): URL of the segment to download.
-
-        Returns:
-            bytes: Downloaded segment.
-        """
-        response = await self._async_session.get(url)
-        return response.content
-
-    def load_m3u8(self, url: str | list[str], headers: dict | None = None) -> M3U8 | None:
-        """
-        Load an M3U8 playlist from a URL to an M3U8 object.
-        Multiple URLs can be given, in which case the first one that loads successfully will be returned.
-        The method uses caching to avoid loading the same playlist multiple times.
-
-        Args:
-            url (str | list[str]): URL of the M3U8 playlist to load. Can also be a list of URLs (for redundancy).
-            headers (dict | None, optional): A dictionary of headers to use when making the request.
-                Defaults to None (results in using session's configured headers).
-
-        Returns:
-            m3u8.M3U8: An M3U8 object representing the playlist.
-        """
+    def load_playlist(self, url: str | list[str], headers: dict | None = None) -> m3u8.M3U8 | None:
         _headers = headers or self._session.headers
+        result: m3u8.M3U8 | None = None
 
         for url_item in single_to_list(url):
             try:
-                response = self._session.get(url=url_item, headers=_headers)
+                response = self._session.get(url=url_item, headers=_headers, timeout=5)
 
             except Exception as e:
                 logger.debug(f"Failed to load M3U8 playlist '{url_item}': {e}")
@@ -366,12 +381,13 @@ class HLSScraper(AsyncScraper, ABC):
             if not response.text:
                 raise PlaylistLoadError("Received empty response for playlist from server.")
 
-            return m3u8.loads(content=response.text, uri=url_item)
+            result = m3u8.loads(content=response.text, uri=url_item)
+            break
 
-        return None
+        return result
 
     @staticmethod
-    def detect_subtitles_type(subtitles_media: Media) -> SubtitlesType | None:
+    def detect_subtitles_type(subtitles_media: m3u8.Media) -> SubtitlesType | None:
         """
         Detect the subtitles type (Closed Captions, Forced, etc.) from an M3U8 Media object.
 
@@ -389,24 +405,77 @@ class HLSScraper(AsyncScraper, ABC):
 
         return None
 
-    def get_media_playlists(self, main_playlist: M3U8,
-                            playlist_filters: dict[str, str | list[str]] | None = None) -> list[Media]:
-        """
-        Find and yield playlists of media within an M3U8 main_playlist using optional filters.
+    async def download_subtitles(self, media_data: m3u8.Media, subrip_conversion: bool = False) -> SubtitlesData:
+        playlist_m3u8 = self.load_playlist(url=media_data.absolute_uri)
 
-        Args:
-            main_playlist (m3u8.M3U8): An M3U8 object of the main main_playlist.
-            playlist_filters (dict[str, str | list[str], optional):
-                A dictionary of filters to use when searching for subtitles.
-                Will be added to filters set by the config. Defaults to None.
+        if playlist_m3u8 is None:
+            raise PlaylistLoadError("Could not load subtitles M3U8 playlist.")
 
-        Returns:
-            list[Media]: A list of  matching Media objects.
-        """
-        results = []
+        downloaded_segments = await self.download_segments(playlist=playlist_m3u8)
+        subtitles = self.subtitles_class(data=downloaded_segments[0], language_code=media_data.language)
+
+        if len(downloaded_segments) > 1:
+            for segment_data in downloaded_segments[1:]:
+                segment_subtitles_obj = self.subtitles_class(data=segment_data, language_code=media_data.language)
+                subtitles.append_subtitles(segment_subtitles_obj)
+
+        subtitles.polish(
+            fix_rtl=self.subtitles_fix_rtl,
+            remove_duplicates=self.subtitles_remove_duplicates,
+        )
+
+        if subrip_conversion:
+            subtitles_format = SubtitlesFormatType.SUBRIP
+            content = subtitles.to_srt().dump()
+
+        else:
+            subtitles_format = SubtitlesFormatType.WEBVTT
+            content = subtitles.dump()
+
+        return SubtitlesData(
+            language_code=media_data.language,
+            language_name=self.parse_language_name(media_data=media_data),
+            subtitles_format=subtitles_format,
+            content=content,
+            content_encoding=subtitles.encoding,
+            special_type=self.detect_subtitles_type(subtitles_media=media_data),
+        )
+
+    async def download_segments(self, playlist: m3u8.M3U8) -> list[bytes]:
+        responses = await asyncio.gather(
+            *[
+                self._async_session.get(url=segment.absolute_uri)
+                for segment in playlist.segments
+            ],
+        )
+
+        responses_data = []
+
+        for result in responses:
+            try:
+                result.raise_for_status()
+                responses_data.append(result.content)
+
+            except Exception as e:
+                raise DownloadError("One of the subtitles segments failed to download.") from e
+
+        return responses_data
+
+    def find_matching_media(self, main_playlist: m3u8.M3U8,
+                            filters: dict[str, str | list[str]] | None = None) -> list[m3u8.Media]:
+        results: list[m3u8.Media] = []
         config_filters: dict | None = self.config.get(self._playlist_filters_config_category)
-        # Merge filtering dictionaries to a single dictionary
-        playlist_filters = merge_dict_values(*[item for item in (playlist_filters, config_filters) if item])
+        playlist_filters: dict[str, Union[str, List[str]]] | None
+
+        if config_filters:
+            # Merge filtering dictionaries into a single dictionary
+            playlist_filters = merge_dict_values(
+                *[dict_item for dict_item in (filters, config_filters)
+                  if dict_item is not None],
+            )
+
+        else:
+            playlist_filters = filters
 
         for media in main_playlist.media:
             if not playlist_filters:
@@ -436,6 +505,15 @@ class HLSScraper(AsyncScraper, ABC):
                 results.append(media)
 
         return results
+
+    def find_matching_subtitles(self, main_playlist: m3u8.M3U8,
+                                language_filter: list[str] | None = None) -> list[m3u8.Media]:
+        _filters = self._subtitles_filters
+
+        if language_filter:
+            _filters[self.M3U8Attribute.LANGUAGE.value] = language_filter
+
+        return self.find_matching_media(main_playlist=main_playlist, filters=_filters)
 
 
 class ScraperFactory:
@@ -611,6 +689,10 @@ class ScraperFactory:
 
 
 class ScraperError(Exception):
+    pass
+
+
+class DownloadError(ScraperError):
     pass
 
 
