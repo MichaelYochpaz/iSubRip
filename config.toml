@@ -68,6 +68,10 @@ subrip-alignment-conversion = false
 
 
 [scrapers]
+# Timeout in seconds for requests sent by all scrapers.
+# Will be overridden by scraper-specific timeout configuration, if set.
+timeout = 10
+
 # User-Agent to use by default for requests sent by all scrapers.
 # Will be overridden by scraper-specific user-agent configuration, if set.
 user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
@@ -87,6 +91,9 @@ verify-ssl = true
 # Replace 'enter-scraper-name-here' with the name of the scraper you want to configure.
 # Available scrapers: itunes, appletv
 [scrapers.enter-scraper-name-here]
+# Timeout in seconds for requests sent by the scraper.
+timeout = 10
+
 # User-Agent to use for requests sent by the scraper.
 user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
 

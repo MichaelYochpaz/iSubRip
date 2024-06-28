@@ -63,6 +63,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
         config (Config): A Config object containing scraper's configuration.
     """
     _playlist_filters_config_category: ClassVar[str] = "playlist-filters"
+    default_timeout: ClassVar[int] = 10
     default_user_agent: ClassVar[str] = httpx._client.USER_AGENT  # noqa: SLF001
     default_proxy: ClassVar[str | None] = None
     default_verify_ssl: ClassVar[bool] = True
@@ -78,12 +79,14 @@ class Scraper(ABC, metaclass=SingletonMeta):
     is_series_scraper: ClassVar[bool] = False
     uses_scrapers: ClassVar[list[str]] = []
 
-    def __init__(self, user_agent: str | None = None, proxy: str | None = None,
+    def __init__(self, timeout: int | float | None = None,
+                 user_agent: str | None = None, proxy: str | None = None,
                  verify_ssl: bool | None = None, config_data: dict | None = None):
         """
         Initialize a Scraper object.
 
         Args:
+            timeout (int | float | None, optional): A timeout to use when making requests. Defaults to None.
             user_agent (str | None, optional): A user agent to use when making requests. Defaults to None.
             proxy (str | None, optional): A proxy to use when making requests. Defaults to None.
             verify_ssl (bool | None, optional): Whether to verify SSL certificates. Defaults to None.
@@ -93,6 +96,11 @@ class Scraper(ABC, metaclass=SingletonMeta):
 
         # Add a "user-agent" setting by default to all scrapers
         self.config.add_settings([
+            ConfigSetting(
+                key="timeout",
+                value_type=Union[int, float],
+                required=False,
+            ),
             ConfigSetting(
                 key="user-agent",
                 value_type=str,
@@ -114,6 +122,16 @@ class Scraper(ABC, metaclass=SingletonMeta):
         self._user_agent: str
         self._proxy: str | None
         self._verify_ssl: bool
+
+        # Timeout Configuration
+        if timeout is not None:
+            self._timeout = timeout
+
+        elif "timeout" in self.config:
+            self._timeout = self.config["timeout"]
+
+        else:
+            self._timeout = self.default_timeout
 
         # User-Agent Configuration
         if user_agent is not None:
@@ -159,7 +177,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
             "headers": {"User-Agent": self._user_agent},
             "verify": self._verify_ssl,
             "proxy": self._proxy,
-            "timeout": 10,
+            "timeout": float(self._timeout),
         }
         self._session = httpx.Client(
             **clients_params,

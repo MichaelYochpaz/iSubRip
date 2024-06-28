@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 import shutil
 import sys
-from typing import List
+from typing import List, Union
 
 import httpx
 
@@ -124,10 +124,16 @@ BASE_CONFIG_SETTINGS = [
         required=False,
     ),
     ConfigSetting(
+        key="timeout",
+        value_type=Union[int, float],
+        category="scrapers",
+        required=False,
+    ),
+    ConfigSetting(
         key="user-agent",
         value_type=str,
         category="scrapers",
-        required=True,
+        required=False,
     ),
     ConfigSetting(
         key="proxy",
@@ -568,6 +574,7 @@ def update_settings(config: Config) -> None:
     """
     Scraper.subtitles_fix_rtl = config.subtitles["fix-rtl"]
     Scraper.subtitles_remove_duplicates = config.subtitles["remove-duplicates"]
+    Scraper.default_timeout = config.scrapers.get("timeout", 10)
     Scraper.default_user_agent = config.scrapers.get("user-agent", httpx._client.USER_AGENT)  # noqa: SLF001
     Scraper.default_proxy = config.scrapers.get("proxy")
     Scraper.default_verify_ssl = config.scrapers.get("verify-ssl", True)
