@@ -75,10 +75,6 @@ build-backend = "poetry.core.masonry.api"
 search = 'PACKAGE_VERSION = "{current_version}"'
 replace = 'PACKAGE_VERSION = "{new_version}"'
 
-[tool.poetry_bumpversion.file."README.md"]
-search = 'Latest version: {current_version}'
-replace = 'Latest version: {new_version}'
-
 
 [tool.ruff]
 line-length = 120
