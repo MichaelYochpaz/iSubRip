@@ -1,4 +1,11 @@
 # Changelog
+## 2.5.5 [2024-07-06]
+### Added:
+* Added new `timeout` setting to the config file, for the option to change the timeout for all / specific scrapers. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml) for usage examples. ([Issue #71](https://github.com/MichaelYochpaz/iSubRip/issues/71))
+
+### Changes:
+* Default timeout for requests has been updated from 5 seconds to 10 seconds. ([Issue #71](https://github.com/MichaelYochpaz/iSubRip/issues/71))
+---
 ## 2.5.4 [2024-04-28]
 ### Bug Fixes:
 * Fixed an issue where if the `logs` directory does not exist, the folder isn't created, causing an error. ([Issue #67](https://github.com/MichaelYochpaz/iSubRip/issues/67))

@@ -8,7 +8,7 @@ from tempfile import gettempdir
 
 # General
 PACKAGE_NAME = "isubrip"
-PACKAGE_VERSION = "2.5.4"
+PACKAGE_VERSION = "2.5.5"
 
 # Async
 EVENT_LOOP = asyncio.get_event_loop()
