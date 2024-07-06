@@ -236,9 +236,7 @@ async def download(urls: list[str], config: Config) -> None:
 
             for media_item in media_data:
                 try:
-                    object_type_str = media_item.__class__.__name__.lower()
-
-                    logger.info(f"Found {object_type_str}: {format_media_description(media_data=media_item)}")
+                    logger.info(f"Found {media_item.media_type}: {format_media_description(media_data=media_item)}")
                     await download_media(scraper=playlist_scraper, media_item=media_item, config=config)
 
                 except Exception as e:

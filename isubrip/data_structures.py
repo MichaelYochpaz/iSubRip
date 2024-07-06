@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 import datetime as dt  # noqa: TCH003
 from enum import Enum
-from typing import TYPE_CHECKING, Generic, List, NamedTuple, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, List, Literal, NamedTuple, Optional, TypeVar, Union
 
 import m3u8
 from pydantic import BaseModel
@@ -114,6 +114,7 @@ class Movie(MediaBase):
             None if not a pre-order. Defaults to None.
         playlist (str | None, optional): Main playlist URL(s).
     """
+    media_type: Literal["movie"] = "movie"
     name: str
     release_date: Union[dt.datetime, int]
     id: Optional[str] = None
@@ -141,6 +142,7 @@ class Episode(MediaBase):
         episode_duration (timedelta | None, optional): Duration of the episode. Defaults to None.
         playlist (str | None, optional): Main playlist URL(s).
     """
+    media_type: Literal["episode"] = "episode"
     series_name: str
     season_number: int
     episode_number: int
@@ -170,6 +172,7 @@ class Season(MediaBase):
         season_release_date (datetime | None, optional): Release date of the season, or release year. Defaults to None.
         episodes (list[Episode]): A list of episode objects containing metadata about episodes of the season.
     """
+    media_type: Literal["season"] = "season"
     series_name: str
     season_number: int
     id: Optional[str] = None
@@ -192,6 +195,7 @@ class Series(MediaBase):
             Defaults to None.
         seasons (list[Season]): A list of season objects containing metadata about seasons of the series.
     """
+    media_type: Literal["series"] = "series"
     series_name: str
     seasons: List[Season] = []
     id: Optional[str] = None
