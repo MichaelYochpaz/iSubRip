@@ -385,6 +385,8 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
     matching_subtitles = scraper.find_matching_subtitles(main_playlist=main_playlist,  # type: ignore[var-annotated]
                                                          language_filter=language_filter)
 
+    logger.debug(f"{len(matching_subtitles)} matching subtitles were found.")
+
     for matching_subtitles_item in matching_subtitles:
         subtitles_data = await scraper.download_subtitles(media_data=matching_subtitles_item,
                                                           subrip_conversion=convert_to_srt)
