@@ -340,7 +340,7 @@ def check_for_updates(current_package_version: str) -> None:
         if pypi_latest_version != current_package_version:
             logger.warning(f"You are currently using version '{current_package_version}' of '{PACKAGE_NAME}', "
                            f"however version '{pypi_latest_version}' is available."
-                           f'\nConsider upgrading by running "python3 -m pip install --upgrade {PACKAGE_NAME}"\n')
+                           f'\nConsider upgrading by running "pip install --upgrade {PACKAGE_NAME}"\n')
 
         else:
             logger.debug(f"Latest version of '{PACKAGE_NAME}' ({current_package_version}) is currently installed.")
