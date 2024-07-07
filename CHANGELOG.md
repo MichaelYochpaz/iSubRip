@@ -1,4 +1,8 @@
 # Changelog
+## 2.5.6 [2024-07-07]
+### Bug Fixes:
+* Fixed an issue where the update message from version `2.5.4` to `2.5.5` would still appear after updating. ([Issue #73](https://github.com/MichaelYochpaz/iSubRip/issues/73))
+---
 ## 2.5.5 [2024-07-06]
 ### Added:
 * Added new `timeout` setting to the config file, for the option to change the timeout for all / specific scrapers. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml) for usage examples. ([Issue #71](https://github.com/MichaelYochpaz/iSubRip/issues/71))
