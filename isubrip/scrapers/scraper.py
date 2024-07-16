@@ -317,7 +317,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
         """
 
     @abstractmethod
-    def load_playlist(self, url: str | list[str], headers: dict | None = None) -> MainPlaylist | None:
+    async def load_playlist(self, url: str | list[str], headers: dict | None = None) -> MainPlaylist | None:
         """
         Load a playlist from a URL to a representing object.
         Multiple URLs can be given, in which case the first one that loads successfully will be returned.
@@ -384,13 +384,13 @@ class HLSScraper(Scraper, ABC):
         name: str | None = media_data.name
         return name
 
-    def load_playlist(self, url: str | list[str], headers: dict | None = None) -> m3u8.M3U8 | None:
+    async def load_playlist(self, url: str | list[str], headers: dict | None = None) -> m3u8.M3U8 | None:
         _headers = headers or self._session.headers
         result: m3u8.M3U8 | None = None
 
         for url_item in single_to_list(url):
             try:
-                response = self._session.get(url=url_item, headers=_headers, timeout=5)
+                response = await self._async_session.get(url=url_item, headers=_headers, timeout=5)
 
             except Exception as e:
                 logger.debug(f"Failed to load M3U8 playlist '{url_item}': {e}")
@@ -424,7 +424,7 @@ class HLSScraper(Scraper, ABC):
         return None
 
     async def download_subtitles(self, media_data: m3u8.Media, subrip_conversion: bool = False) -> SubtitlesData:
-        playlist_m3u8 = self.load_playlist(url=media_data.absolute_uri)
+        playlist_m3u8 = await self.load_playlist(url=media_data.absolute_uri)
 
         if playlist_m3u8 is None:
             raise PlaylistLoadError("Could not load subtitles M3U8 playlist.")

@@ -381,7 +381,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
     if not media_data.playlist:
         raise PlaylistLoadError("No playlist was found for provided media data.")
 
-    main_playlist = scraper.load_playlist(url=media_data.playlist)
+    main_playlist = await scraper.load_playlist(url=media_data.playlist)
     matching_subtitles = scraper.find_matching_subtitles(main_playlist=main_playlist,  # type: ignore[var-annotated]
                                                          language_filter=language_filter)
 
