@@ -544,6 +544,7 @@ def generate_media_folder_name(media_data: Movie | Episode, source: str | None =
     return format_release_name(
         title=media_data.series_name,
         season_number=media_data.season_number,
+        episode_number=media_data.episode_number,
         media_source=source,
     )
 
