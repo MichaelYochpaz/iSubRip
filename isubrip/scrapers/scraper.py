@@ -133,6 +133,9 @@ class Scraper(ABC, metaclass=SingletonMeta):
         else:
             self._timeout = self.default_timeout
 
+        if self._timeout != self.default_timeout:
+            logger.debug(f"Initializing '{self.name}' scraper with timeout: '{self._timeout}'.")
+
         # User-Agent Configuration
         if user_agent is not None:
             self._user_agent = user_agent
@@ -144,7 +147,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
             self._user_agent = self.default_user_agent
 
         if self._user_agent != self.default_user_agent:
-            logger.debug(f"Initializing '{self.name}' scraper with user-agent: '{user_agent}'.")
+            logger.debug(f"Initializing '{self.name}' scraper with user-agent: '{self._user_agent}'.")
 
         # Proxy Configuration
         if proxy is not None:
@@ -157,7 +160,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
             self._proxy = self.default_proxy
 
         if self._proxy != self.default_proxy:
-            logger.debug(f"Initializing '{self.name}' scraper with proxy: '{proxy}'.")
+            logger.debug(f"Initializing '{self.name}' scraper with proxy: '{self._proxy}'.")
 
         # SSL Verification Configuration
         if verify_ssl is not None:
@@ -170,7 +173,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
             self._verify_ssl = self.default_verify_ssl
 
         if self._verify_ssl != self.default_verify_ssl:
-            logger.debug(f"Initializing '{self.name}' scraper with SSL verification set to: '{verify_ssl}'.")
+            logger.debug(f"Initializing '{self.name}' scraper with SSL verification set to: '{self._verify_ssl}'.")
 
         self._requests_counter = 0
         clients_params: dict[str, Any] = {
