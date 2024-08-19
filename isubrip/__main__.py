@@ -278,6 +278,8 @@ async def download_media(scraper: Scraper, media_item: MediaData, config: Config
 
 
 async def download_media_item(scraper: Scraper, media_item: Movie | Episode, config: Config) -> None:
+    ex: Exception | None = None
+
     if media_item.playlist:
         download_subtitles_kwargs = {
             "download_path": Path(config.downloads["folder"]),
@@ -304,8 +306,8 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, con
 
             return  # noqa: TRY300
 
-        except PlaylistLoadError:
-            pass
+        except PlaylistLoadError as e:
+            ex = e
 
     # We get here if there is no playlist, or there is one, but it failed to load
     if isinstance(media_item, Movie) and media_item.preorder_availability_date:
@@ -314,7 +316,11 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, con
                                             preorder_date=preorder_date_str))
 
     else:
-        logger.error("No valid playlist was found.")
+        if ex:
+            logger.error(f"Error: {ex}")
+
+        else:
+            logger.error("Error: No valid playlist was found.")
 
 
 def check_for_updates(current_package_version: str) -> None:
@@ -381,7 +387,11 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
     if not media_data.playlist:
         raise PlaylistLoadError("No playlist was found for provided media data.")
 
-    main_playlist = await scraper.load_playlist(url=media_data.playlist)
+    main_playlist = await scraper.load_playlist(url=media_data.playlist)  # type: ignore[func-returns-value]
+
+    if not main_playlist:
+        raise PlaylistLoadError("Failed to load the main playlist.")
+
     matching_subtitles = scraper.find_matching_subtitles(main_playlist=main_playlist,  # type: ignore[var-annotated]
                                                          language_filter=language_filter)
 
