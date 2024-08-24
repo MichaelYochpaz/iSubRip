@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, Type, TypeVar, U
 
 import httpx
 import m3u8
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
-from isubrip.config import Config, ConfigSetting
 from isubrip.constants import PACKAGE_NAME, SCRAPER_MODULES_SUFFIX
 from isubrip.data_structures import (
     MainPlaylist,
@@ -24,14 +24,72 @@ from isubrip.data_structures import (
     SubtitlesType,
 )
 from isubrip.logger import logger
-from isubrip.utils import SingletonMeta, merge_dict_values, single_to_list
+from isubrip.utils import (
+    SingletonMeta,
+    get_model_field,
+    merge_dict_values,
+    normalize_config_name,
+    return_first_valid,
+    single_to_list,
+)
 
 if TYPE_CHECKING:
     from types import TracebackType
 
     from isubrip.subtitle_formats.subtitles import Subtitles
 
+
 ScraperT = TypeVar("ScraperT", bound="Scraper")
+
+
+class ScraperConfigBase(BaseModel, ABC):
+    """
+    A Pydantic BaseModel for base class for scraper's configuration classes.
+    Also serves for setting default configuration settings for all scrapers.
+
+    Attributes:
+        timeout (int | float): Timeout to use when making requests.
+        user_agent (st): User agent to use when making requests.
+        proxy (str | None): Proxy to use when making requests.
+        verify_ssl (bool): Whether to verify SSL certificates.
+    """
+    model_config = ConfigDict(
+        extra='forbid',
+        alias_generator=normalize_config_name,
+    )
+
+    timeout: int | float | None = Field(default=None)
+    user_agent: str | None = Field(default=None, alias="user-agent")
+    proxy: str | None = Field(default=None)
+    verify_ssl: bool | None = Field(default=None, alias="verify-ssl")
+
+
+class DefaultScraperConfig(ScraperConfigBase):
+    """
+    A Pydantic BaseModel for base class for scraper's configuration classes.
+    Also serves for setting default configuration settings for all scrapers.
+
+    Attributes:
+        timeout (int | float): Timeout to use when making requests.
+        user_agent (st): User agent to use when making requests.
+        proxy (str | None): Proxy to use when making requests.
+        verify_ssl (bool): Whether to verify SSL certificates.
+    """
+    timeout: int | float = Field(default=10)
+    user_agent: str = Field(
+        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36",    # noqa: E501
+        alias="user-agent",
+    )
+    proxy: str | None = Field(default=None)
+    verify_ssl: bool = Field(default=True, alias="verify-ssl")
+
+
+class ScraperConfigSubcategory(BaseModel, ABC):
+    """A Pydantic BaseModel for a scraper's configuration subcategory (which can be set under 'ScraperConfig')."""
+    model_config = ConfigDict(
+        extra='forbid',
+        alias_generator=normalize_config_name,
+    )
 
 
 class Scraper(ABC, metaclass=SingletonMeta):
@@ -39,7 +97,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
     A base class for scrapers.
 
     Attributes:
-        _playlist_filters_config_category (ClassVar[str]): Config category to look for playlist filters.
         default_user_agent (str): [Class Attribute]
             Default user agent to use if no other user agent is specified when making requests.
         default_proxy (str | None): [Class Attribute] Default proxy to use when making requests.
@@ -49,7 +106,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
         subtitles_remove_duplicates (bool): [Class Attribute]
             Whether to remove duplicate lines from downloaded subtitles.
 
-        id (str): [Class Attribute] ID of the scraper.
+        id (str): [Class Attribute] ID of the scraper (must be unique).
         name (str): [Class Attribute] Name of the scraper.
         abbreviation (str): [Class Attribute] Abbreviation of the scraper.
         url_regex (re.Pattern | list[re.Pattern]): [Class Attribute] A RegEx pattern to find URLs matching the service.
@@ -60,10 +117,12 @@ class Scraper(ABC, metaclass=SingletonMeta):
             This assures that the config data for the other scrapers is passed as well.
         _session (httpx.Client): A synchronous HTTP client session.
         _async_session (httpx.AsyncClient): An asynchronous HTTP client session.
-        config (Config): A Config object containing scraper's configuration.
+
+    Notes:
+        Each scraper implements its own `ScraperConfig` class (which can be overridden and updated),
+         inheriting from `ScraperConfigBase`, which sets configurable options for the scraper.
     """
-    _playlist_filters_config_category: ClassVar[str] = "playlist-filters"
-    default_timeout: ClassVar[int] = 10
+    default_timeout: ClassVar[int | float] = 10
     default_user_agent: ClassVar[str] = httpx._client.USER_AGENT  # noqa: SLF001
     default_proxy: ClassVar[str | None] = None
     default_verify_ssl: ClassVar[bool] = True
@@ -79,9 +138,12 @@ class Scraper(ABC, metaclass=SingletonMeta):
     is_series_scraper: ClassVar[bool] = False
     uses_scrapers: ClassVar[list[str]] = []
 
-    def __init__(self, timeout: int | float | None = None,
-                 user_agent: str | None = None, proxy: str | None = None,
-                 verify_ssl: bool | None = None, config_data: dict | None = None):
+    class ScraperConfig(ScraperConfigBase):
+        """Set a default configuration for all scrapers using the default fields."""
+
+
+    def __init__(self, timeout: int | float | None = None, user_agent: str | None = None,
+                 proxy: str | None = None, verify_ssl: bool | None = None, config: ScraperConfig | None = None):
         """
         Initialize a Scraper object.
 
@@ -90,87 +152,34 @@ class Scraper(ABC, metaclass=SingletonMeta):
             user_agent (str | None, optional): A user agent to use when making requests. Defaults to None.
             proxy (str | None, optional): A proxy to use when making requests. Defaults to None.
             verify_ssl (bool | None, optional): Whether to verify SSL certificates. Defaults to None.
-            config_data (dict | None, optional): A dictionary containing scraper's configuration data. Defaults to None.
+            config (ScraperConfig | None, optional): An optional config object
+                containing scraper configuration settings. Defaults to None.
         """
-        self.config = Config(config_data=config_data.get(self.id) if config_data else None)
-
-        # Add a "user-agent" setting by default to all scrapers
-        self.config.add_settings([
-            ConfigSetting(
-                key="timeout",
-                value_type=Union[int, float],
-                required=False,
-            ),
-            ConfigSetting(
-                key="user-agent",
-                value_type=str,
-                required=False,
-            ),
-            ConfigSetting(
-                key="proxy",
-                value_type=str,
-                required=False,
-            ),
-            ConfigSetting(
-                key="verify-ssl",
-                value_type=bool,
-                required=False,
-            ),
-        ],
-            check_config=False)
-
-        self._user_agent: str
-        self._proxy: str | None
-        self._verify_ssl: bool
-
-        # Timeout Configuration
-        if timeout is not None:
-            self._timeout = timeout
-
-        elif "timeout" in self.config:
-            self._timeout = self.config["timeout"]
-
-        else:
-            self._timeout = self.default_timeout
+        self._config = config
+        self._timeout = return_first_valid(timeout,
+                                           get_model_field(model=config, field='timeout'),
+                                           self.default_timeout,
+                                           raise_error=True)
+        self._user_agent = return_first_valid(user_agent,
+                                              get_model_field(model=config, field='user_agent'),
+                                              self.default_user_agent,
+                                              raise_error=True)
+        self._proxy = return_first_valid(proxy,
+                                         get_model_field(model=config, field='proxy'),
+                                         self.default_proxy)
+        self._verify_ssl = return_first_valid(verify_ssl,
+                                              get_model_field(model=config, field='verify_ssl'),
+                                              self.default_verify_ssl,
+                                              raise_error=True)
 
         if self._timeout != self.default_timeout:
-            logger.debug(f"Initializing '{self.name}' scraper with timeout: '{self._timeout}'.")
-
-        # User-Agent Configuration
-        if user_agent is not None:
-            self._user_agent = user_agent
-
-        elif "user-agent" in self.config:
-            self._user_agent = self.config["user-agent"]
-
-        else:
-            self._user_agent = self.default_user_agent
+            logger.debug(f"Initializing '{self.name}' scraper with custom timeout: '{self._timeout}'.")
 
         if self._user_agent != self.default_user_agent:
-            logger.debug(f"Initializing '{self.name}' scraper with user-agent: '{self._user_agent}'.")
-
-        # Proxy Configuration
-        if proxy is not None:
-            self._proxy = proxy or self.config.get("proxy") or self.default_proxy
-
-        elif "proxy" in self.config:
-            self._proxy = self.config["proxy"]
-
-        else:
-            self._proxy = self.default_proxy
+            logger.debug(f"Initializing '{self.name}' scraper with custom user-agent: '{self._user_agent}'.")
 
         if self._proxy != self.default_proxy:
             logger.debug(f"Initializing '{self.name}' scraper with proxy: '{self._proxy}'.")
-
-        # SSL Verification Configuration
-        if verify_ssl is not None:
-            self._verify_ssl = verify_ssl
-
-        elif "verify-ssl" in self.config:
-            self._verify_ssl = self.config["verify-ssl"]
-
-        else:
-            self._verify_ssl = self.default_verify_ssl
 
         if self._verify_ssl != self.default_verify_ssl:
             logger.debug(f"Initializing '{self.name}' scraper with SSL verification set to: '{self._verify_ssl}'.")
@@ -356,22 +365,45 @@ class HLSScraper(Scraper, ABC):
         STABLE_RENDITION_ID = "stable-rendition-id"
         TYPE = "type"
 
+    default_playlist_filters: ClassVar[dict[str, str | list[str] | None] | None] = None
+
     _subtitles_filters: dict[str, str | list[str]] = {
         M3U8Attribute.TYPE.value: "SUBTITLES",
     }
 
-    def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
-        super().__init__(user_agent=user_agent, config_data=config_data)
+    # Resolve mypy errors as mypy doesn't support dynamic models.
+    if TYPE_CHECKING:
+        PlaylistFiltersSubcategory = ScraperConfigSubcategory
 
-        # Add M3U8 filters settings
-        self.config.add_settings([
-            ConfigSetting(
-                category=self._playlist_filters_config_category,
-                key=m3u8_attribute.value,
-                value_type=Union[str, List[str]],
-                required=False,
-            ) for m3u8_attribute in self.M3U8Attribute],
-            check_config=False)
+    else:
+        PlaylistFiltersSubcategory = create_model(
+            "PlaylistFiltersSubcategory",
+            __base__=ScraperConfigSubcategory,
+            **{
+                m3u8_attribute.value: (Union[str, List[str], None],
+                                       Field(alias=normalize_config_name(m3u8_attribute.value), default=None))
+                for m3u8_attribute in M3U8Attribute
+            },  # type: ignore[call-overload]
+        )
+
+
+    class ScraperConfig(Scraper.ScraperConfig):
+        playlist_filters: HLSScraper.PlaylistFiltersSubcategory = Field(  # type: ignore[valid-type]
+            default_factory=lambda: HLSScraper.PlaylistFiltersSubcategory(),
+        )
+
+
+    def __init__(self, playlist_filters: dict[str, str | list[str] | None] | None = None,
+                 *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._playlist_filters = return_first_valid(playlist_filters,
+                                                    get_model_field(model=self._config,
+                                                                    field='playlist_filters',
+                                                                    convert_to_dict=True),
+                                                    self.default_playlist_filters)
+
+        if self._playlist_filters != self.default_playlist_filters:
+            logger.debug(f"Initializing '{self.name}' scraper with custom playlist filters: {self._playlist_filters}.")
 
     def parse_language_name(self, media_data: m3u8.Media) -> str | None:
         """
@@ -485,13 +517,12 @@ class HLSScraper(Scraper, ABC):
     def find_matching_media(self, main_playlist: m3u8.M3U8,
                             filters: dict[str, str | list[str]] | None = None) -> list[m3u8.Media]:
         results: list[m3u8.Media] = []
-        config_filters: dict | None = self.config.get(self._playlist_filters_config_category)
         playlist_filters: dict[str, Union[str, List[str]]] | None
 
-        if config_filters:
+        if self._playlist_filters:
             # Merge filtering dictionaries into a single dictionary
             playlist_filters = merge_dict_values(
-                *[dict_item for dict_item in (filters, config_filters)
+                *[dict_item for dict_item in (filters, self._playlist_filters)
                   if dict_item is not None],
             )
 
@@ -506,6 +537,10 @@ class HLSScraper(Scraper, ABC):
             is_valid = True
 
             for filter_name, filter_value in playlist_filters.items():
+                # Skip filter if its value is None
+                if filter_value is None:
+                    continue
+
                 try:
                     filter_name_enum = HLSScraper.M3U8Attribute(filter_name)
                     attribute_value = getattr(media, filter_name_enum.name.lower(), None)
@@ -582,7 +617,7 @@ class ScraperFactory:
 
     @classmethod
     def _get_scraper_instance(cls, scraper_class: type[ScraperT], kwargs: dict | None = None,
-                              extract_scraper_config: bool = False) -> ScraperT:
+                              scraper_config: Scraper.ScraperConfig | None = None) -> ScraperT:
         """
         Initialize and return a scraper instance.
 
@@ -590,14 +625,15 @@ class ScraperFactory:
             scraper_class (type[ScraperT]): A scraper class to initialize.
             kwargs (dict | None, optional): A dictionary containing parameters to pass to the scraper's constructor.
                 Defaults to None.
-            extract_scraper_config (bool, optional): Whether the passed 'config_data' (within kwargs)
-                is a main config dictionary, and scraper's config should be extracted from it. Defaults to False.
+            scraper_config (ScraperT.ScraperConfig | None, optional):
+                A scraper configuration object to pass to the scraper. Defaults to None.
 
         Returns:
             Scraper: An instance of the given scraper class.
         """
         logger.debug(f"Initializing '{scraper_class.name}' scraper...")
         kwargs = kwargs or {}
+        kwargs.update({"config": scraper_config})
 
         if scraper_class not in cls._scraper_instances_cache:
             logger.debug(f"'{scraper_class.name}' scraper not found in cache, creating a new instance...")
@@ -607,17 +643,6 @@ class ScraperFactory:
                                    f"Make sure there are no circular dependencies between scrapers.")
 
             cls._currently_initializing.append(scraper_class)
-
-            if extract_scraper_config:
-                if kwargs.get("config_data"):
-                    required_scrapers_ids = [scraper_class.id, *scraper_class.uses_scrapers]
-                    kwargs["config_data"] = (
-                        {scraper_id: kwargs["config_data"][scraper_id] for scraper_id in required_scrapers_ids
-                         if kwargs["config_data"].get(scraper_id)}
-                    )
-
-                else:
-                    kwargs["config_data"] = None
 
             cls._scraper_instances_cache[scraper_class] = scraper_class(**kwargs)
             cls._currently_initializing.remove(scraper_class)
@@ -630,7 +655,8 @@ class ScraperFactory:
     @classmethod
     @overload
     def get_scraper_instance(cls, scraper_class: type[ScraperT], scraper_id: str | None = ...,
-                             url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
+                             url: str | None = ..., kwargs: dict | None = ...,
+                             scrapers_configs: dict[str, Scraper.ScraperConfig] | None = None,
                              raise_error: Literal[True] = ...) -> ScraperT:
         ...
 
@@ -638,27 +664,30 @@ class ScraperFactory:
     @overload
     def get_scraper_instance(cls, scraper_class: type[ScraperT], scraper_id: str | None = ...,
                              url: str | None = ..., kwargs: dict | None = ...,
-                             extract_scraper_config: bool = ...,
+                             scrapers_configs: dict[str, Scraper.ScraperConfig] | None = None,
                              raise_error: Literal[False] = ...) -> ScraperT | None:
         ...
 
     @classmethod
     @overload
     def get_scraper_instance(cls, scraper_class: None = ..., scraper_id: str | None = ...,
-                             url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
+                             url: str | None = ..., kwargs: dict | None = ...,
+                             scrapers_configs: dict[str, Scraper.ScraperConfig] | None = None,
                              raise_error: Literal[True] = ...) -> Scraper:
         ...
 
     @classmethod
     @overload
     def get_scraper_instance(cls, scraper_class: None = ..., scraper_id: str | None = ...,
-                             url: str | None = ..., kwargs: dict | None = ..., extract_scraper_config: bool = ...,
+                             url: str | None = ..., kwargs: dict | None = ...,
+                             scrapers_configs: dict[str, Scraper.ScraperConfig] | None = None,
                              raise_error: Literal[False] = ...) -> Scraper | None:
         ...
 
     @classmethod
     def get_scraper_instance(cls, scraper_class: type[Scraper] | None = None, scraper_id: str | None = None,
-                             url: str | None = None, kwargs: dict | None = None, extract_scraper_config: bool = False,
+                             url: str | None = None, kwargs: dict | None = None,
+                             scrapers_configs: dict[str, Scraper.ScraperConfig] | None = None,
                              raise_error: bool = True) -> Scraper | None:
         """
         Find, initialize and return a scraper that matches the given URL or ID.
@@ -669,7 +698,8 @@ class ScraperFactory:
             url (str | None, optional): A URL to match a scraper for to initialize. Defaults to None.
             kwargs (dict | None, optional): A dictionary containing parameters to pass to the scraper's constructor.
                 Defaults to None.
-            extract_scraper_config (bool, optional): Whether the passed 'config_data' (within kwargs)
+            scrapers_configs (dict[str, ScraperConfigBase] | None, optional): A dictionary containing configurations
+                for scrapers, mapping scraper IDs to their configurations. Defaults to None.
             raise_error (bool, optional): Whether to raise an error if no scraper was found. Defaults to False.
 
         Returns:
@@ -677,28 +707,40 @@ class ScraperFactory:
                 None otherwise (if raise_error is False).
 
         Raises:
-            ValueError: If no scraper was found and raise_error is True.
+            ValueError: If no scraper was found and 'raise_error' is True.
         """
-        if scraper_class:
-            return cls._get_scraper_instance(scraper_class=scraper_class, kwargs=kwargs,
-                                             extract_scraper_config=extract_scraper_config)
+        if not scrapers_configs:
+            scrapers_configs = {}  # Allow `.get()` usage without checking for None
 
-        if not (scraper_id or url):
+        if not any((scraper_class, scraper_id, url)):
             raise ValueError("At least one of: 'scraper_class', 'scraper_id', or 'url' must be provided.")
+
+        if scraper_class:
+            return cls._get_scraper_instance(
+                scraper_class=scraper_class,
+                kwargs=kwargs,
+                scraper_config=scrapers_configs.get(scraper_class.id),
+            )
 
         if scraper_id:
             logger.debug(f"Searching for a scraper object with ID '{scraper_id}'...")
             for scraper in cls.get_scraper_classes():
                 if scraper.id == scraper_id:
-                    return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs,
-                                                     extract_scraper_config=extract_scraper_config)
+                    return cls._get_scraper_instance(
+                        scraper_class=scraper,
+                        kwargs=kwargs,
+                        scraper_config=scrapers_configs.get(scraper_id),
+                    )
 
         elif url:
             logger.debug(f"Searching for a scraper object that matches URL '{url}'...")
             for scraper in cls.get_scraper_classes():
                 if scraper.match_url(url) is not None:
-                    return cls._get_scraper_instance(scraper_class=scraper, kwargs=kwargs,
-                                                     extract_scraper_config=extract_scraper_config)
+                    return cls._get_scraper_instance(
+                        scraper_class=scraper,
+                        kwargs=kwargs,
+                        scraper_config=scrapers_configs.get(scraper.id),
+                    )
 
         error_message = "No matching scraper was found."
 

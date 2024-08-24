@@ -8,7 +8,7 @@ import re
 import secrets
 import shutil
 import sys
-from typing import TYPE_CHECKING, Any, Type, Union, get_args, get_origin
+from typing import TYPE_CHECKING, Any, Literal, Type, overload
 
 from isubrip.constants import TEMP_FOLDER_PATH, TITLE_REPLACEMENT_STRINGS, WINDOWS_RESERVED_FILE_NAMES
 from isubrip.data_structures import (
@@ -20,6 +20,7 @@ from isubrip.data_structures import (
     SubtitlesData,
     SubtitlesFormatType,
     SubtitlesType,
+    T,
 )
 from isubrip.logger import logger
 
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     import httpx
+    from pydantic import BaseModel, ValidationError
 
 
 class SingletonMeta(ABCMeta):
@@ -99,47 +101,6 @@ class TempDirGenerator:
         cls._generated_temp_directories = []
 
 
-def check_type(value: Any, type_) -> bool:  # type: ignore[no-untyped-def]
-    """
-    Check if a value is of a certain type.
-    Works with parameterized generics.
-
-    Args:
-        value (Any): Value to check.
-        type_: Type to check against.
-
-    Returns:
-        bool: True if the value is of the specified type, False otherwise.
-    """
-    origin = get_origin(type_)
-    args = get_args(type_)
-
-    if origin is Union:
-        return any(check_type(value, union_sub_type) for union_sub_type in args)
-
-    if origin is tuple:
-        if args[-1] is Ellipsis:
-            # Example: (int, str, ...)
-            args_len = len(args)
-
-            return check_type(value[:args_len - 1], tuple(args[:-1])) and \
-                all(check_type(item, args[-2]) for item in value[args_len - 1:])
-
-        return isinstance(value, tuple) and \
-            len(value) == len(args) and \
-            all(check_type(item, item_type) for item, item_type in zip(value, args))
-
-    if origin is list:
-        return isinstance(value, list) and \
-            all(check_type(item, args[0]) for item in value)
-
-    if origin is dict:
-        return isinstance(value, dict) and \
-            all(check_type(k, args[0]) and check_type(v, args[1]) for k, v in value.items())
-
-    return isinstance(value, type_)
-
-
 def convert_epoch_to_datetime(epoch_timestamp: int) -> dt.datetime:
     """
     Convert an epoch timestamp to a datetime object.
@@ -207,6 +168,34 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
         f.write(subtitles_data.content)
 
     return file_path
+
+def format_config_validation_error(exc: ValidationError) -> str:
+    validation_errors = exc.errors()
+    error_str = ""
+
+    for validation_error in validation_errors:
+        value: Any = validation_error['input']
+        value_type: str = type(value).__name__
+        location: list[str] = [str(item) for item in validation_error["loc"]]
+        error_msg: str = validation_error['msg']
+
+        # When the expected type is a union, Pydantic returns several errors for each type,
+        # with the type being the last item in the location list
+        if (
+                isinstance(location[-1], str) and
+                (location[-1].endswith(']') or location[-1] in ('str', 'int', 'float', 'bool'))
+        ):
+            location.pop()
+
+        if len(location) > 1:
+            location_str = ".".join(location)
+
+        else:
+            location_str = location[0]
+
+        error_str += f"'{location_str}' (value: '{value}', type: '{value_type}'): {error_msg}\n"
+
+    return error_str
 
 
 def format_media_description(media_data: MediaBase, shortened: bool = False) -> str:
@@ -371,6 +360,30 @@ def format_subtitles_description(language_code: str, language_name: str | None =
     return language_str
 
 
+def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool = False) -> Any:
+    """
+    Get a field from a Pydantic model.
+
+    Args:
+        model (BaseModel | None): A Pydantic model.
+        field (str): Field name to retrieve.
+        convert_to_dict (bool, optional): Whether to convert the field value to a dictionary. Defaults to False.
+
+    Returns:
+        Any: The field value.
+    """
+    if model and hasattr(model, field):
+        field_value = getattr(model, field)
+
+        if convert_to_dict:
+            return field_value.dict()
+
+        return field_value
+
+    return None
+
+
+
 def generate_non_conflicting_path(file_path: Path, has_extension: bool = True) -> Path:
     """
     Generate a non-conflicting path for a file.
@@ -451,6 +464,19 @@ def merge_dict_values(*dictionaries: dict) -> dict:
     return result
 
 
+def normalize_config_name(name: str) -> str:
+    """
+    Normalize a config category / field name (used for creating an alias).
+
+    Args:
+        name (str): The name to normalize.
+
+    Returns:
+        str: The normalized name.
+    """
+    return name.lower().replace('_', '-')
+
+
 def raise_for_status(response: httpx.Response) -> None:
     """
     Raise an exception if the response status code is invalid.
@@ -500,6 +526,39 @@ def parse_url_params(url_params: str) -> dict:
 
     return {key: value for key, value in (param.split('=') for param in params_list)}
 
+
+@overload
+def return_first_valid(*values: T | None, raise_error: Literal[True] = ...) -> T:
+    ...
+
+
+@overload
+def return_first_valid(*values: T | None, raise_error: Literal[False] = ...) -> T | None:
+    ...
+
+
+def return_first_valid(*values: T | None, raise_error: bool = False) -> T | None:
+    """
+    Return the first non-None value from a list of values.
+
+    Args:
+        *values (T): Values to check.
+        raise_error (bool, optional): Whether to raise an error if all values are None. Defaults to False.
+
+    Returns:
+        T | None: The first non-None value, or None if all values are None and `raise_error` is False.
+
+    Raises:
+        ValueError: If all values are None and `raise_error` is True.
+    """
+    for value in values:
+        if value is not None:
+            return value
+
+    if raise_error:
+        raise ValueError("No valid value found.")
+
+    return None
 
 def single_to_list(obj: Any) -> list:
     """

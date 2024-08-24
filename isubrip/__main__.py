@@ -5,15 +5,14 @@ import logging
 from pathlib import Path
 import shutil
 import sys
-from typing import List, Union
 
 import httpx
+from pydantic import ValidationError
 
-from isubrip.config import Config, ConfigError, ConfigSetting, SpecialConfigType
+from isubrip.config import Config
 from isubrip.constants import (
     ARCHIVE_FORMAT,
     DATA_FOLDER_PATH,
-    DEFAULT_CONFIG_PATH,
     EVENT_LOOP,
     LOG_FILE_NAME,
     LOG_FILES_PATH,
@@ -21,7 +20,6 @@ from isubrip.constants import (
     PACKAGE_VERSION,
     PREORDER_MESSAGE,
     TEMP_FOLDER_PATH,
-    USER_CONFIG_FILE,
 )
 from isubrip.data_structures import (
     Episode,
@@ -39,115 +37,18 @@ from isubrip.subtitle_formats.webvtt import WebVTTCaptionBlock
 from isubrip.utils import (
     TempDirGenerator,
     download_subtitles_to_file,
+    format_config_validation_error,
     format_media_description,
     format_release_name,
     format_subtitles_description,
     generate_non_conflicting_path,
+    get_model_field,
     raise_for_status,
     single_to_list,
 )
 
 LOG_ROTATION_SIZE: int | None = None
 
-BASE_CONFIG_SETTINGS = [
-    ConfigSetting(
-        key="check-for-updates",
-        value_type=bool,
-        category="general",
-        required=False,
-    ),
-    ConfigSetting(
-        key="log_rotation_size",
-        value_type=str,
-        category="general",
-        required=False,
-    ),
-    ConfigSetting(
-        key="add-release-year-to-series",
-        value_type=bool,
-        category="downloads",
-        required=False,
-    ),
-    ConfigSetting(
-        key="folder",
-        value_type=str,
-        category="downloads",
-        required=True,
-        special_type=SpecialConfigType.EXISTING_FOLDER_PATH,
-    ),
-    ConfigSetting(
-        key="languages",
-        value_type=List[str],
-        category="downloads",
-        required=False,
-    ),
-    ConfigSetting(
-        key="overwrite-existing",
-        value_type=bool,
-        category="downloads",
-        required=True,
-    ),
-    ConfigSetting(
-        key="zip",
-        value_type=bool,
-        category="downloads",
-        required=False,
-    ),
-    ConfigSetting(
-        key="fix-rtl",
-        value_type=bool,
-        category="subtitles",
-        required=True,
-    ),
-    ConfigSetting(
-        key="rtl-languages",
-        value_type=List[str],
-        category="subtitles",
-        required=False,
-    ),
-    ConfigSetting(
-        key="remove-duplicates",
-        value_type=bool,
-        category="subtitles",
-        required=True,
-    ),
-    ConfigSetting(
-        key="convert-to-srt",
-        value_type=bool,
-        category="subtitles",
-        required=False,
-    ),
-    ConfigSetting(
-        key="subrip-alignment-conversion",
-        value_type=bool,
-        category=("subtitles", "webvtt"),
-        required=False,
-    ),
-    ConfigSetting(
-        key="timeout",
-        value_type=Union[int, float],
-        category="scrapers",
-        required=False,
-    ),
-    ConfigSetting(
-        key="user-agent",
-        value_type=str,
-        category="scrapers",
-        required=False,
-    ),
-    ConfigSetting(
-        key="proxy",
-        value_type=str,
-        category="scrapers",
-        required=False,
-    ),
-    ConfigSetting(
-        key="verify-ssl",
-        value_type=bool,
-        category="scrapers",
-        required=False,
-    ),
-]
 
 
 def main() -> None:
@@ -169,10 +70,21 @@ def main() -> None:
         logger.debug(f"Package version: {PACKAGE_VERSION}")
         logger.debug(f"OS: {sys.platform}")
 
-        config = generate_config()
-        update_settings(config)
+        try:
+            config = Config()
 
-        if config.general.get("check-for-updates", True):
+        except ValidationError as e:
+            logger.error("Invalid configuration - the following errors were found in the configuration file:\n"
+                         "---\n" +
+                         format_config_validation_error(exc=e) +
+                         "---\n"
+                         "Please update your configuration to resolve the issue.")
+            logger.debug("Debug information:", exc_info=True)
+            exit(1)
+
+        update_settings(config=config)
+
+        if config.general.check_for_updates:
             check_for_updates(current_package_version=PACKAGE_VERSION)
 
         urls = single_to_list(sys.argv[1:])
@@ -190,7 +102,6 @@ def main() -> None:
         # NOTE: This will only close scrapers that were initialized using the ScraperFactory.
         async_cleanup_coroutines = []
         for scraper in ScraperFactory.get_initialized_scrapers():
-            # Log scraper.requests_count
             logger.debug(f"Requests count for '{scraper.name}' scraper: {scraper.requests_count}")
             scraper.close()
             async_cleanup_coroutines.append(scraper.async_close())
@@ -207,14 +118,15 @@ async def download(urls: list[str], config: Config) -> None:
         urls (list[str]): A list of URLs to download subtitles from.
         config (Config): A config to use for downloading subtitles.
     """
+    scrapers_configs = {
+        scraper_id: get_model_field(config.scrapers, scraper_id) for scraper_id in config.scrapers.model_fields
+    }
+
     for url in urls:
         try:
             logger.info(f"Scraping '{url}'...")
 
-            scraper = ScraperFactory.get_scraper_instance(url=url,
-                                                          kwargs={"config_data": config.data.get("scrapers")},
-                                                          extract_scraper_config=True)
-            scraper.config.check()  # Recheck config after scraper settings were loaded
+            scraper = ScraperFactory.get_scraper_instance(url=url, scrapers_configs=scrapers_configs)
 
             try:
                 logger.debug(f"Fetching '{url}'...")
@@ -227,8 +139,7 @@ async def download(urls: list[str], config: Config) -> None:
 
             media_data = scraper_response.media_data
             playlist_scraper = ScraperFactory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
-                                                                   kwargs={"config_data": config.data.get("scrapers")},
-                                                                   extract_scraper_config=True)
+                                                                   scrapers_configs=scrapers_configs)
 
             if not media_data:
                 logger.error(f"Error: No supported media was found for {url}.")
@@ -237,7 +148,13 @@ async def download(urls: list[str], config: Config) -> None:
             for media_item in media_data:
                 try:
                     logger.info(f"Found {media_item.media_type}: {format_media_description(media_data=media_item)}")
-                    await download_media(scraper=playlist_scraper, media_item=media_item, config=config)
+                    await download_media(scraper=playlist_scraper,
+                                         media_item=media_item,
+                                         download_path=config.downloads.folder,
+                                         language_filter=config.downloads.languages,
+                                         convert_to_srt=config.subtitles.convert_to_srt,
+                                         overwrite_existing=config.downloads.overwrite_existing,
+                                         archive=config.downloads.zip)
 
                 except Exception as e:
                     if len(media_data) > 1:
@@ -255,44 +172,72 @@ async def download(urls: list[str], config: Config) -> None:
             continue
 
 
-async def download_media(scraper: Scraper, media_item: MediaData, config: Config) -> None:
+async def download_media(scraper: Scraper, media_item: MediaData, download_path: Path,
+                              language_filter: list[str] | None = None, convert_to_srt: bool = False,
+                              overwrite_existing: bool = True, archive: bool = False) -> None:
     """
     Download a media item.
 
     Args:
         scraper (Scraper): A Scraper object to use for downloading subtitles.
         media_item (MediaData): A media data item to download subtitles for.
-        config (Config): A config to use for downloading subtitles.
+        download_path (Path): Path to a folder where the subtitles will be downloaded to.
+        language_filter (list[str] | None): List of specific languages to download subtitles for.
+            None for all languages (no filter). Defaults to None.
+        convert_to_srt (bool, optional): Whether to convert the subtitles to SRT format. Defaults to False.
+        overwrite_existing (bool, optional): Whether to overwrite existing subtitles. Defaults to True.
+        archive (bool, optional): Whether to archive the subtitles into a single zip file
+            (only if there are multiple subtitles).
     """
     if isinstance(media_item, Series):
         for season in media_item.seasons:
-            await download_media(scraper=scraper, media_item=season, config=config)
+            await download_media(media_item=season, scraper=scraper, download_path=download_path,
+                                 language_filter=language_filter, convert_to_srt=convert_to_srt,
+                                 overwrite_existing=overwrite_existing, archive=archive)
 
     elif isinstance(media_item, Season):
         for episode in media_item.episodes:
             logger.info(f"{format_media_description(media_data=episode, shortened=True)}:")
-            await download_media_item(scraper=scraper, media_item=episode, config=config)
+            await download_media_item(media_item=episode, scraper=scraper, download_path=download_path,
+                                 language_filter=language_filter, convert_to_srt=convert_to_srt,
+                                 overwrite_existing=overwrite_existing, archive=archive)
 
     elif isinstance(media_item, (Movie, Episode)):
-        await download_media_item(scraper=scraper, media_item=media_item, config=config)
+        await download_media_item(media_item=media_item, scraper=scraper, download_path=download_path,
+                                 language_filter=language_filter, convert_to_srt=convert_to_srt,
+                                 overwrite_existing=overwrite_existing, archive=archive)
 
 
-async def download_media_item(scraper: Scraper, media_item: Movie | Episode, config: Config) -> None:
+async def download_media_item(scraper: Scraper, media_item: Movie | Episode, download_path: Path,
+                              language_filter: list[str] | None = None, convert_to_srt: bool = False,
+                              overwrite_existing: bool = True, archive: bool = False) -> None:
+    """
+    Download subtitles for a single media item.
+
+    Args:
+        scraper (Scraper): A Scraper object to use for downloading subtitles.
+        media_item (Movie | Episode): A movie or episode data object.
+        download_path (Path): Path to a folder where the subtitles will be downloaded to.
+        language_filter (list[str] | None): List of specific languages to download subtitles for.
+            None for all languages (no filter). Defaults to None.
+        convert_to_srt (bool, optional): Whether to convert the subtitles to SRT format. Defaults to False.
+        overwrite_existing (bool, optional): Whether to overwrite existing subtitles. Defaults to True.
+        archive (bool, optional): Whether to archive the subtitles into a single zip file
+            (only if there are multiple subtitles).
+    """
     ex: Exception | None = None
 
     if media_item.playlist:
-        download_subtitles_kwargs = {
-            "download_path": Path(config.downloads["folder"]),
-            "language_filter": config.downloads.get("languages"),
-            "convert_to_srt": config.subtitles.get("convert-to-srt", False),
-            "overwrite_existing": config.downloads.get("overwrite-existing", False),
-            "zip_files": config.downloads.get("zip", False),
-        }
-
         try:
-            results = await download_subtitles(scraper=scraper,
-                                               media_data=media_item,
-                                               **download_subtitles_kwargs)
+            results = await download_subtitles(
+                scraper=scraper,
+                media_data=media_item,
+                download_path=download_path,
+                language_filter=language_filter,
+                convert_to_srt=convert_to_srt,
+                overwrite_existing=overwrite_existing,
+                archive=archive,
+            )
 
             success_count = len(results.successful_subtitles)
             failed_count = len(results.failed_subtitles)
@@ -359,7 +304,7 @@ def check_for_updates(current_package_version: str) -> None:
 
 async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_path: Path,
                              language_filter: list[str] | None = None, convert_to_srt: bool = False,
-                             overwrite_existing: bool = True, zip_files: bool = False) -> SubtitlesDownloadResults:
+                             overwrite_existing: bool = True, archive: bool = False) -> SubtitlesDownloadResults:
     """
     Download subtitles for the given media data.
 
@@ -371,7 +316,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
             None for all languages (no filter). Defaults to None.
         convert_to_srt (bool, optional): Whether to convert the subtitles to SRT format. Defaults to False.
         overwrite_existing (bool, optional): Whether to overwrite existing subtitles. Defaults to True.
-        zip_files (bool, optional): Whether to unite the subtitles into a single zip file
+        archive (bool, optional): Whether to archive the subtitles into a single zip file
             (only if there are multiple subtitles).
 
     Returns:
@@ -434,7 +379,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                 ),
             )
 
-    if not zip_files or len(temp_downloads) == 1:
+    if not archive or len(temp_downloads) == 1:
         for file_path in temp_downloads:
             if overwrite_existing:
                 new_path = download_path / file_path.name
@@ -467,7 +412,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
         media_data=media_data,
         successful_subtitles=successful_downloads,
         failed_subtitles=failed_downloads,
-        is_zip=zip_files,
+        is_archive=archive,
     )
 
 
@@ -483,53 +428,6 @@ def handle_log_rotation(log_rotation_size: int) -> None:
     if len(sorted_log_files) > log_rotation_size:
         for log_file in sorted_log_files[log_rotation_size:]:
             log_file.unlink()
-
-
-def generate_config() -> Config:
-    """
-    Generate a config object using config files, and validate it.
-
-    Returns:
-        Config: A config object.
-
-    Raises:
-        ConfigException: If there is a general config error.
-        MissingConfigValue: If a required config value is missing.
-        InvalidConfigValue: If a config value is invalid.
-    """
-    if not DEFAULT_CONFIG_PATH.is_file():
-        raise ConfigError("Default config file could not be found.")
-
-    config = Config(config_settings=BASE_CONFIG_SETTINGS)
-
-    logger.debug("Loading default config data...")
-
-    with DEFAULT_CONFIG_PATH.open('r') as data:
-        config.loads(config_data=data.read(), check_config=True)
-
-    logger.debug("Default config data loaded and validated successfully.")
-
-    # If logs folder doesn't exist, create it (also handles data folder)
-    if not DATA_FOLDER_PATH.is_dir():
-        logger.debug(f"'{DATA_FOLDER_PATH}' directory could not be found and will be created.")
-        DATA_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
-        LOG_FILES_PATH.mkdir()
-
-    else:
-        if not LOG_FILES_PATH.is_dir():
-            logger.debug(f"'{LOG_FILES_PATH}' directory could not be found and will be created.")
-            LOG_FILES_PATH.mkdir()
-
-        # If a user config file exists, add it to config_files
-        if USER_CONFIG_FILE.is_file():
-            logger.info(f"User config file detected at '{USER_CONFIG_FILE}' and will be used.")
-
-            with USER_CONFIG_FILE.open('r') as data:
-                config.loads(config_data=data.read(), check_config=True)
-
-            logger.debug("User config file loaded and validated successfully.")
-
-    return config
 
 
 def generate_media_folder_name(media_data: Movie | Episode, source: str | None = None) -> str:
@@ -583,22 +481,22 @@ def update_settings(config: Config) -> None:
     Args:
         config (Config): An instance of a config to set settings according to.
     """
-    Scraper.subtitles_fix_rtl = config.subtitles["fix-rtl"]
-    Scraper.subtitles_remove_duplicates = config.subtitles["remove-duplicates"]
-    Scraper.default_timeout = config.scrapers.get("timeout", 10)
-    Scraper.default_user_agent = config.scrapers.get("user-agent", httpx._client.USER_AGENT)  # noqa: SLF001
-    Scraper.default_proxy = config.scrapers.get("proxy")
-    Scraper.default_verify_ssl = config.scrapers.get("verify-ssl", True)
+    Scraper.subtitles_fix_rtl = config.subtitles.fix_rtl
+    Scraper.subtitles_remove_duplicates = config.subtitles.remove_duplicates
+    Scraper.default_timeout = config.scrapers.default.timeout
+    Scraper.default_user_agent = config.scrapers.default.user_agent
+    Scraper.default_proxy = config.scrapers.default.proxy
+    Scraper.default_verify_ssl = config.scrapers.default.verify_ssl
 
     if not Scraper.default_verify_ssl:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     WebVTTCaptionBlock.subrip_alignment_conversion = (
-        config.subtitles.get("webvtt", {}).get("subrip-alignment-conversion", False)
+        config.subtitles.webvtt.subrip_alignment_conversion
     )
 
-    if log_rotation := config.general.get("log-rotation-size"):
+    if log_rotation := config.general.log_rotation_size:
         global LOG_ROTATION_SIZE
         LOG_ROTATION_SIZE = log_rotation
 

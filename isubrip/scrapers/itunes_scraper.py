@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from httpx import HTTPError
 
@@ -31,12 +31,10 @@ class ItunesScraper(HLSScraper):
         **HLSScraper._subtitles_filters,  # noqa: SLF001
     }
 
-    def __init__(self,  user_agent: str | None = None, config_data: dict | None = None):
-        super().__init__(user_agent=user_agent, config_data=config_data)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
         self._appletv_scraper = ScraperFactory.get_scraper_instance(
             scraper_id="appletv",
-            kwargs={"config_data": config_data},
-            extract_scraper_config=True,
             raise_error=True,
         )
 

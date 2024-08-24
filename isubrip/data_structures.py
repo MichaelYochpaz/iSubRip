@@ -11,6 +11,7 @@ from pydantic import BaseModel
 if TYPE_CHECKING:
     from isubrip.scrapers.scraper import SubtitlesDownloadError
 
+T = TypeVar("T")
 MainPlaylist = TypeVar("MainPlaylist", bound=m3u8.M3U8)
 PlaylistMediaItem = TypeVar("PlaylistMediaItem", bound=m3u8.Media)
 
@@ -25,12 +26,12 @@ class SubtitlesDownloadResults(NamedTuple):
         media_data (Movie | Episode): An object containing metadata about the media the subtitles were downloaded for.
         successful_subtitles (list[SubtitlesData]): List of subtitles that were successfully downloaded.
         failed_subtitles (list[SubtitlesData]): List of subtitles that failed to download.
-        is_zip (bool): Whether the subtitles were saved in a zip file.
+        is_archive (bool): Whether the subtitles were saved in a zip file.
     """
     media_data: Movie | Episode
     successful_subtitles: list[SubtitlesData]
     failed_subtitles: list[SubtitlesDownloadError]
-    is_zip: bool
+    is_archive: bool
 
 
 class SubtitlesFormat(BaseModel):

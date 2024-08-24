@@ -40,11 +40,12 @@ TEMP_FOLDER_PATH = Path(gettempdir()) / PACKAGE_NAME
 
 # Config Paths
 USER_CONFIG_FILE_NAME = "config.toml"
-USER_CONFIG_FILE = DATA_FOLDER_PATH / USER_CONFIG_FILE_NAME
+USER_CONFIG_FILE_PATH = DATA_FOLDER_PATH / USER_CONFIG_FILE_NAME
 
 # Logging Paths
 LOG_FILES_PATH = DATA_FOLDER_PATH / "logs"
 LOG_FILE_NAME = f"{PACKAGE_NAME}_{dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+
 
 # Other
 TITLE_REPLACEMENT_STRINGS = {  # Replacements will be done by the order of the keys.

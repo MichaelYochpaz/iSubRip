@@ -67,30 +67,31 @@ convert-to-srt = false
 subrip-alignment-conversion = false
 
 
-[scrapers]
+[scrapers.default]
+# A subcategory to set default values for all scrapers.
+# These settings will be overridden by scraper-specific configuration, if set,
+# These settings will not apply if the scraper has a different specific default value.
+
 # Timeout in seconds for requests sent by all scrapers.
-# Will be overridden by scraper-specific timeout configuration, if set.
 timeout = 10
 
 # User-Agent to use by default for requests sent by all scrapers.
-# Will be overridden by scraper-specific user-agent configuration, if set.
 user-agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36"
 
 # Proxy to use by default for requests sent by all scrapers.
-# Will be overridden by scraper-specific proxy configuration, if set.
 proxy = "http://127.0.0.1:8080"
-
 
 # Whether to verify SSL certificates when making requests for all scrapers.
 # Value can be either 'true' or 'false'.
-# Will be overridden by scraper-specific verify-ssl configuration, if set.
 verify-ssl = true
 
 
-# The following are scraper-specific settings (can be set for each scraper separately).
-# Replace 'enter-scraper-name-here' with the name of the scraper you want to configure.
+[scrapers.scraper-name]
+# Scraper-specific settings (set for each scraper separately).
+# Will override any default values previously set.
+# Replace 'scraper-name' with the name of the scraper to configure.
 # Available scrapers: itunes, appletv
-[scrapers.enter-scraper-name-here]
+
 # Timeout in seconds for requests sent by the scraper.
 timeout = 10
 

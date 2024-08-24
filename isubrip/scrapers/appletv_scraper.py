@@ -4,6 +4,7 @@ import datetime as dt
 from enum import Enum
 import fnmatch
 import re
+from typing import Any
 
 from httpx import HTTPError
 
@@ -77,8 +78,8 @@ class AppleTVScraper(HLSScraper):
         PRIME_VIDEO = "tvs.sbd.12962"
         STARZ = "tvs.sbd.1000308"
 
-    def __init__(self, user_agent: str | None = None, config_data: dict | None = None):
-        super().__init__(user_agent=user_agent, config_data=config_data)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
         self._storefront_locale_mapping_cache: dict[str, str] = {}
 
     def _decide_locale(self, preferred_locales: str | list[str], default_locale: str, locales: list[str]) -> str:
