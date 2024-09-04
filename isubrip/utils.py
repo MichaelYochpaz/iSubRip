@@ -560,29 +560,24 @@ def return_first_valid(*values: T | None, raise_error: bool = False) -> T | None
 
     return None
 
-def single_to_list(obj: Any) -> list:
+def single_string_to_list(item: str | list[str]) -> list[str]:
     """
-    Convert a single non-iterable object to a list.
+    Convert a single string to a list containing the string.
     If None is passed, an empty list will be returned.
 
     Args:
-        obj: Object to convert.
+        item (str | list[str]): A string or a list of strings.
 
     Returns:
-        list: A list containing the object.
-            If the object is already an iterable, it will be converted to a list.
+        list[str]: A list containing the string, or an empty list if None was passed.
     """
-    if isinstance(obj, list):
-        return obj
-
-    if obj is None:
+    if item is None:
         return []
 
-    # tuple (not a namedtuple) or a set
-    if (isinstance(obj, tuple) and not hasattr(obj, '_fields')) or isinstance(obj, set):
-        return list(obj)
+    if isinstance(item, list):
+        return item
 
-    return [obj]
+    return [item]
 
 
 def split_subtitles_timestamp(timestamp: str) -> tuple[dt.time, dt.time]:

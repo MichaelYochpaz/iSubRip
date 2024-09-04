@@ -44,7 +44,7 @@ from isubrip.utils import (
     generate_non_conflicting_path,
     get_model_field,
     raise_for_status,
-    single_to_list,
+    single_string_to_list,
 )
 
 LOG_ROTATION_SIZE: int | None = None
@@ -87,8 +87,8 @@ def main() -> None:
         if config.general.check_for_updates:
             check_for_updates(current_package_version=PACKAGE_VERSION)
 
-        urls = single_to_list(sys.argv[1:])
-        EVENT_LOOP.run_until_complete(download(urls=urls, config=config))
+        EVENT_LOOP.run_until_complete(download(urls=single_string_to_list(item=sys.argv[1:]),
+                                               config=config))
 
     except Exception as ex:
         logger.error(f"Error: {ex}")

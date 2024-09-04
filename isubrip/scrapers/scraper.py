@@ -30,7 +30,7 @@ from isubrip.utils import (
     merge_dict_values,
     normalize_config_name,
     return_first_valid,
-    single_to_list,
+    single_string_to_list,
 )
 
 if TYPE_CHECKING:
@@ -419,7 +419,7 @@ class HLSScraper(Scraper, ABC):
         _headers = headers or self._session.headers
         result: m3u8.M3U8 | None = None
 
-        for url_item in single_to_list(url):
+        for url_item in single_string_to_list(item=url):
             try:
                 response = await self._async_session.get(url=url_item, headers=_headers, timeout=5)
 
