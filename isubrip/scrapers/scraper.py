@@ -208,10 +208,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
         self._session.headers.update({"User-Agent": self._user_agent})
         self._async_session.headers.update({"User-Agent": self._user_agent})
 
-        if not self._verify_ssl:
-            import urllib3
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
     def _increment_requests_counter(self, request: httpx.Request) -> None:  # noqa: ARG002
         self._requests_counter += 1
 

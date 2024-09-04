@@ -488,10 +488,6 @@ def update_settings(config: Config) -> None:
     Scraper.default_proxy = config.scrapers.default.proxy
     Scraper.default_verify_ssl = config.scrapers.default.verify_ssl
 
-    if not Scraper.default_verify_ssl:
-        import urllib3
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
     WebVTTCaptionBlock.subrip_alignment_conversion = (
         config.subtitles.webvtt.subrip_alignment_conversion
     )
