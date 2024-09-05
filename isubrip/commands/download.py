@@ -277,8 +277,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
             else:
                 new_path = generate_non_conflicting_path(file_path=download_path / file_path.name)
 
-            # str conversion needed only for Python <= 3.8 - https://github.com/python/cpython/issues/76870
-            shutil.move(src=str(file_path), dst=new_path)
+            shutil.move(src=file_path, dst=new_path)
 
     elif len(temp_downloads) > 0:
         archive_path = Path(shutil.make_archive(

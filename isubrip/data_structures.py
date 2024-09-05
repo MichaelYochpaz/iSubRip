@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 import datetime as dt  # noqa: TCH003
 from enum import Enum
-from typing import TYPE_CHECKING, Generic, List, Literal, NamedTuple, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, Optional, TypeVar, Union
 
 import m3u8
 from pydantic import BaseModel
@@ -122,7 +122,7 @@ class Movie(MediaBase):
     referer_id: Optional[str] = None
     duration: Optional[dt.timedelta] = None
     preorder_availability_date: Optional[dt.datetime] = None
-    playlist: Union[str, List[str], None] = None
+    playlist: Union[str, list[str], None] = None
 
 
 class Episode(MediaBase):
@@ -156,7 +156,7 @@ class Episode(MediaBase):
     episode_name: Optional[str] = None
     episode_release_date: Optional[dt.datetime] = None
     episode_duration: Optional[dt.timedelta] = None
-    playlist: Union[str, List[str], None] = None
+    playlist: Union[str, list[str], None] = None
 
 
 class Season(MediaBase):
@@ -181,7 +181,7 @@ class Season(MediaBase):
     series_release_date: Union[dt.datetime, int, None] = None
     season_name: Optional[str] = None
     season_release_date: Union[dt.datetime, int, None] = None
-    episodes: List[Episode] = []
+    episodes: list[Episode] = []
 
 
 class Series(MediaBase):
@@ -198,7 +198,7 @@ class Series(MediaBase):
     """
     media_type: Literal["series"] = "series"
     series_name: str
-    seasons: List[Season] = []
+    seasons: list[Season] = []
     id: Optional[str] = None
     referer_id: Optional[str] = None
     series_release_date: Union[dt.datetime, int, None] = None
@@ -215,7 +215,7 @@ class ScrapedMediaResponse(BaseModel, Generic[MediaData]):
         playlist_scraper (str): ID of the scraper that should be used to parse and scrape the playlist.
         original_data (dict): Original raw data from the API that was used to extract media's data.
     """
-    media_data: List[MediaData]
+    media_data: list[MediaData]
     metadata_scraper: str
     playlist_scraper: str
     original_data: dict

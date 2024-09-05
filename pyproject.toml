@@ -26,7 +26,6 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Topic :: Utilities",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -44,7 +43,7 @@ check_untyped_defs = true
 disallow_untyped_defs = true
 explicit_package_bases = true
 ignore_missing_imports = true
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 plugins = [
     "pydantic.mypy"
@@ -57,16 +56,16 @@ isubrip = "isubrip.__main__:main"
 "Bug Reports" = "https://github.com/MichaelYochpaz/iSubRip/issues"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 httpx = {extras = ["http2"], version = "^0.27.0"}
 m3u8 = "^4.1.0"
-pydantic = "^2.7.0"
+pydantic = "^2.9.0"
 tomli = "^2.0.1"
 pydantic-settings = "^2.6.0"
 
 
 [tool.poetry.group.dev.dependencies]
-mypy = "^1.10.0"
+mypy = "^1.11.0"
 ruff = "^0.4.2"
 
 [build-system]
@@ -80,7 +79,7 @@ replace = 'PACKAGE_VERSION = "{new_version}"'
 
 [tool.ruff]
 line-length = 120
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = [

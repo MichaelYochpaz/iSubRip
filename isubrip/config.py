@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Tuple, Type
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 from pydantic_core import PydanticCustomError
@@ -28,7 +28,7 @@ class GeneralCategory(ConfigCategory):
 
 class DownloadsCategory(ConfigCategory):
     folder: Path = Field(default=Path.cwd().resolve())
-    languages: List[str] = Field(default=[])
+    languages: list[str] = Field(default=[])
     overwrite_existing: bool = Field(default=False)
     zip: bool = Field(default=False)
 
@@ -96,12 +96,12 @@ class Config(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         return (
             init_settings,
             TomlConfigSettingsSource(settings_cls),

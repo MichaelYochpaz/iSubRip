@@ -8,7 +8,7 @@ import inspect
 from pathlib import Path
 import re
 import sys
-from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, Union, overload
 
 import httpx
 import m3u8
@@ -259,7 +259,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
     def __enter__(self) -> Scraper:
         return self
 
-    def __exit__(self, exc_type: Type[BaseException] | None,
+    def __exit__(self, exc_type: type[BaseException] | None,
                  exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
         self.close()
 
@@ -376,7 +376,7 @@ class HLSScraper(Scraper, ABC):
             "PlaylistFiltersSubcategory",
             __base__=ScraperConfigSubcategory,
             **{
-                m3u8_attribute.value: (Union[str, List[str], None],
+                m3u8_attribute.value: (Union[str, list[str], None],
                                        Field(alias=normalize_config_name(m3u8_attribute.value), default=None))
                 for m3u8_attribute in M3U8Attribute
             },  # type: ignore[call-overload]
@@ -513,7 +513,7 @@ class HLSScraper(Scraper, ABC):
     def find_matching_media(self, main_playlist: m3u8.M3U8,
                             filters: dict[str, str | list[str]] | None = None) -> list[m3u8.Media]:
         results: list[m3u8.Media] = []
-        playlist_filters: dict[str, Union[str, List[str]]] | None
+        playlist_filters: dict[str, Union[str, list[str]]] | None
 
         if self._playlist_filters:
             # Merge filtering dictionaries into a single dictionary

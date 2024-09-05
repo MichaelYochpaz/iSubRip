@@ -8,7 +8,7 @@ import re
 import secrets
 import shutil
 import sys
-from typing import TYPE_CHECKING, Any, Literal, Type, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from isubrip.constants import TEMP_FOLDER_PATH, TITLE_REPLACEMENT_STRINGS, WINDOWS_RESERVED_FILE_NAMES
 from isubrip.data_structures import (
@@ -50,7 +50,7 @@ class TempDirGenerator:
     """A class for generating temporary directories, and disposing them once the object is destroyed."""
     _generated_temp_directories: list[Path] = []
 
-    def __exit__(self, exc_type: Type[BaseException] | None,
+    def __exit__(self, exc_type: type[BaseException] | None,
                  exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
         self.cleanup()
 
