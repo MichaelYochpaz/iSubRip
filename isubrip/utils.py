@@ -383,6 +383,32 @@ def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool =
     return None
 
 
+def generate_media_folder_name(media_data: Movie | Episode, source: str | None = None) -> str:
+    """
+    Generate a folder name for media data.
+
+    Args:
+        media_data (Movie | Episode): A movie or episode data object.
+        source (str | None, optional): Abbreviation of the source to use for file names. Defaults to None.
+
+    Returns:
+        str: A folder name for the media data.
+    """
+    if isinstance(media_data, Movie):
+        return format_release_name(
+            title=media_data.name,
+            release_date=media_data.release_date,
+            media_source=source,
+        )
+
+    # elif isinstance(media_data, Episode):
+    return format_release_name(
+        title=media_data.series_name,
+        season_number=media_data.season_number,
+        episode_number=media_data.episode_number,
+        media_source=source,
+    )
+
 
 def generate_non_conflicting_path(file_path: Path, has_extension: bool = True) -> Path:
     """
@@ -414,6 +440,23 @@ def generate_non_conflicting_path(file_path: Path, has_extension: bool = True) -
             return new_file_path
 
         i += 1
+
+
+def generate_temp_media_path(media_data: Movie | Episode, source: str | None = None) -> Path:
+    """
+    Generate a temporary directory for downloading media data.
+
+    Args:
+        media_data (Movie | Episode): A movie or episode data object.
+        source (str | None, optional): Abbreviation of the source to use for file names. Defaults to None.
+
+    Returns:
+        Path: A path to the temporary folder.
+    """
+    temp_folder_name = generate_media_folder_name(media_data=media_data, source=source)
+    path = generate_non_conflicting_path(file_path=TEMP_FOLDER_PATH / temp_folder_name, has_extension=False)
+
+    return TempDirGenerator.generate(directory_name=path.name)
 
 
 def merge_dict_values(*dictionaries: dict) -> dict:
