@@ -5,7 +5,7 @@
 ---
 ## 2.5.5 [2024-07-06]
 ### Added:
-* Added new `timeout` setting to the config file, for the option to change the timeout for all / specific scrapers. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml) for usage examples. ([Issue #71](https://github.com/MichaelYochpaz/iSubRip/issues/71))
+* Added new `timeout` setting to the config file, for the option to change the timeout for all / specific scrapers. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml) for usage examples. ([Issue #71](https://github.com/MichaelYochpaz/iSubRip/issues/71))
 
 ### Changes:
 * Default timeout for requests has been updated from 5 seconds to 10 seconds. ([Issue #71](https://github.com/MichaelYochpaz/iSubRip/issues/71))
@@ -17,7 +17,7 @@
 ---
 ## 2.5.3 [2024-04-09]
 ### Added:
-* Added new `proxy` and `verify-ssl` settings to the config file, for allowing the usage of a proxy when making requests, and disabling SSL verification. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml) for usage examples.
+* Added new `proxy` and `verify-ssl` settings to the config file, for allowing the usage of a proxy when making requests, and disabling SSL verification. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml) for usage examples.
 
 ### Changes:
 * `subtitles.rtl-languages` config setting is no longer supported, and its values are now hardcoded and can't be modified.
@@ -82,7 +82,7 @@
     The user-agent used by the scraper, will be used for downloads as well.
   - The `scraping` config category no longer exists, and is replaced by a `scrapers` category, which has a sub-category with settings for each scraper (for example, a `scrapers.itunes` sub-category).
 - Old config paths that were previously deprecated are no longer supported and will no longer work.
-  The updated config settings can be found in the [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml).
+  The updated config settings can be found in the [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml).
 
 ### Notes:
 * This release includes a major rewrite of the code, which may have introduced new bugs to some core features. If you encountered one, [please report it](https://github.com/MichaelYochpaz/iSubRip/issues/new/choose).
@@ -170,13 +170,13 @@ More info under Notes (and examples on the [README](https://github.com/MichaelYo
 
 ### Notes:
 * If you use a user-config, it might need to be updated to match the new config structure.
-  Example of an updated valid structure can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml).
+  Example of an updated valid structure can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml).
 ---
 ## 2.0.0 [2022-01-30]
 The script is now a Python package that can be installed using pip.
 
 ### Added:
-* Added a config file for changing configurations. (Example can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml))
+* Added a config file for changing configurations. (Example can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml))
 * Added an option to choose subtitles format (vtt / srt).
 * Added an option to choose whether to zip subtitles files or not.
 * Multiple links can be passed for downloading subtitles for multiple movies one after another.

@@ -77,7 +77,7 @@ fix-rtl = true
 subrip-alignment-conversion = true
 ```
 
-An example config with details and explanations for all available settings can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml).
+An example config with details and explanations for all available settings can be found [here](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml).
 
 ## 📜 Logs
 Log files are created for each run in the following paths, depending on your operating system:
@@ -87,7 +87,7 @@ Log files are created for each run in the following paths, depending on your ope
 
 Log rotation (deletion of old files once a certain number of files is reached) can be configured in the configuration file using the `general.log-rotation-size` setting. The default value is `15`.
 
-For more details, see the [example configuration](https://github.com/MichaelYochpaz/iSubRip/blob/main/config.toml).
+For more details, see the [example configuration](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml).
 
 
 ## 📓 Changelog
