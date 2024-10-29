@@ -1,12 +1,11 @@
-[tool.poetry]
+[project]
 name = "isubrip"
 version = "2.5.6"
 description = "A Python package for scraping and downloading subtitles from AppleTV / iTunes movie pages."
-license = "MIT"
-authors = ["Michael Yochpaz"]
+authors = [
+    {name = "Michael Yochpaz"}
+]
 readme = "README.md"
-homepage = "https://github.com/MichaelYochpaz/iSubRip"
-repository = "https://github.com/MichaelYochpaz/iSubRip"
 keywords = [
     "iTunes",
     "AppleTV",
@@ -31,11 +30,32 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-packages = [
-    { include = "isubrip" },
+requires-python = ">= 3.9"
+dependencies = [
+    "httpx[http2]>=0.27.2",
+    "m3u8>=6.0.0",
+    "pydantic-settings>=2.6.0",
+    "pydantic>=2.9.2",
+    "tomli>=2.0.2",
 ]
-include = [
-    "isubrip/resources", "README.md", "LICENSE"
+
+[project.urls]
+Homepage = "https://github.com/MichaelYochpaz/iSubRip"
+Repository = "https://github.com/MichaelYochpaz/iSubRip"
+Issues = "https://github.com/MichaelYochpaz/iSubRip/issues"
+Changelog = "https://github.com/MichaelYochpaz/iSubRip/blob/main/CHANGELOG.md"
+
+[project.scripts]
+isubrip = "isubrip.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "mypy>=1.13.0",
+    "ruff>=0.7.1",
 ]
 
 [tool.mypy]
@@ -48,34 +68,6 @@ warn_return_any = true
 plugins = [
     "pydantic.mypy"
 ]
-
-[tool.poetry.scripts]
-isubrip = "isubrip.__main__:main"
-
-[tool.poetry.urls]
-"Bug Reports" = "https://github.com/MichaelYochpaz/iSubRip/issues"
-
-[tool.poetry.dependencies]
-python = "^3.9"
-httpx = {extras = ["http2"], version = "^0.27.0"}
-m3u8 = "^4.1.0"
-pydantic = "^2.9.0"
-tomli = "^2.0.1"
-pydantic-settings = "^2.6.0"
-
-
-[tool.poetry.group.dev.dependencies]
-mypy = "^1.11.0"
-ruff = "^0.4.2"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry_bumpversion.file."isubrip/constants.py"]
-search = 'PACKAGE_VERSION = "{current_version}"'
-replace = 'PACKAGE_VERSION = "{new_version}"'
-
 
 [tool.ruff]
 line-length = 120
