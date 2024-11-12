@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import ClassVar
+from typing import TYPE_CHECKING
 
 import httpx
 from pydantic import ValidationError
@@ -16,62 +16,34 @@ from isubrip.constants import (
     LOG_FILES_PATH,
     PACKAGE_NAME,
     PACKAGE_VERSION,
+    USER_CONFIG_FILE_PATH,
 )
 from isubrip.logger import logger, setup_loggers
 from isubrip.scrapers.scraper import Scraper, ScraperFactory
 from isubrip.subtitle_formats.webvtt import WebVTTCaptionBlock
 from isubrip.utils import (
     TempDirGenerator,
+    convert_log_level,
     format_config_validation_error,
     raise_for_status,
     single_string_to_list,
 )
 
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
-class AppSettings:
-    log_rotation_size: ClassVar[int | None] = None
-    stdout_loglevel: ClassVar[int] = logging.INFO
-    file_loglevel: ClassVar[int] = logging.DEBUG
+if TYPE_CHECKING:
+    from pathlib import Path
+
+log_rotation_size: int = 15  # Default size, before being updated by the config file.
 
 
 def main() -> None:
+    """A wrapper for the actual main function that handles exceptions and cleanup."""
     try:
-        # Assure at least one argument was passed
-        if len(sys.argv) < 2:
-            print_usage()
-            exit(0)
-
-        if not DATA_FOLDER_PATH.is_dir():
-            DATA_FOLDER_PATH.mkdir(parents=True)
-
-        setup_loggers(stdout_loglevel=AppSettings.stdout_loglevel,
-                      file_loglevel=AppSettings.file_loglevel)
-
-        cli_args = " ".join(sys.argv[1:])
-        logger.debug(f"CLI Command: {PACKAGE_NAME} {cli_args}")
-        logger.debug(f"Python version: {sys.version}")
-        logger.debug(f"Package version: {PACKAGE_VERSION}")
-        logger.debug(f"OS: {sys.platform}")
-
-        try:
-            config = Config()
-
-        except ValidationError as e:
-            logger.error("Invalid configuration - the following errors were found in the configuration file:\n"
-                         "---\n" +
-                         format_config_validation_error(exc=e) +
-                         "---\n"
-                         "Please update your configuration to resolve the issue.")
-            logger.debug("Debug information:", exc_info=True)
-            exit(1)
-
-        update_settings(config=config)
-
-        if config.general.check_for_updates:
-            check_for_updates(current_package_version=PACKAGE_VERSION)
-
-        EVENT_LOOP.run_until_complete(download(urls=single_string_to_list(item=sys.argv[1:]),
-                                               config=config))
+        _main()
 
     except Exception as ex:
         logger.error(f"Error: {ex}")
@@ -79,10 +51,10 @@ def main() -> None:
         exit(1)
 
     finally:
-        if AppSettings.log_rotation_size:
-            handle_log_rotation(log_rotation_size=AppSettings.log_rotation_size)
+        if log_rotation_size > 0:
+            handle_log_rotation(rotation_size=log_rotation_size)
 
-        # NOTE: This will only close scrapers that were initialized using the ScraperFactory.
+        # NOTE: This will only close scrapers initialized using the ScraperFactory.
         async_cleanup_coroutines = []
         for scraper in ScraperFactory.get_initialized_scrapers():
             logger.debug(f"Requests count for '{scraper.name}' scraper: {scraper.requests_count}")
@@ -91,6 +63,37 @@ def main() -> None:
 
         EVENT_LOOP.run_until_complete(asyncio.gather(*async_cleanup_coroutines))
         TempDirGenerator.cleanup()
+
+def _main() -> None:
+    # Assure at least one argument was passed
+    if len(sys.argv) < 2:
+        print_usage()
+        exit(0)
+
+    # Generate the data folder if it doesn't previously exist
+    if not DATA_FOLDER_PATH.is_dir():
+        DATA_FOLDER_PATH.mkdir(parents=True)
+
+    config = parse_config(config_file_location=USER_CONFIG_FILE_PATH)
+
+    setup_loggers(
+        stdout_loglevel=convert_log_level(log_level=config.general.log_level),
+        file_loglevel=logging.DEBUG,
+    )
+
+    cli_args = " ".join(sys.argv[1:])
+    logger.debug(f"CLI Command: {PACKAGE_NAME} {cli_args}")
+    logger.debug(f"Python version: {sys.version}")
+    logger.debug(f"Package version: {PACKAGE_VERSION}")
+    logger.debug(f"OS: {sys.platform}")
+
+    update_settings(config=config)
+
+    if config.general.check_for_updates:
+        check_for_updates(current_package_version=PACKAGE_VERSION)
+
+    EVENT_LOOP.run_until_complete(download(urls=single_string_to_list(item=sys.argv[1:]),
+                                           config=config))
 
 
 def check_for_updates(current_package_version: str) -> None:
@@ -127,18 +130,57 @@ def check_for_updates(current_package_version: str) -> None:
         return
 
 
-def handle_log_rotation(log_rotation_size: int) -> None:
+def handle_log_rotation(rotation_size: int) -> None:
     """
     Handle log rotation and remove old log files if needed.
 
     Args:
-        log_rotation_size (int): Maximum amount of log files to keep.
+        rotation_size (int): Maximum amount of log files to keep.
     """
     sorted_log_files = sorted(LOG_FILES_PATH.glob("*.log"), key=lambda file: file.stat().st_mtime, reverse=True)
 
-    if len(sorted_log_files) > log_rotation_size:
-        for log_file in sorted_log_files[log_rotation_size:]:
+    if len(sorted_log_files) > rotation_size:
+        for log_file in sorted_log_files[rotation_size:]:
             log_file.unlink()
+
+
+def parse_config(config_file_location: Path) -> Config:
+    """
+    Parse the configuration file and return a Config instance.
+    Exit the program (with code 1) if an error occurs while parsing the configuration file.
+
+    Args:
+        config_file_location (Path): The location of the configuration file.
+
+    Returns:
+        Config: An instance of the Config.
+    """
+    try:
+        with config_file_location.open('rb') as file:
+            config_data = tomllib.load(file)
+
+        return Config.model_validate(config_data)
+
+    except ValidationError as e:
+        logger.error("Invalid configuration - the following errors were found in the configuration file:\n"
+                     "---\n" +
+                     format_config_validation_error(exc=e) +
+                     "---\n"
+                     "Please update your configuration to resolve the issue.")
+        logger.debug("Debug information:", exc_info=True)
+        exit(1)
+
+
+    except tomllib.TOMLDecodeError as e:
+        logger.error(f"Error parsing config file: {e}")
+        logger.debug("Debug information:", exc_info=True)
+        exit(1)
+
+
+    except Exception as e:
+        logger.error(f"Error loading configuration: {e}")
+        logger.debug("Debug information:", exc_info=True)
+        exit(1)
 
 
 def update_settings(config: Config) -> None:
@@ -159,8 +201,9 @@ def update_settings(config: Config) -> None:
         config.subtitles.webvtt.subrip_alignment_conversion
     )
 
-    if log_rotation := config.general.log_rotation_size:
-        AppSettings.log_rotation_size = log_rotation
+    if config.general.log_rotation_size:
+        global log_rotation_size
+        log_rotation_size = config.general.log_rotation_size
 
 
 def print_usage() -> None:

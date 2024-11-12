@@ -3,12 +3,13 @@ from __future__ import annotations
 from abc import ABCMeta
 import datetime as dt
 from functools import lru_cache
+import logging
 from pathlib import Path
 import re
 import secrets
 import shutil
 import sys
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 from isubrip.constants import TEMP_FOLDER_PATH, TITLE_REPLACEMENT_STRINGS, WINDOWS_RESERVED_FILE_NAMES
 from isubrip.data_structures import (
@@ -115,6 +116,26 @@ def convert_epoch_to_datetime(epoch_timestamp: int) -> dt.datetime:
         return dt.datetime.fromtimestamp(epoch_timestamp)
 
     return dt.datetime(1970, 1, 1) + dt.timedelta(seconds=epoch_timestamp)
+
+
+def convert_log_level(log_level: str) -> int:
+    """
+    Convert a log level string to a logging level.
+
+    Args:
+        log_level (str): Log level string.
+
+    Returns:
+        int: Logging level.
+    
+    Raises:
+        ValueError: If the log level is invalid.
+    """
+    log_level_upper = log_level.upper()
+    if log_level_upper not in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
+        raise ValueError(f"Invalid log level: {log_level}")
+
+    return cast(int, getattr(logging, log_level_upper))
 
 
 def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: SubtitlesData, output_path: str | PathLike,

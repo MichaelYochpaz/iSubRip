@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from abc import ABC
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 from pydantic_core import PydanticCustomError
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
-from isubrip.constants import USER_CONFIG_FILE_PATH
 from isubrip.scrapers.scraper import DefaultScraperConfig, ScraperFactory
 from isubrip.utils import normalize_config_name
 
@@ -23,6 +22,8 @@ class ConfigCategory(BaseModel, ABC):
 
 class GeneralCategory(ConfigCategory):
     check_for_updates: bool = Field(default=True)
+    verbose: bool = Field(default=False)
+    log_level: Literal["debug", "info", "warning", "error", "critical"] = Field(default="info")
     log_rotation_size: int = Field(default=15)
 
 
@@ -85,7 +86,6 @@ class Config(BaseSettings):
     model_config = SettingsConfigDict(
         extra='forbid',
         alias_generator=normalize_config_name,
-        toml_file=USER_CONFIG_FILE_PATH,
     )
 
     general: GeneralCategory = Field(default_factory=GeneralCategory)

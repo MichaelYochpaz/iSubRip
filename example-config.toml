@@ -22,6 +22,10 @@ check-for-updates = true
 # until the number of files equals the maximum.
 log-rotation-size = 15
 
+# Log level to use for stdout (console) output.
+# Value can be one of: "debug", "info", "error", "warning", "critical".
+log-level = "info"
+
 
 [downloads]
 # Folder to downloads files to.
