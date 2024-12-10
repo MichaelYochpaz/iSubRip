@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-import logging
 from pathlib import Path
 from tempfile import gettempdir
 
@@ -12,22 +11,6 @@ PACKAGE_VERSION = "2.5.6"
 
 # Async
 EVENT_LOOP = asyncio.get_event_loop()
-
-# Logging
-PREORDER_MESSAGE = ("'{movie_name}' is currently unavailable on {scraper_name}, "
-                    "and will be available on {preorder_date}.")
-
-ANSI_COLORS = {
-    logging.DEBUG: "\x1b[37;20m",  # Light Grey
-    logging.INFO: "\x1b[38;20m",  # Grey
-    logging.WARNING: "\x1b[33;20m",  # Yellow
-    logging.ERROR: "\x1b[31;20m",  # Red
-    logging.CRITICAL: "\x1b[31;1m",  # Bold Red
-    }
-RESET_COLOR = "\x1b[0m"
-
-LOGGING_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-LOGGING_FILE_METADATA = "[%(asctime)s | %(levelname)s | %(threadName)s | %(filename)s::%(funcName)s::%(lineno)d] "
 
 # Downloads
 ARCHIVE_FORMAT = "zip"

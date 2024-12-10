@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from isubrip.constants import (
     ARCHIVE_FORMAT,
-    PREORDER_MESSAGE,
 )
 from isubrip.data_structures import (
     Episode,
@@ -48,12 +47,12 @@ async def download(urls: list[str], config: Config) -> None:
 
     for url in urls:
         try:
-            logger.info(f"Scraping '{url}'...")
+            logger.info(f"Scraping [blue]{url}[/blue]")
 
             scraper = ScraperFactory.get_scraper_instance(url=url, scrapers_configs=scrapers_configs)
 
             try:
-                logger.debug(f"Fetching '{url}'...")
+                logger.debug(f"Fetching {url}")
                 scraper_response: ScrapedMediaResponse = await scraper.get_data(url=url)
 
             except ScraperError as e:
@@ -71,7 +70,8 @@ async def download(urls: list[str], config: Config) -> None:
 
             for media_item in media_data:
                 try:
-                    logger.info(f"Found {media_item.media_type}: {format_media_description(media_data=media_item)}")
+                    logger.info(f"Found {media_item.media_type}: "
+                                f"[cyan]{format_media_description(media_data=media_item)}[/cyan]")
                     await download_media(scraper=playlist_scraper,
                                          media_item=media_item,
                                          download_path=config.downloads.folder,
@@ -180,9 +180,9 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, dow
 
     # We get here if there is no playlist, or there is one, but it failed to load
     if isinstance(media_item, Movie) and media_item.preorder_availability_date:
-        preorder_date_str = media_item.preorder_availability_date.strftime("%Y-%m-%d")
-        logger.info(PREORDER_MESSAGE.format(movie_name=media_item.name, scraper_name=scraper.name,
-                                            preorder_date=preorder_date_str))
+        logger.info(f"[dark_orange]'{media_item.name}' is currently unavailable on {scraper.name}, "
+                    "and will be available on "
+                    f"{media_item.preorder_availability_date.strftime("%d/%m/%Y")}.[/dark_orange]")
 
     else:
         if ex:
@@ -254,7 +254,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                 overwrite=overwrite_existing,
             ))
 
-            logger.info(f"'{language_info}' subtitles were successfully downloaded.")
+            logger.info(f"[magenta]{language_info}[/magenta] subtitles were successfully downloaded.")
             successful_downloads.append(subtitles_data)
 
         except Exception as e:

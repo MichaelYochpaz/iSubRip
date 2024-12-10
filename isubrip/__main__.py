@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import httpx
 from pydantic import ValidationError
 
+from isubrip.cli import console
 from isubrip.commands.download import download
 from isubrip.config import Config
 from isubrip.constants import (
@@ -49,6 +50,10 @@ def main() -> None:
         logger.error(f"Error: {ex}")
         logger.debug("Debug information:", exc_info=True)
         exit(1)
+    
+    except KeyboardInterrupt:
+        logger.debug("Keyboard interrupt detected, exiting...")
+        exit(0)
 
     finally:
         if log_rotation_size > 0:
@@ -78,7 +83,9 @@ def _main() -> None:
 
     setup_loggers(
         stdout_loglevel=convert_log_level(log_level=config.general.log_level),
-        file_loglevel=logging.DEBUG,
+        stdout_console=console,
+        logfile_output=True,
+        logfile_loglevel=logging.DEBUG,
     )
 
     cli_args = " ".join(sys.argv[1:])
@@ -119,7 +126,7 @@ def check_for_updates(current_package_version: str) -> None:
         if pypi_latest_version != current_package_version:
             logger.warning(f"You are currently using version '{current_package_version}' of '{PACKAGE_NAME}', "
                            f"however version '{pypi_latest_version}' is available."
-                           f'\nConsider upgrading by running "pip install --upgrade {PACKAGE_NAME}"\n')
+                           f'\nConsider upgrading by running "pip install --upgrade {PACKAGE_NAME}"')
 
         else:
             logger.debug(f"Latest version of '{PACKAGE_NAME}' ({current_package_version}) is currently installed.")

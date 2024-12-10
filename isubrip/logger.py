@@ -1,16 +1,24 @@
-from functools import lru_cache
+from __future__ import annotations
+
 import logging
-import sys
+import re
+from typing import TYPE_CHECKING
+
+from rich.highlighter import NullHighlighter
+from rich.logging import RichHandler
 
 from isubrip.constants import (
-    ANSI_COLORS,
     LOG_FILE_NAME,
     LOG_FILES_PATH,
-    LOGGING_DATE_FORMAT,
-    LOGGING_FILE_METADATA,
     PACKAGE_NAME,
-    RESET_COLOR,
 )
+
+if TYPE_CHECKING:
+    from rich.console import Console
+
+BBCOE_REGEX = re.compile(
+    r"(?i)(?P<opening_tag>\[(?P<tag_name>[a-z#@][^[]*?)])(?P<content>.*)(?P<closing_tag>\[/(?P=tag_name)])")
+LOG_FILE_METADATA = "[%(asctime)s | %(levelname)s | %(threadName)s | %(filename)s::%(funcName)s::%(lineno)d] "
 
 logger = logging.getLogger(PACKAGE_NAME)
 
@@ -26,65 +34,78 @@ def set_logger(_logger: logging.Logger) -> None:
     logger = _logger
 
 
-@lru_cache
-def get_formatter(fmt: str, datefmt: str = LOGGING_DATE_FORMAT) -> logging.Formatter:
-    """
-    Get a formatter instance, and utilize caching.
+class CustomStdoutFormatter(RichHandler):
+    def __init__(self, console: Console | None = None, debug_mode: bool = False) -> None:
+        super().__init__(
+            console=console,
+            show_time=debug_mode,
+            show_level=debug_mode,
+            show_path=debug_mode,
+            highlighter=NullHighlighter(),
+            markup=True,
+            log_time_format="%H:%M:%S",
+            rich_tracebacks=debug_mode,
+            tracebacks_extra_lines=0,
+        )
 
-    Args:
-        fmt (str): The format of the formatter.
-        datefmt (str, optional): The date format of the formatter. Defaults to LOGGING_DATE_FORMAT.
-
-    Returns:
-        logging.Formatter: A formatter instance.
-    """
-    return logging.Formatter(fmt=fmt, datefmt=datefmt)
-
-
-class CustomStdoutFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
-        if record.levelno in ANSI_COLORS:
-            log_format = ANSI_COLORS[record.levelno] + "%(message)s" + RESET_COLOR
-
-        else:
-            log_format = "%(message)s"
-
-        formatter = get_formatter(fmt=log_format, datefmt=LOGGING_DATE_FORMAT)
-        return formatter.format(record)
+        if record.levelno == logging.ERROR:
+            record.msg = f"[red]{record.getMessage()}[/red]"
+        elif record.levelno == logging.WARNING:
+            record.msg = f"[dark_orange]{record.getMessage()}[/dark_orange]"
+        elif record.levelno == logging.DEBUG:
+            record.msg = f"[grey54]{record.getMessage()}[/grey54]"
+        return super().format(record)
 
 
 class CustomLogFileFormatter(logging.Formatter):
-    _log_format = LOGGING_FILE_METADATA + "%(message)s"
-    _formatter = get_formatter(fmt=_log_format, datefmt=LOGGING_DATE_FORMAT)
+    _log_format = LOG_FILE_METADATA + "%(message)s"
 
     def format(self, record: logging.LogRecord) -> str:
-        return self._formatter.format(record)
+        message = record.getMessage()
+
+        # Remove Rich markup tags
+        while match := BBCOE_REGEX.search(message):
+            message = message[:match.start()] + match.group('content') + message[match.end():]
+        
+        return logging.Formatter(fmt=LOG_FILE_METADATA + message, datefmt=r"%Y-%m-%d %H:%M:%S").format(record)
 
 
-def setup_loggers(stdout_loglevel: int, file_loglevel: int) -> None:
+def setup_loggers(stdout_output: bool = True, stdout_console: Console | None = None,
+                  stdout_loglevel: int = logging.INFO, logfile_output: bool = True,
+                  logfile_loglevel: int = logging.DEBUG) -> None:
     """
     Configure loggers.
 
     Args:
-        stdout_loglevel (int): Log level for STDOUT logger.
-        file_loglevel (int): Log level for logfile logger.
+        stdout_output (bool, optional): Whether to output logs to STDOUT. Defaults to True.
+        stdout_console (Console | None, optional): A Rich console instance to be used for STDOUT logging.
+            Relevant only if `stdout_output` is True. Defaults to None.
+        stdout_loglevel (int, optional): Log level for STDOUT logger. Relevant only if `stdout_output` is True.
+            Defaults to logging.INFO.
+        logfile_output (bool, optional): Whether to output logs to a logfile. Defaults to True.
+        logfile_loglevel (int, optional): Log level for logfile logger. Relevant only if `logfile_output` is True.
+            Defaults to logging.DEBUG.
     """
     logger.setLevel(logging.DEBUG)
 
-    # Setup STDOUT logger
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(stdout_loglevel)
-    stdout_handler.setFormatter(CustomStdoutFormatter())
-    logger.addHandler(stdout_handler)
+    if stdout_output:
+        debug_mode = (stdout_loglevel == logging.DEBUG)
+        stdout_handler = CustomStdoutFormatter(
+            debug_mode=debug_mode,
+            console=stdout_console,
+        )
+        stdout_handler.setLevel(stdout_loglevel)
+        logger.addHandler(stdout_handler)
 
-    # Setup logfile logger
-    if not LOG_FILES_PATH.is_dir():
-        logger.debug("Logs directory could not be found and will be created.")
-        LOG_FILES_PATH.mkdir()
+    if logfile_output:
+        if not LOG_FILES_PATH.is_dir():
+            logger.debug("Logs directory could not be found and will be created.")
+            LOG_FILES_PATH.mkdir()
 
-    logfile_path = LOG_FILES_PATH / LOG_FILE_NAME
-    logfile_handler = logging.FileHandler(filename=logfile_path, encoding="utf-8")
-    logfile_handler.setLevel(file_loglevel)
-    logfile_handler.setFormatter(CustomLogFileFormatter())
-    logger.debug(f"Log file location: '{logfile_path}'")
-    logger.addHandler(logfile_handler)
+        logfile_path = LOG_FILES_PATH / LOG_FILE_NAME
+        logfile_handler = logging.FileHandler(filename=logfile_path, encoding="utf-8")
+        logfile_handler.setLevel(logfile_loglevel)
+        logfile_handler.setFormatter(CustomLogFileFormatter())
+        logger.debug(f"Log file location: '{logfile_path}'")
+        logger.addHandler(logfile_handler)
