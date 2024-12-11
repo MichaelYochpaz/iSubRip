@@ -58,9 +58,9 @@ class AppleTVScraper(HLSScraper):
 
     _api_base_url = "https://tv.apple.com/api/uts/v3"
     _api_base_params = {
-        "utscf": "OjAAAAAAAAA~",
-        "caller": "js",
-        "v": "66",
+        "utscf": "OjAAAAEAAAAAAAAAEAAAACMA",
+        "caller": "web",
+        "v": "81",
         "pfm": "web",
     }
 
