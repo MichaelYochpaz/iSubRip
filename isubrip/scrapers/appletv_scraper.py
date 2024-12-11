@@ -293,7 +293,7 @@ class AppleTVScraper(HLSScraper):
 
         return Movie(
             id=itunes_movie_id,
-            referer_id=appletv_movie_id,
+            referrer_id=appletv_movie_id,
             name=movie_title,
             release_date=movie_release_date,
             duration=movie_duration,

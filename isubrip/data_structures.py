@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-import datetime as dt  # noqa: TCH003
+import datetime as dt  # noqa: TC003
 from enum import Enum
 from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, Optional, TypeVar, Union
 
@@ -70,8 +70,6 @@ class SubtitlesType(Enum):
     FORCED = "Forced"
 
 
-# TODO: Use `kw_only` on dataclasses, and set default values of None for optional arguments once min version => 3.10
-
 class SubtitlesData(BaseModel):
     """
     An object containing subtitles data and metadata.
@@ -105,7 +103,7 @@ class Movie(MediaBase):
 
     Attributes:
         id (str | None, optional): ID of the movie on the service it was scraped from. Defaults to None.
-        referer_id (str | None, optional): ID of the movie on the original referring service. Defaults to None.
+        referrer_id (str | None, optional): ID of the movie on the original referring service. Defaults to None.
         name (str): Title of the movie.
         release_date (datetime | int | None, optional): Release date (datetime), or year (int) of the movie.
             Defaults to None.
@@ -119,7 +117,7 @@ class Movie(MediaBase):
     name: str
     release_date: Union[dt.datetime, int]
     id: Optional[str] = None
-    referer_id: Optional[str] = None
+    referrer_id: Optional[str] = None
     duration: Optional[dt.timedelta] = None
     preorder_availability_date: Optional[dt.datetime] = None
     playlist: Union[str, list[str], None] = None
@@ -131,7 +129,7 @@ class Episode(MediaBase):
 
     Attributes:
         id (str | None, optional): ID of the episode on the service it was scraped from. Defaults to None.
-        referer_id (str | None, optional): ID of the episode on the original referring service. Defaults to None.
+        referrer_id (str | None, optional): ID of the episode on the original referring service. Defaults to None.
         series_name (str): Name of the series the episode is from.
         series_release_date (datetime | int | None, optional): Release date (datetime), or year (int) of the series.
             Defaults to None.
@@ -148,7 +146,7 @@ class Episode(MediaBase):
     season_number: int
     episode_number: int
     id: Optional[str] = None
-    referer_id: Optional[str] = None
+    referrer_id: Optional[str] = None
     series_release_date: Union[dt.datetime, int, None] = None
     season_name: Optional[str] = None
     release_date: Optional[dt.datetime] = None
@@ -165,7 +163,7 @@ class Season(MediaBase):
 
     Attributes:
         id (str | None, optional): ID of the season on the service it was scraped from. Defaults to None.
-        referer_id (str | None, optional): ID of the season on the original referring service. Defaults to None.
+        referrer_id (str | None, optional): ID of the season on the original referring service. Defaults to None.
         series_name (str): Name of the series the season is from.
         series_release_date (datetime | int | None, optional): Release date (datetime), or year (int) of the series.
             Defaults to None.
@@ -177,7 +175,7 @@ class Season(MediaBase):
     series_name: str
     season_number: int
     id: Optional[str] = None
-    referer_id: Optional[str] = None
+    referrer_id: Optional[str] = None
     series_release_date: Union[dt.datetime, int, None] = None
     season_name: Optional[str] = None
     season_release_date: Union[dt.datetime, int, None] = None
@@ -191,7 +189,7 @@ class Series(MediaBase):
     Attributes:
         id (str | None, optional): ID of the series on the service it was scraped from. Defaults to None.
         series_name (str): Series name.
-        referer_id (str | None, optional): ID of the series on the original referring service. Defaults to None.
+        referrer_id (str | None, optional): ID of the series on the original referring service. Defaults to None.
         series_release_date (datetime | int | None, optional): Release date (datetime), or year (int) of the series.
             Defaults to None.
         seasons (list[Season]): A list of season objects containing metadata about seasons of the series.
@@ -200,7 +198,7 @@ class Series(MediaBase):
     series_name: str
     seasons: list[Season] = []
     id: Optional[str] = None
-    referer_id: Optional[str] = None
+    referrer_id: Optional[str] = None
     series_release_date: Union[dt.datetime, int, None] = None
 
 

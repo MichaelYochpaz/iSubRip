@@ -398,8 +398,12 @@ class HLSScraper(Scraper, ABC):
                                                                     convert_to_dict=True),
                                                     self.default_playlist_filters)
 
-        if self._playlist_filters != self.default_playlist_filters:
-            logger.debug(f"Initializing '{self.name}' scraper with custom playlist filters: {self._playlist_filters}.")
+        if self._playlist_filters:
+            # Remove None values from the filters (mainly caused by config defaults)
+            self._playlist_filters = {key: value for key, value in self._playlist_filters.items() if value is not None}
+
+            if self._playlist_filters:  # If there are any filters left
+                logger.debug(f"Scraper '{self.name}' initialized with playlist filters: {self._playlist_filters}.")
 
     def parse_language_name(self, media_data: m3u8.Media) -> str | None:
         """
@@ -459,6 +463,9 @@ class HLSScraper(Scraper, ABC):
 
         if playlist_m3u8 is None:
             raise PlaylistLoadError("Could not load subtitles M3U8 playlist.")
+
+        if not media_data.language:
+            raise ValueError("Language code not found in media data.")
 
         downloaded_segments = await self.download_segments(playlist=playlist_m3u8)
         subtitles = self.subtitles_class(data=downloaded_segments[0], language_code=media_data.language)

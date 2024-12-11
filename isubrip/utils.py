@@ -75,8 +75,8 @@ class TempDirGenerator:
                 logger.debug(f"Using previously generated temporary directory: '{full_path}'.")
                 return full_path
 
-            logger.debug(f"Temporary directory '{full_path}' already exists. "
-                         f"Emptying the directory from all contents...")
+            logger.debug(f"Temporary directory '{full_path}' already exists.\n"
+                         f"Emptying directory from all contents...")
             shutil.rmtree(full_path)
             full_path.mkdir(parents=True)
 
@@ -396,8 +396,8 @@ def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool =
     if model and hasattr(model, field):
         field_value = getattr(model, field)
 
-        if convert_to_dict:
-            return field_value.dict()
+        if convert_to_dict and hasattr(field_value, 'dict'):
+            field_value = field_value.dict()
 
         return field_value
 
