@@ -528,19 +528,6 @@ def merge_dict_values(*dictionaries: dict) -> dict:
     return result
 
 
-def normalize_config_name(name: str) -> str:
-    """
-    Normalize a config category / field name (used for creating an alias).
-
-    Args:
-        name (str): The name to normalize.
-
-    Returns:
-        str: The normalized name.
-    """
-    return name.lower().replace('_', '-')
-
-
 def raise_for_status(response: httpx.Response) -> None:
     """
     Raise an exception if the response status code is invalid.

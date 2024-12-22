@@ -4,19 +4,20 @@ from abc import ABC
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
+from pydantic import AliasGenerator, BaseModel, ConfigDict, Field, create_model, field_validator
 from pydantic_core import PydanticCustomError
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
 from isubrip.scrapers.scraper import DefaultScraperConfig, ScraperFactory
-from isubrip.utils import normalize_config_name
 
 
 class ConfigCategory(BaseModel, ABC):
     """A base class for settings categories."""
     model_config = ConfigDict(
         extra='allow',
-        alias_generator=normalize_config_name,
+        alias_generator=AliasGenerator(
+            validation_alias=lambda field_name: field_name.replace('_', '-'),
+        ),
     )
 
 
@@ -85,7 +86,6 @@ else:
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
         extra='forbid',
-        alias_generator=normalize_config_name,
     )
 
     general: GeneralCategory = Field(default_factory=GeneralCategory)

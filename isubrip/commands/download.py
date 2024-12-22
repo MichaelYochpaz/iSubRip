@@ -26,7 +26,6 @@ from isubrip.utils import (
     format_subtitles_description,
     generate_media_folder_name,
     generate_non_conflicting_path,
-    get_model_field,
 )
 
 if TYPE_CHECKING:
@@ -41,15 +40,11 @@ async def download(urls: list[str], config: Config) -> None:
         urls (list[str]): A list of URLs to download subtitles from.
         config (Config): A config to use for downloading subtitles.
     """
-    scrapers_configs = {
-        scraper_id: get_model_field(config.scrapers, scraper_id) for scraper_id in config.scrapers.model_fields
-    }
-
     for url in urls:
         try:
             logger.info(f"Scraping [blue]{url}[/blue]")
 
-            scraper = ScraperFactory.get_scraper_instance(url=url, scrapers_configs=scrapers_configs)
+            scraper = ScraperFactory.get_scraper_instance(url=url)
 
             try:
                 logger.debug(f"Fetching {url}")
@@ -61,8 +56,7 @@ async def download(urls: list[str], config: Config) -> None:
                 continue
 
             media_data = scraper_response.media_data
-            playlist_scraper = ScraperFactory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper,
-                                                                   scrapers_configs=scrapers_configs)
+            playlist_scraper = ScraperFactory.get_scraper_instance(scraper_id=scraper_response.playlist_scraper)
 
             if not media_data:
                 logger.error(f"Error: No supported media was found for {url}.")

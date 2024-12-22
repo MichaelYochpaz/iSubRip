@@ -26,6 +26,7 @@ from isubrip.utils import (
     TempDirGenerator,
     convert_log_level,
     format_config_validation_error,
+    get_model_field,
     raise_for_status,
     single_string_to_list,
 )
@@ -199,10 +200,15 @@ def update_settings(config: Config) -> None:
     """
     Scraper.subtitles_fix_rtl = config.subtitles.fix_rtl
     Scraper.subtitles_remove_duplicates = config.subtitles.remove_duplicates
+
     Scraper.default_timeout = config.scrapers.default.timeout
     Scraper.default_user_agent = config.scrapers.default.user_agent
     Scraper.default_proxy = config.scrapers.default.proxy
     Scraper.default_verify_ssl = config.scrapers.default.verify_ssl
+
+    for scraper in ScraperFactory.get_scraper_classes():
+        if scraper_config := get_model_field(model=config.scrapers, field=scraper.id):
+            scraper.config = scraper_config
 
     WebVTTCaptionBlock.subrip_alignment_conversion = (
         config.subtitles.webvtt.subrip_alignment_conversion
