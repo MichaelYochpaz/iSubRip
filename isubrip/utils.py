@@ -319,7 +319,6 @@ def format_media_description(media_data: MediaBase, shortened: bool = False) -> 
     raise ValueError(f"Unsupported media type: '{type(media_data)}'")
 
 
-@lru_cache
 def format_release_name(title: str,
                         release_date: dt.datetime | int | None = None,
                         season_number: int | None = None,
