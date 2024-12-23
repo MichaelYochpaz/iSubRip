@@ -191,8 +191,20 @@ def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: Subt
     return file_path
 
 def format_config_validation_error(exc: ValidationError) -> str:
+    """
+    Format a Pydantic ValidationError into a human-readable string.
+
+    Args:
+        exc (ValidationError): The ValidationError instance containing validation errors.
+
+    Returns:
+        str: A formatted string describing the validation errors, including the location,
+             type, value, and error messages for each invalid field.
+    """
     validation_errors = exc.errors()
     error_str = ""
+
+    consolidated_errors: dict[str, dict[str, Any]] = {}
 
     for validation_error in validation_errors:
         value: Any = validation_error['input']
@@ -214,7 +226,22 @@ def format_config_validation_error(exc: ValidationError) -> str:
         else:
             location_str = location[0]
 
-        error_str += f"'{location_str}' (value: '{value}', type: '{value_type}'): {error_msg}\n"
+        if location_str in consolidated_errors:
+            consolidated_errors[location_str]["errors"].append(error_msg)
+
+        else:
+            consolidated_errors[location_str] = {}
+            consolidated_errors[location_str]["info"] = {
+                "value": value,
+                "type": value_type,
+            }
+            consolidated_errors[location_str]["errors"] = [error_msg]
+
+    for error_loc, error_data in consolidated_errors.items():
+        error_str += f"'{error_loc}' (type: '{error_data["info"]["type"]}', value: '{error_data["info"]["value"]}'):\n"
+        
+        for error in error_data["errors"]:
+            error_str += f"    {error}\n"
 
     return error_str
 

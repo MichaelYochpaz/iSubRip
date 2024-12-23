@@ -170,11 +170,9 @@ def parse_config(config_file_location: Path) -> Config:
         return Config.model_validate(config_data)
 
     except ValidationError as e:
-        logger.error("Invalid configuration - the following errors were found in the configuration file:\n"
-                     "---\n" +
+        logger.error("Invalid configuration - the following errors were found in the configuration file:\n" +
                      format_config_validation_error(exc=e) +
-                     "---\n"
-                     "Please update your configuration to resolve the issue.")
+                     "\nPlease update your configuration to resolve this issue.")
         logger.debug("Debug information:", exc_info=True)
         exit(1)
 
