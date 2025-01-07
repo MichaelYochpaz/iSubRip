@@ -26,6 +26,7 @@ from isubrip.data_structures import (
 from isubrip.logger import logger
 from isubrip.utils import (
     SingletonMeta,
+    format_subtitles_description,
     get_model_field,
     merge_dict_values,
     return_first_valid,
@@ -295,6 +296,9 @@ class Scraper(ABC, metaclass=SingletonMeta):
 
         Returns:
             SubtitlesData: A SubtitlesData object containing downloaded subtitles.
+        
+        Raises:
+            SubtitlesDownloadError: If the subtitles failed to download.
         """
 
     @abstractmethod
@@ -324,7 +328,7 @@ class Scraper(ABC, metaclass=SingletonMeta):
                 Defaults to None.
 
         Returns:
-            list[PlaylistMediaItem]: A list of subtitles that match the given language filter.
+            list[PlaylistMediaItem]: A list of subtitles media objects that match the given language filter.
         """
 
     @abstractmethod
@@ -340,6 +344,34 @@ class Scraper(ABC, metaclass=SingletonMeta):
 
         Returns:
             MainPlaylist | None: A playlist object (matching the type), or None if the playlist couldn't be loaded.
+        """
+
+
+    @staticmethod
+    @abstractmethod
+    def detect_subtitles_type(subtitles_media: PlaylistMediaItem) -> SubtitlesType | None:
+        """
+        Detect the subtitles type (Closed Captions, Forced, etc.) from a media object.
+
+        Args:
+            subtitles_media (PlaylistMediaItem): Subtitles media object to detect the type of.
+
+        Returns:
+            SubtitlesType | None: The type of the subtitles, None for regular subtitles.
+        """
+
+
+    @classmethod
+    @abstractmethod
+    def format_subtitles_description(cls, subtitles_media: PlaylistMediaItem) -> str:
+        """
+        Format a description of the subtitles media object.
+        
+        Args:
+            subtitles_media (PlaylistMediaItem): Subtitles media object to format the description of.
+        
+        Returns:
+            str: A formatted description of the subtitles media object.
         """
 
 
@@ -408,7 +440,8 @@ class HLSScraper(Scraper, ABC):
             if self._playlist_filters:  # If there are any filters left
                 logger.debug(f"Scraper '{self.name}' initialized with playlist filters: {self._playlist_filters}.")
 
-    def parse_language_name(self, media_data: m3u8.Media) -> str | None:
+    @staticmethod
+    def parse_language_name(media_data: m3u8.Media) -> str | None:
         """
         Parse the language name from an M3U8 Media object.
         Can be overridden in subclasses for normalization.
@@ -462,43 +495,52 @@ class HLSScraper(Scraper, ABC):
         return None
 
     async def download_subtitles(self, media_data: m3u8.Media, subrip_conversion: bool = False) -> SubtitlesData:
-        playlist_m3u8 = await self.load_playlist(url=media_data.absolute_uri)
+        try:
+            playlist_m3u8 = await self.load_playlist(url=media_data.absolute_uri)
 
-        if playlist_m3u8 is None:
-            raise PlaylistLoadError("Could not load subtitles M3U8 playlist.")
+            if playlist_m3u8 is None:
+                raise PlaylistLoadError("Could not load subtitles M3U8 playlist.")  # noqa: TRY301
 
-        if not media_data.language:
-            raise ValueError("Language code not found in media data.")
+            if not media_data.language:
+                raise ValueError("Language code not found in media data.")  # noqa: TRY301
 
-        downloaded_segments = await self.download_segments(playlist=playlist_m3u8)
-        subtitles = self.subtitles_class(data=downloaded_segments[0], language_code=media_data.language)
+            downloaded_segments = await self.download_segments(playlist=playlist_m3u8)
+            subtitles = self.subtitles_class(data=downloaded_segments[0], language_code=media_data.language)
 
-        if len(downloaded_segments) > 1:
-            for segment_data in downloaded_segments[1:]:
-                segment_subtitles_obj = self.subtitles_class(data=segment_data, language_code=media_data.language)
-                subtitles.append_subtitles(segment_subtitles_obj)
+            if len(downloaded_segments) > 1:
+                for segment_data in downloaded_segments[1:]:
+                    segment_subtitles_obj = self.subtitles_class(data=segment_data, language_code=media_data.language)
+                    subtitles.append_subtitles(segment_subtitles_obj)
 
-        subtitles.polish(
-            fix_rtl=self.subtitles_fix_rtl,
-            remove_duplicates=self.subtitles_remove_duplicates,
-        )
+            subtitles.polish(
+                fix_rtl=self.subtitles_fix_rtl,
+                remove_duplicates=self.subtitles_remove_duplicates,
+            )
 
-        if subrip_conversion:
-            subtitles_format = SubtitlesFormatType.SUBRIP
-            content = subtitles.to_srt().dump()
+            if subrip_conversion:
+                subtitles_format = SubtitlesFormatType.SUBRIP
+                content = subtitles.to_srt().dump()
 
-        else:
-            subtitles_format = SubtitlesFormatType.WEBVTT
-            content = subtitles.dump()
+            else:
+                subtitles_format = SubtitlesFormatType.WEBVTT
+                content = subtitles.dump()
 
-        return SubtitlesData(
-            language_code=media_data.language,
-            language_name=self.parse_language_name(media_data=media_data),
-            subtitles_format=subtitles_format,
-            content=content,
-            content_encoding=subtitles.encoding,
-            special_type=self.detect_subtitles_type(subtitles_media=media_data),
-        )
+            return SubtitlesData(
+                language_code=media_data.language,
+                language_name=self.parse_language_name(media_data=media_data),
+                subtitles_format=subtitles_format,
+                content=content,
+                content_encoding=subtitles.encoding,
+                special_type=self.detect_subtitles_type(subtitles_media=media_data),
+            )
+    
+        except Exception as e:
+            raise SubtitlesDownloadError(
+                language_code=media_data.language,
+                language_name=self.parse_language_name(media_data=media_data),
+                special_type=self.detect_subtitles_type(subtitles_media=media_data),
+                original_exc=e,
+            ) from e
 
     async def download_segments(self, playlist: m3u8.M3U8) -> list[bytes]:
         responses = await asyncio.gather(
@@ -576,6 +618,14 @@ class HLSScraper(Scraper, ABC):
             _filters[self.M3U8Attribute.LANGUAGE.value] = language_filter
 
         return self.find_matching_media(main_playlist=main_playlist, filters=_filters)
+    
+    @classmethod
+    def format_subtitles_description(cls, subtitles_media: m3u8.Media) -> str:
+        return format_subtitles_description(
+            language_code=subtitles_media.language,
+            language_name=cls.parse_language_name(media_data=subtitles_media),
+            special_type=cls.detect_subtitles_type(subtitles_media=subtitles_media),
+            )
 
 
 class ScraperFactory:
@@ -753,13 +803,14 @@ class PlaylistLoadError(ScraperError):
 
 
 class SubtitlesDownloadError(ScraperError):
-    def __init__(self, language_code: str, language_name: str | None = None, special_type: SubtitlesType | None = None,
-                 original_exc: Exception | None = None, *args: Any, **kwargs: dict[str, Any]):
+    def __init__(self, language_code: str | None, language_name: str | None = None,
+                 special_type: SubtitlesType | None = None, original_exc: Exception | None = None,
+                 *args: Any, **kwargs: dict[str, Any]):
         """
         Initialize a SubtitlesDownloadError instance.
 
         Args:
-            language_code (str): Language code of the subtitles that failed to download.
+            language_code (str | None, optional): Language code of the subtitles that failed to download.
             language_name (str | None, optional): Language name of the subtitles that failed to download.
             special_type (SubtitlesType | None, optional): Type of the subtitles that failed to download.
             original_exc (Exception | None, optional): The original exception that caused the error.

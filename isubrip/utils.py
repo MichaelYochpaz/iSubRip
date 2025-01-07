@@ -393,14 +393,29 @@ def format_release_name(title: str,
     return file_name
 
 
-def format_subtitles_description(language_code: str, language_name: str | None = None,
+@lru_cache
+def format_subtitles_description(language_code: str | None = None, language_name: str | None = None,
                                  special_type: SubtitlesType | None = None) -> str:
-    if language_name:
+    """
+    Format a subtitles description using its attributes.
+
+    Args:
+        language_code (str | None, optional): Language code. Defaults to None.
+        language_name (str | None, optional): Language name. Defaults to None.
+        special_type (SubtitlesType | None, optional): Subtitles type. Defaults to None.
+
+    Returns:
+        str: Formatted subtitles description.
+    """
+    if language_name and language_code:
         language_str = f"{language_name} ({language_code})"
 
-    else:
-        language_str = language_code
+    elif result := (language_name or language_code):
+        language_str = result
 
+    else:
+        return ""
+    
     if special_type:
         language_str += f" [{special_type.value}]"
 

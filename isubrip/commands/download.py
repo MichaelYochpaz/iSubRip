@@ -227,16 +227,27 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
     logger.debug(f"{len(matching_subtitles)} matching subtitles were found.")
 
     for matching_subtitles_item in matching_subtitles:
-        subtitles_data = await scraper.download_subtitles(media_data=matching_subtitles_item,
-                                                          subrip_conversion=convert_to_srt)
-        language_info = format_subtitles_description(language_code=subtitles_data.language_code,
-                                                     language_name=subtitles_data.language_name,
-                                                     special_type=subtitles_data.special_type)
+        language_info = scraper.format_subtitles_description(
+            subtitles_media=matching_subtitles_item,
+        )
 
-        if isinstance(subtitles_data, SubtitlesDownloadError):
-            logger.warning(f"Failed to download '{language_info}' subtitles. Skipping...")
-            logger.debug("Debug information:", exc_info=subtitles_data.original_exc)
-            failed_downloads.append(subtitles_data)
+        try:
+            subtitles_data = await scraper.download_subtitles(media_data=matching_subtitles_item,
+                                                              subrip_conversion=convert_to_srt)
+
+        except Exception as e:
+            logger.warning(f"Failed to download " 
+                           f"'{language_info}' " if language_info else ""
+                           "subtitles. Skipping...")
+
+            if isinstance(e, SubtitlesDownloadError):
+                failed_downloads.append(e)
+                original_error = e.original_exc
+            
+            else:
+                original_error = e
+
+            logger.debug("Debug information:", exc_info=original_error)
             continue
 
         try:

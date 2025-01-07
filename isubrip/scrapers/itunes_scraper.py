@@ -85,7 +85,8 @@ class ItunesScraper(HLSScraper):
 
         return await self._appletv_scraper.get_data(redirect_location)
 
-    def parse_language_name(self, media_data: Media) -> str | None:
+    @staticmethod
+    def parse_language_name(media_data: Media) -> str | None:
         name: str | None = media_data.name
 
         if name:
