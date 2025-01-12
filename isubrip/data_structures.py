@@ -26,12 +26,12 @@ class SubtitlesDownloadResults(NamedTuple):
         media_data (Movie | Episode): An object containing metadata about the media the subtitles were downloaded for.
         successful_subtitles (list[SubtitlesData]): List of subtitles that were successfully downloaded.
         failed_subtitles (list[SubtitlesData]): List of subtitles that failed to download.
-        is_archive (bool): Whether the subtitles were saved in a zip file.
+        is_zip (bool): Whether the subtitles were saved in a zip file.
     """
     media_data: Movie | Episode
     successful_subtitles: list[SubtitlesData]
     failed_subtitles: list[SubtitlesDownloadError]
-    is_archive: bool
+    is_zip: bool
 
 
 class SubtitlesFormat(BaseModel):

@@ -73,7 +73,7 @@ def main() -> None:
 def _main() -> None:
     # Assure at least one argument was passed
     if len(sys.argv) < 2:
-        print_usage()
+        logger.info(f"Usage: {PACKAGE_NAME} <iTunes movie URL> [iTunes movie URL...]")
         exit(0)
 
     # Generate the data folder if it doesn't previously exist
@@ -100,8 +100,14 @@ def _main() -> None:
     if config.general.check_for_updates:
         check_for_updates(current_package_version=PACKAGE_VERSION)
 
-    EVENT_LOOP.run_until_complete(download(urls=single_string_to_list(item=sys.argv[1:]),
-                                           config=config))
+    EVENT_LOOP.run_until_complete(download(
+        *single_string_to_list(item=sys.argv[1:]),
+        download_path=config.downloads.folder,
+        language_filter=config.downloads.languages,
+        convert_to_srt=config.subtitles.convert_to_srt,
+        overwrite_existing=config.downloads.overwrite_existing,
+        zip=config.downloads.zip,
+    ))
 
 
 def check_for_updates(current_package_version: str) -> None:
@@ -218,11 +224,6 @@ def update_settings(config: Config) -> None:
     if config.general.log_rotation_size:
         global log_rotation_size
         log_rotation_size = config.general.log_rotation_size
-
-
-def print_usage() -> None:
-    """Print usage information."""
-    logger.info(f"Usage: {PACKAGE_NAME} <iTunes movie URL> [iTunes movie URL...]")
 
 
 if __name__ == "__main__":

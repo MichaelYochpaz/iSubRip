@@ -12,9 +12,6 @@ PACKAGE_VERSION = "2.5.6"
 # Async
 EVENT_LOOP = asyncio.get_event_loop()
 
-# Downloads
-ARCHIVE_FORMAT = "zip"
-
 # Paths
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "resources" / "default_config.toml"
 DATA_FOLDER_PATH = Path.home() / f".{PACKAGE_NAME}"

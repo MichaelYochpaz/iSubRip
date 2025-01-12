@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
-from typing import TYPE_CHECKING
 
 from rich.console import Group
 from rich.live import Live
@@ -10,9 +9,6 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.text import Text
 
 from isubrip.cli import console
-from isubrip.constants import (
-    ARCHIVE_FORMAT,
-)
 from isubrip.data_structures import (
     Episode,
     MediaData,
@@ -34,17 +30,24 @@ from isubrip.utils import (
     generate_non_conflicting_path,
 )
 
-if TYPE_CHECKING:
-    from isubrip.config import Config
 
-
-async def download(urls: list[str], config: Config) -> None:
+async def download(*urls: str,
+                   download_path: Path,
+                   language_filter: list[str] | None = None,
+                   convert_to_srt: bool = False,
+                   overwrite_existing: bool = True,
+                   zip: bool = False) -> None:
     """
-    Download subtitles from a given URL.
+    Download subtitles from given URLs.
 
     Args:
         urls (list[str]): A list of URLs to download subtitles from.
-        config (Config): A config to use for downloading subtitles.
+        download_path (Path): Path to a folder where the subtitles will be downloaded to.
+        language_filter (list[str] | None): List of specific languages to download. None for all languages (no filter).
+            Defaults to None.
+        convert_to_srt (bool, optional): Whether to convert the subtitles to SRT format. Defaults to False.
+        overwrite_existing (bool, optional): Whether to overwrite existing subtitles. Defaults to True.
+        zip (bool, optional): Whether to zip multiple subtitles. Defaults to False.
     """
     for url in urls:
         try:
@@ -73,18 +76,18 @@ async def download(urls: list[str], config: Config) -> None:
                     logger.info(f"Found {media_item.media_type}: "
                                 f"[cyan]{format_media_description(media_data=media_item)}[/cyan]")
                     await download_media(scraper=playlist_scraper,
-                                         media_item=media_item,
-                                         download_path=config.downloads.folder,
-                                         language_filter=config.downloads.languages,
-                                         convert_to_srt=config.subtitles.convert_to_srt,
-                                         overwrite_existing=config.downloads.overwrite_existing,
-                                         archive=config.downloads.zip)
+                                        media_item=media_item,
+                                        download_path=download_path,
+                                        language_filter=language_filter,
+                                        convert_to_srt=convert_to_srt,
+                                        overwrite_existing=overwrite_existing,
+                                        zip=zip)
 
                 except Exception as e:
                     if len(media_data) > 1:
                         logger.warning(f"Error scraping media item "
-                                       f"'{format_media_description(media_data=media_item)}': {e}\n"
-                                       f"Skipping to next media item...")
+                                    f"'{format_media_description(media_data=media_item)}': {e}\n"
+                                    f"Skipping to next media item...")
                         logger.debug("Debug information:", exc_info=True)
                         continue
 
@@ -98,7 +101,7 @@ async def download(urls: list[str], config: Config) -> None:
 
 async def download_media(scraper: Scraper, media_item: MediaData, download_path: Path,
                               language_filter: list[str] | None = None, convert_to_srt: bool = False,
-                              overwrite_existing: bool = True, archive: bool = False) -> None:
+                              overwrite_existing: bool = True, zip: bool = False) -> None:
     """
     Download a media item.
 
@@ -106,35 +109,34 @@ async def download_media(scraper: Scraper, media_item: MediaData, download_path:
         scraper (Scraper): A Scraper object to use for downloading subtitles.
         media_item (MediaData): A media data item to download subtitles for.
         download_path (Path): Path to a folder where the subtitles will be downloaded to.
-        language_filter (list[str] | None): List of specific languages to download subtitles for.
-            None for all languages (no filter). Defaults to None.
+        language_filter (list[str] | None): List of specific languages to download. None for all languages (no filter).
+            Defaults to None.
         convert_to_srt (bool, optional): Whether to convert the subtitles to SRT format. Defaults to False.
         overwrite_existing (bool, optional): Whether to overwrite existing subtitles. Defaults to True.
-        archive (bool, optional): Whether to archive the subtitles into a single zip file
-            (only if there are multiple subtitles).
+        zip (bool, optional): Whether to zip multiple subtitles. Defaults to False.
     """
     if isinstance(media_item, Series):
         for season in media_item.seasons:
             await download_media(media_item=season, scraper=scraper, download_path=download_path,
                                  language_filter=language_filter, convert_to_srt=convert_to_srt,
-                                 overwrite_existing=overwrite_existing, archive=archive)
+                                 overwrite_existing=overwrite_existing, zip=zip)
 
     elif isinstance(media_item, Season):
         for episode in media_item.episodes:
             logger.info(f"{format_media_description(media_data=episode, shortened=True)}:")
             await download_media_item(media_item=episode, scraper=scraper, download_path=download_path,
                                  language_filter=language_filter, convert_to_srt=convert_to_srt,
-                                 overwrite_existing=overwrite_existing, archive=archive)
+                                 overwrite_existing=overwrite_existing, zip=zip)
 
     elif isinstance(media_item, (Movie, Episode)):
         await download_media_item(media_item=media_item, scraper=scraper, download_path=download_path,
                                  language_filter=language_filter, convert_to_srt=convert_to_srt,
-                                 overwrite_existing=overwrite_existing, archive=archive)
+                                 overwrite_existing=overwrite_existing, zip=zip)
 
 
 async def download_media_item(scraper: Scraper, media_item: Movie | Episode, download_path: Path,
                               language_filter: list[str] | None = None, convert_to_srt: bool = False,
-                              overwrite_existing: bool = True, archive: bool = False) -> None:
+                              overwrite_existing: bool = True, zip: bool = False) -> None:
     """
     Download subtitles for a single media item.
 
@@ -142,12 +144,11 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, dow
         scraper (Scraper): A Scraper object to use for downloading subtitles.
         media_item (Movie | Episode): A movie or episode data object.
         download_path (Path): Path to a folder where the subtitles will be downloaded to.
-        language_filter (list[str] | None): List of specific languages to download subtitles for.
-            None for all languages (no filter). Defaults to None.
+        language_filter (list[str] | None): List of specific languages to download. None for all languages (no filter).
+            Defaults to None.
         convert_to_srt (bool, optional): Whether to convert the subtitles to SRT format. Defaults to False.
         overwrite_existing (bool, optional): Whether to overwrite existing subtitles. Defaults to True.
-        archive (bool, optional): Whether to archive the subtitles into a single zip file
-            (only if there are multiple subtitles).
+        zip (bool, optional): Whether to zip multiple subtitles. Defaults to False.
     """
     ex: Exception | None = None
 
@@ -160,7 +161,7 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, dow
                 language_filter=language_filter,
                 convert_to_srt=convert_to_srt,
                 overwrite_existing=overwrite_existing,
-                archive=archive,
+                zip=zip,
             )
 
             success_count = len(results.successful_subtitles)
@@ -192,7 +193,7 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, dow
 
 async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, download_path: Path,
                              language_filter: list[str] | None = None, convert_to_srt: bool = False,
-                             overwrite_existing: bool = True, archive: bool = False) -> SubtitlesDownloadResults:
+                             overwrite_existing: bool = True, zip: bool = False) -> SubtitlesDownloadResults:
     """
     Download subtitles for the given media data.
 
@@ -200,12 +201,11 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
         scraper (Scraper): A Scraper object to use for downloading subtitles.
         media_data (Movie | Episode): A movie or episode data object.
         download_path (Path): Path to a folder where the subtitles will be downloaded to.
-        language_filter (list[str] | None): List of specific languages to download subtitles for.
-            None for all languages (no filter). Defaults to None.
+        language_filter (list[str] | None): List of specific languages to download. None for all languages (no filter).
+            Defaults to None.
         convert_to_srt (bool, optional): Whether to convert the subtitles to SRT format. Defaults to False.
         overwrite_existing (bool, optional): Whether to overwrite existing subtitles. Defaults to True.
-        archive (bool, optional): Whether to archive the subtitles into a single zip file
-            (only if there are multiple subtitles).
+        zip (bool, optional): Whether to zip multiple subtitles. Defaults to False.
 
     Returns:
         SubtitlesDownloadResults: A SubtitlesDownloadResults object containing the results of the download.
@@ -298,7 +298,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                     ),
                 )
 
-    if not archive or len(temp_downloads) == 1:
+    if not zip or len(temp_downloads) == 1:
         for file_path in temp_downloads:
             if overwrite_existing:
                 new_path = download_path / file_path.name
@@ -309,14 +309,14 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
             shutil.move(src=file_path, dst=new_path)
 
     elif len(temp_downloads) > 0:
-        archive_path = Path(shutil.make_archive(
+        zip_path = Path(shutil.make_archive(
             base_name=str(temp_download_path.parent / temp_download_path.name),
-            format=ARCHIVE_FORMAT,
+            format="zip",
             root_dir=temp_download_path,
         ))
 
         file_name = generate_media_folder_name(media_data=media_data,
-                                               source=scraper.abbreviation) + f".{ARCHIVE_FORMAT}"
+                                               source=scraper.abbreviation) + ".zip"
 
         if overwrite_existing:
             destination_path = download_path / file_name
@@ -324,11 +324,11 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
         else:
             destination_path = generate_non_conflicting_path(file_path=download_path / file_name)
 
-        shutil.move(src=str(archive_path), dst=destination_path)
+        shutil.move(src=str(zip_path), dst=destination_path)
 
     return SubtitlesDownloadResults(
         media_data=media_data,
         successful_subtitles=successful_downloads,
         failed_subtitles=failed_downloads,
-        is_archive=archive,
+        is_zip=zip,
     )
