@@ -11,6 +11,8 @@ import shutil
 import sys
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
+from wcwidth import wcswidth
+
 from isubrip.constants import TEMP_FOLDER_PATH, TITLE_REPLACEMENT_STRINGS, WINDOWS_RESERVED_FILE_NAMES
 from isubrip.data_structures import (
     Episode,
@@ -246,6 +248,47 @@ def format_config_validation_error(exc: ValidationError) -> str:
     return error_str
 
 
+def format_list(items: list[str], width: int = 80) -> str:
+    """
+    Format a list of strings into a grid-like display with dynamic column widths.
+    
+    The function automatically calculates the optimal number of columns based on the maximum item width 
+    and the desired total width. It properly handles Unicode characters by using their display width.
+
+    Args:
+        items (list[str]): List of strings to format
+        width (int, optional): Maximum width of the output in characters. Defaults to 80.
+
+    Returns:
+        str: A formatted string with items arranged in columns
+
+    Example:
+        >>> items = ["Item 1", "Long Item 2", "Item 3", "Item 4"]
+        >>> print(format_list(items, width=40))
+        Item 1      Long Item 2
+        Item 3      Item 4
+    """
+    if not items:
+        return ""
+    
+    # Calculate true display width for each item and add spacing
+    item_widths = [(s, wcswidth(s)) for s in items]
+    column_width = max(width for _, width in item_widths) + 4  # Add spacing between columns
+    columns = max(1, width // column_width)  # At least one column
+    
+    # Build rows with proper spacing
+    rows = []
+    for i in range(0, len(item_widths), columns):
+        row_items = item_widths[i:i + columns]
+        cols = []
+        for text, text_width in row_items:
+            padding = " " * (column_width - text_width)
+            cols.append(f"{text}{padding}")
+        rows.append("".join(cols).rstrip())
+    
+    return "\n".join(rows)
+
+
 def format_media_description(media_data: MediaBase, shortened: bool = False) -> str:
     """
     Generate a short description string of a media object.
@@ -406,6 +449,9 @@ def format_subtitles_description(language_code: str | None = None, language_name
 
     Returns:
         str: Formatted subtitles description.
+    
+    Raises:
+        ValueError: If neither `language_code` nor `language_name` is provided.
     """
     if language_name and language_code:
         language_str = f"{language_name} ({language_code})"
@@ -414,7 +460,7 @@ def format_subtitles_description(language_code: str | None = None, language_name
         language_str = result
 
     else:
-        return ""
+        raise ValueError("Either 'language_code' or 'language_name' must be provided.")
     
     if special_type:
         language_str += f" [{special_type.value}]"

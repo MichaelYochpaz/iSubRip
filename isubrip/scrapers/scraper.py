@@ -372,6 +372,9 @@ class Scraper(ABC, metaclass=SingletonMeta):
         
         Returns:
             str: A formatted description of the subtitles media object.
+
+        Raises:
+            ValueError: If minimal required data is missing from the media object.
         """
 
 

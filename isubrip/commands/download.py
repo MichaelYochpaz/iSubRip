@@ -4,6 +4,12 @@ from pathlib import Path
 import shutil
 from typing import TYPE_CHECKING
 
+from rich.console import Group
+from rich.live import Live
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+from rich.text import Text
+
+from isubrip.cli import console
 from isubrip.constants import (
     ARCHIVE_FORMAT,
 )
@@ -22,8 +28,8 @@ from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperError, S
 from isubrip.utils import (
     TempDirGenerator,
     download_subtitles_to_file,
+    format_list,
     format_media_description,
-    format_subtitles_description,
     generate_media_folder_name,
     generate_non_conflicting_path,
 )
@@ -161,8 +167,7 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, dow
             failed_count = len(results.failed_subtitles)
 
             if success_count or failed_count:
-                logger.info(f"{success_count}/{success_count + failed_count} matching subtitles "
-                            f"were successfully downloaded.")
+                logger.info(f"{success_count}/{success_count + failed_count} subtitles were successfully downloaded.")
 
             else:
                 logger.info("No matching subtitles were found.")
@@ -174,9 +179,8 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, dow
 
     # We get here if there is no playlist, or there is one, but it failed to load
     if isinstance(media_item, Movie) and media_item.preorder_availability_date:
-        logger.info(f"[dark_orange]'{media_item.name}' is currently unavailable on {scraper.name}, "
-                    "and will be available on "
-                    f"{media_item.preorder_availability_date.strftime("%d/%m/%Y")}.[/dark_orange]")
+        logger.info(f"[gold1]'{media_item.name}' is currently unavailable on {scraper.name}, "
+                    f"and will be available on {media_item.preorder_availability_date.strftime("%d/%m/%Y")}.[/gold1]")
 
     else:
         if ex:
@@ -225,54 +229,74 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                                                          language_filter=language_filter)
 
     logger.debug(f"{len(matching_subtitles)} matching subtitles were found.")
+    downloaded_subtitles: list[str] = []
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage][yellow]{task.percentage:>3.0f}%[/yellow]"),
+        TextColumn("{task.completed}/{task.total}"),
+        console=console,
+    )
+    
+    task = progress.add_task("Downloading subtitles...", total=len(matching_subtitles))
+    downloaded_list = Text(f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):")
 
-    for matching_subtitles_item in matching_subtitles:
-        language_info = scraper.format_subtitles_description(
-            subtitles_media=matching_subtitles_item,
-        )
-
-        try:
-            subtitles_data = await scraper.download_subtitles(media_data=matching_subtitles_item,
-                                                              subrip_conversion=convert_to_srt)
-
-        except Exception as e:
-            logger.warning(f"Failed to download " 
-                           f"'{language_info}' " if language_info else ""
-                           "subtitles. Skipping...")
-
-            if isinstance(e, SubtitlesDownloadError):
-                failed_downloads.append(e)
-                original_error = e.original_exc
-            
-            else:
-                original_error = e
-
-            logger.debug("Debug information:", exc_info=original_error)
-            continue
-
-        try:
-            temp_downloads.append(download_subtitles_to_file(
-                media_data=media_data,
-                subtitles_data=subtitles_data,
-                output_path=temp_download_path,
-                source_abbreviation=scraper.abbreviation,
-                overwrite=overwrite_existing,
-            ))
-
-            logger.info(f"[magenta]{language_info}[/magenta] subtitles were successfully downloaded.")
-            successful_downloads.append(subtitles_data)
-
-        except Exception as e:
-            logger.error(f"Error: Failed to save '{language_info}' subtitles: {e}")
-            logger.debug("Debug information:", exc_info=True)
-            failed_downloads.append(
-                SubtitlesDownloadError(
-                    language_code=subtitles_data.language_code,
-                    language_name=subtitles_data.language_name,
-                    special_type=subtitles_data.special_type,
-                    original_exc=e,
-                ),
+    with Live(
+        Group(downloaded_list, progress),
+        console=console,
+    ):
+        for matching_subtitles_item in matching_subtitles:
+            language_info = scraper.format_subtitles_description(
+                subtitles_media=matching_subtitles_item,
             )
+            progress.update(task, advance=1, description=f"Processing [magenta]{language_info}[/magenta]")
+
+            try:
+                subtitles_data = await scraper.download_subtitles(media_data=matching_subtitles_item,
+                                                                  subrip_conversion=convert_to_srt)
+
+            except Exception as e:
+                if isinstance(e, SubtitlesDownloadError):
+                    failed_downloads.append(e)
+                    original_error = e.original_exc
+                
+                else:
+                    original_error = e
+
+                logger.warning(f"Failed to download '{language_info}' subtitles: {original_error}")
+                logger.debug("Debug information:", exc_info=original_error)
+                continue
+
+            try:
+                temp_downloads.append(download_subtitles_to_file(
+                    media_data=media_data,
+                    subtitles_data=subtitles_data,
+                    output_path=temp_download_path,
+                    source_abbreviation=scraper.abbreviation,
+                    overwrite=overwrite_existing,
+                ))
+
+                downloaded_subtitles.append(f"• {language_info}")
+                downloaded_list.plain = (
+                    f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):\n"
+                    f"{format_list(downloaded_subtitles, width=console.width)}"
+                )
+                logger.info(f"{language_info} subtitles were successfully downloaded.",
+                            extra={"hide_when_interactive": True})
+                successful_downloads.append(subtitles_data)
+
+            except Exception as e:
+                logger.warning(f"Failed to save '{language_info}' subtitles: {e}")
+                logger.debug("Debug information:", exc_info=True)
+                failed_downloads.append(
+                    SubtitlesDownloadError(
+                        language_code=subtitles_data.language_code,
+                        language_name=subtitles_data.language_name,
+                        special_type=subtitles_data.special_type,
+                        original_exc=e,
+                    ),
+                )
 
     if not archive or len(temp_downloads) == 1:
         for file_path in temp_downloads:

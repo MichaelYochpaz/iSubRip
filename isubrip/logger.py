@@ -47,6 +47,12 @@ class CustomStdoutFormatter(RichHandler):
             rich_tracebacks=debug_mode,
             tracebacks_extra_lines=0,
         )
+        self._console = console
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if getattr(record, 'hide_when_interactive', False) and self._console and self._console.is_interactive:
+            return
+        super().emit(record)
 
     def format(self, record: logging.LogRecord) -> str:
         if record.levelno == logging.ERROR:

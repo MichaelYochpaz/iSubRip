@@ -196,6 +196,9 @@ def update_settings(config: Config) -> None:
     Args:
         config (Config): An instance of a config to set settings according to.
     """
+    if config.general.log_level.casefold() == "debug":
+        console.is_interactive = False
+
     Scraper.subtitles_fix_rtl = config.subtitles.fix_rtl
     Scraper.subtitles_remove_duplicates = config.subtitles.remove_duplicates
 
