@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from rich.highlighter import NullHighlighter
 from rich.logging import RichHandler
 
+from isubrip.cli import console
 from isubrip.constants import (
     LOG_FILE_NAME,
     LOG_FILES_PATH,
@@ -19,8 +20,6 @@ if TYPE_CHECKING:
 BBCOE_REGEX = re.compile(
     r"(?i)(?P<opening_tag>\[(?P<tag_name>[a-z#@][^[]*?)])(?P<content>.*)(?P<closing_tag>\[/(?P=tag_name)])")
 LOG_FILE_METADATA = "[%(asctime)s | %(levelname)s | %(threadName)s | %(filename)s::%(funcName)s::%(lineno)d] "
-
-logger = logging.getLogger(PACKAGE_NAME)
 
 
 def set_logger(_logger: logging.Logger) -> None:
@@ -93,6 +92,7 @@ def setup_loggers(stdout_output: bool = True, stdout_console: Console | None = N
         logfile_loglevel (int, optional): Log level for logfile logger. Relevant only if `logfile_output` is True.
             Defaults to logging.DEBUG.
     """
+    logger.handlers.clear()  # Remove and reset existing handlers
     logger.setLevel(logging.DEBUG)
 
     if stdout_output:
@@ -115,3 +115,10 @@ def setup_loggers(stdout_output: bool = True, stdout_console: Console | None = N
         logfile_handler.setFormatter(CustomLogFileFormatter())
         logger.debug(f"Log file location: '{logfile_path}'")
         logger.addHandler(logfile_handler)
+
+
+logger = logging.getLogger(PACKAGE_NAME)
+
+# Temporarily set the logger to INFO level until the config is loaded and the logger is properly set up
+logger.setLevel(logging.INFO)
+logger.addHandler(CustomStdoutFormatter(console=console))
