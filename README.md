@@ -15,7 +15,7 @@
 <br/>
 
 <div align="center">
-  <img src="https://github-production-user-asset-6210df.s3.amazonaws.com/8832013/290989935-e6a17af6-1ebb-456d-a024-dc6e84dd64b2.gif" width="800">
+  <img src="https://github.com/user-attachments/assets/ffdbb366-8ad0-427d-af00-9b70cc0d6b01" width="800">
 </div>
 
 
