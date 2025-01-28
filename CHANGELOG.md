@@ -1,4 +1,22 @@
 # Changelog
+## 2.6.0 [2025-01-28]
+**The following update contains breaking changes to the config file.  
+If you are using one, please update your config file accordingly.**
+
+### Added:
+* Added a new `general.log-level` config setting, the log level of stdout (console) output. Set to `info` by default. Can be changed to `debug`, `warning`, or `error`. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml) for an example.
+
+### Changes:
+* Console output has been overhauled and improved, with colorful interactive output.
+* Config file is now parsed and validated in a more reliable and efficient manner. Configuration errors will now be more readable and descriptive.
+* **Breaking config changes** - the `scrapers` config category has been updated. Settings that should apply for all scrapers are now under the `scrapers.default` category instead of straight under `scrapers`. See the updated [example config](https://github.com/MichaelYochpaz/iSubRip/blob/main/example-config.toml) for examples.
+* Updated AppleTV scraper request parameters.
+* Minor improvements to logs.
+* Python 3.8 is no longer supported. Minimum supported version has been updated to 3.9.
+
+### Bug Fixes:
+* Fixed an issue where if `verify-ssl` is set to `false`, and the `urllib3` package (which isn't a dependency of iSubRip) is not installed, an error could be thrown.
+---
 ## 2.5.6 [2024-07-07]
 ### Bug Fixes:
 * Fixed an issue where the update message from version `2.5.4` to `2.5.5` would still appear after updating. ([Issue #73](https://github.com/MichaelYochpaz/iSubRip/issues/73))
