@@ -32,10 +32,10 @@ classifiers = [
 ]
 requires-python = ">= 3.9"
 dependencies = [
-    "httpx[http2]>=0.27.2",
+    "httpx[http2]>=0.28.1",
     "m3u8>=6.0.0",
-    "pydantic-settings>=2.6.0",
-    "pydantic>=2.9.2",
+    "pydantic>=2.10.6",
+    "pydantic-settings>=2.7.1",
     "pygments>=2.19.1",  # Used by 'rich'. Specified here as version 2.18 appears to cause issues.
     "rich>=13.9.4",
     "tomli>=2.0.2",
@@ -57,8 +57,8 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 dev-dependencies = [
-    "mypy>=1.13.0",
-    "ruff>=0.7.1",
+    "mypy>=1.14.1",
+    "ruff>=0.9.3",
 ]
 
 [tool.mypy]
