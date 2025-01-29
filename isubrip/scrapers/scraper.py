@@ -8,7 +8,7 @@ import inspect
 from pathlib import Path
 import re
 import sys
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional, TypeVar, Union, overload
 
 import httpx
 import m3u8
@@ -60,10 +60,10 @@ class ScraperConfigBase(BaseModel, ABC):
         ),
     )
 
-    timeout: int | float | None = Field(default=None)
-    user_agent: str | None = Field(default=None)
-    proxy: str | None = Field(default=None)
-    verify_ssl: bool | None = Field(default=None)
+    timeout: Union[int, float, None] = Field(default=None)
+    user_agent: Union[str, None] = Field(default=None)
+    proxy: Union[str, None] = Field(default=None)
+    verify_ssl: Union[bool, None] = Field(default=None)
 
 
 class DefaultScraperConfig(ScraperConfigBase):
@@ -77,11 +77,11 @@ class DefaultScraperConfig(ScraperConfigBase):
         proxy (str | None): Proxy to use when making requests.
         verify_ssl (bool): Whether to verify SSL certificates.
     """
-    timeout: int | float = Field(default=10)
+    timeout: Union[int, float] = Field(default=10)
     user_agent: str = Field(
         default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36",    # noqa: E501
     )
-    proxy: str | None = Field(default=None)
+    proxy: Optional[str] = Field(default=None)
     verify_ssl: bool = Field(default=True)
 
 

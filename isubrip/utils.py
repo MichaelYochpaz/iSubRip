@@ -211,7 +211,7 @@ def format_config_validation_error(exc: ValidationError) -> str:
     for validation_error in validation_errors:
         value: Any = validation_error['input']
         value_type: str = type(value).__name__
-        location: list[str] = [str(item) for item in validation_error["loc"]]
+        location: list[str] = [str(item) for item in validation_error['loc']]
         error_msg: str = validation_error['msg']
 
         # When the expected type is a union, Pydantic returns several errors for each type,
@@ -229,20 +229,22 @@ def format_config_validation_error(exc: ValidationError) -> str:
             location_str = location[0]
 
         if location_str in consolidated_errors:
-            consolidated_errors[location_str]["errors"].append(error_msg)
+            consolidated_errors[location_str]['errors'].append(error_msg)
 
         else:
             consolidated_errors[location_str] = {}
-            consolidated_errors[location_str]["info"] = {
+            consolidated_errors[location_str]['info'] = {
                 "value": value,
                 "type": value_type,
             }
-            consolidated_errors[location_str]["errors"] = [error_msg]
+            consolidated_errors[location_str]['errors'] = [error_msg]
 
     for error_loc, error_data in consolidated_errors.items():
-        error_str += f"'{error_loc}' (type: '{error_data["info"]["type"]}', value: '{error_data["info"]["value"]}'):\n"
+        error_type = error_data['info']['type']
+        error_value = error_data['info']['value']
+        error_str += f"'{error_loc}' (type: '{error_type}', value: '{error_value}'):\n"
         
-        for error in error_data["errors"]:
+        for error in error_data['errors']:
             error_str += f"    {error}\n"
 
     return error_str

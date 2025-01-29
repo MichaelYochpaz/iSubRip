@@ -181,7 +181,7 @@ async def download_media_item(scraper: Scraper, media_item: Movie | Episode, dow
     # We get here if there is no playlist, or there is one, but it failed to load
     if isinstance(media_item, Movie) and media_item.preorder_availability_date:
         logger.info(f"[gold1]'{media_item.name}' is currently unavailable on {scraper.name}, "
-                    f"and will be available on {media_item.preorder_availability_date.strftime("%d/%m/%Y")}.[/gold1]")
+                    f"and will be available on {media_item.preorder_availability_date.strftime(r'%d/%m/%Y')}.[/gold1]")
 
     else:
         if ex:
