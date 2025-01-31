@@ -1,4 +1,8 @@
 # Changelog
+## 2.6.1 [2025-01-31]
+### Bug Fixes:
+* Fixed a backwards compatibility issue in code, which would cause errors when running on Python versions lower than 3.12. ([Issue #78](https://github.com/MichaelYochpaz/iSubRip/issues/78))
+---
 ## 2.6.0 [2025-01-28]
 **The following update contains breaking changes to the config file.  
 If you are using one, please update your config file accordingly.**
