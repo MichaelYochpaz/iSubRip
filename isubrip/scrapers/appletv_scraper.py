@@ -58,7 +58,7 @@ class AppleTVScraper(HLSScraper):
 
     _api_base_url = "https://tv.apple.com/api/uts/v3"
     _api_base_params = {
-        "utscf": "OjAAAAEAAAAAAAAAEAAAACMA",
+        "utscf": "OjAAAAAAAAA~",
         "caller": "web",
         "v": "81",
         "pfm": "web",
@@ -80,7 +80,7 @@ class AppleTVScraper(HLSScraper):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._storefront_locale_mapping_cache: dict[str, str] = {}
+        self._storefronts_request_params_cache: dict[str, dict[str, str]] = {}
 
     def _decide_locale(self, preferred_locales: str | list[str], default_locale: str, locales: list[str]) -> str:
         """
@@ -120,33 +120,7 @@ class AppleTVScraper(HLSScraper):
         Raises:
             HttpError: If an HTTP error response is received.
         """
-        logger.debug(f"Preparing to fetch '{endpoint}' using storefront '{storefront_id}'.")
-
-        if storefront_cached_local := self._storefront_locale_mapping_cache.get(storefront_id):
-            logger.debug(f"Using cached locale for storefront '{storefront_id}': '{storefront_cached_local}'.")
-            locale = storefront_cached_local
-
-        else:
-            storefront_data = \
-                self._get_configuration_data(storefront_id=storefront_id)["applicationProps"]["storefront"]
-
-            default_locale = storefront_data["defaultLocale"]
-            available_locales = storefront_data["localesSupported"]
-
-            logger.debug(f"Available locales for storefront '{storefront_id}': {available_locales}'. "
-                         f"Storefront's default locale: '{default_locale}'.")
-
-            locale = self._decide_locale(
-                preferred_locales=["en_US", "en_GB"],
-                default_locale=default_locale,
-                locales=available_locales,
-            )
-
-            logger.debug(f"Selected locale for storefront '{storefront_id}': '{locale}'")
-
-            self._storefront_locale_mapping_cache[storefront_id] = locale
-
-        request_params = self._generate_api_request_params(storefront_id=storefront_id, locale=locale)
+        request_params = await self._fetch_request_params(storefront_id=storefront_id)
 
         if additional_params:
             request_params.update(additional_params)
@@ -168,30 +142,44 @@ class AppleTVScraper(HLSScraper):
         response_data: dict = response_json.get("data", {})
 
         return response_data
-
-    def _generate_api_request_params(self, storefront_id: str,
-                                     locale: str | None = None, utsk: str | None = None) -> dict:
+    
+    async def _fetch_request_params(self, storefront_id: str) -> dict[str, str]:
         """
-        Generate request params for the AppleTV's API.
+        Fetch from the API request parameters for the given storefront ID.
+        Uses caching with `self._storefronts_request_params_cache` for efficiency.
 
         Args:
-            storefront_id (str): ID of the storefront to use.
-            locale (str | None, optional): ID of the locale to use. Defaults to None.
-            utsk (str | None, optional): utsk data. Defaults to None.
+            storefront_id (str): The ID of the storefront to fetch the request parameters for.
 
         Returns:
-            dict: The request params, generated from the given arguments.
+            dict: The request parameters for the given storefront ID. If returned from cache, a copy is returned.
         """
-        params = self._api_base_params.copy()
-        params["sf"] = storefront_id
+        if storefront_cached_params := self._storefronts_request_params_cache.get(storefront_id):
+            logger.debug(f"Using cached request parameters for storefront '{storefront_id}':"
+                         f"'{storefront_cached_params}'.")
+            return storefront_cached_params.copy()
 
-        if utsk:
-            params["utsk"] = utsk
+        configuration_data = self._get_configuration_data(storefront_id=storefront_id)
+        request_params: dict[str, str] = configuration_data["applicationProps"]["requiredParamsMap"]["Default"]
+        default_locale: str = configuration_data["applicationProps"]["storefront"]["defaultLocale"]
+        available_locales: list[str] = configuration_data["applicationProps"]["storefront"]["localesSupported"]
 
-        if locale:
-            params["locale"] = locale
+        logger.debug(f"Available locales for storefront '{storefront_id}': {available_locales}'. "
+                     f"Storefront's default locale: '{default_locale}'.")
 
-        return params
+        locale = self._decide_locale(
+            preferred_locales=["en_US", "en_GB"],
+            default_locale=default_locale,
+            locales=available_locales,
+        )
+
+        request_params["sf"] = storefront_id
+        request_params["locale"] = locale
+
+        logger.debug(f"Using and caching request parameters for storefront '{storefront_id}': {request_params}")
+        self._storefronts_request_params_cache[storefront_id] = request_params.copy()
+
+        return request_params
 
     def _get_configuration_data(self, storefront_id: str) -> dict:
         """
@@ -201,11 +189,14 @@ class AppleTVScraper(HLSScraper):
             storefront_id (str): The ID of the storefront to get the configuration data for.
 
         Returns:
-            dict: The configuration data.
+            dict: Configuration data as returned by the API for the given storefront ID.
         """
         logger.debug(f"Fetching configuration data for storefront '{storefront_id}'...")
         url = f"{self._api_base_url}/configurations"
-        params = self._generate_api_request_params(storefront_id=storefront_id)
+
+        params = self._api_base_params.copy()
+        params["sf"] = storefront_id
+
         response = self._session.get(url=url, params=params)
         raise_for_status(response)
         logger.debug("Configuration data fetched successfully.")
