@@ -1,20 +1,21 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import TYPE_CHECKING, Any
-
-from httpx import HTTPError
 
 from isubrip.logger import logger
 from isubrip.scrapers.scraper import HLSScraper, ScraperError, ScraperFactory
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
-from isubrip.utils import raise_for_status
 
 if TYPE_CHECKING:
     from m3u8.model import Media
 
     from isubrip.data_structures import Movie, ScrapedMediaResponse
 
+
+REDIRECT_MAX_RETRIES = 5
+REDIRECT_SLEEP_TIME = 2
 
 class ItunesScraper(HLSScraper):
     """An iTunes movie data scraper."""
@@ -55,35 +56,39 @@ class ItunesScraper(HLSScraper):
             if the main_playlist is found. None otherwise.
         """
         regex_match = self.match_url(url, raise_error=True)
-        url = regex_match.group(1)
-        logger.debug(f"Fetching data from iTunes URL: {url}.")
-        response = await self._async_session.get(url=url, follow_redirects=False)
+        url_data = regex_match.groupdict()
+        country_code: str = url_data["country_code"]
+        media_id: str = url_data["media_id"]
+        appletv_redirect_finding_url = f"https://tv.apple.com/{country_code}/movie/{media_id}"
 
-        try:
-            raise_for_status(response=response)
+        logger.debug("Attempting to fetch redirect location from: " + appletv_redirect_finding_url)
 
-        except HTTPError as e:
-            if response.status_code == 404:
-                raise ScraperError(
-                    "Media not found. This could indicate that the provided URL is invalid.",
-                ) from e
-
-            raise
+        retries = 0
+        while True:
+            response = await self._async_session.get(url=appletv_redirect_finding_url, follow_redirects=False)
+            if response.status_code != 301 and retries < REDIRECT_MAX_RETRIES:
+                retries += 1
+                logger.debug(f"AppleTV redirect URL not found (Response code: {response.status_code}),"
+                               f" retrying... ({retries}/{REDIRECT_MAX_RETRIES})")
+                await asyncio.sleep(REDIRECT_SLEEP_TIME)
+                continue
+            break
 
         redirect_location = response.headers.get("Location")
 
         if response.status_code != 301 or not redirect_location:
-            logger.debug(f"iTunes URL: {url} did not redirect to an Apple TV URL.\n"
-                         f"Response status code: {response.status_code}.\n"
-                         f"Response headers:\n{response.headers}.\n"
-                         f"Response data:\n{response.text}.")
-            raise ScraperError("Apple TV redirect URL not found.")
+            raise ScraperError(f"AppleTV redirect URL not found (Response code: {response.status_code}).")
+
+        # Add 'https:' if redirect_location starts with '//'
+        if redirect_location.startswith('//'):
+            redirect_location = "https:" + redirect_location
+
+        logger.debug(f"Redirect URL: {redirect_location}")
 
         if not self._appletv_scraper.match_url(redirect_location):
-            logger.debug(f"iTunes URL: {url} redirected to an invalid Apple TV URL: '{redirect_location}'.")
-            raise ScraperError("Redirect URL is not a valid Apple TV URL.")
+            raise ScraperError("Redirect URL is not a valid AppleTV URL.")
 
-        return await self._appletv_scraper.get_data(redirect_location)
+        return await self._appletv_scraper.get_data(url=redirect_location)
 
     @staticmethod
     def parse_language_name(media_data: Media) -> str | None:
