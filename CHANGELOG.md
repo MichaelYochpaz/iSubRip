@@ -1,4 +1,10 @@
 # Changelog
+## 2.6.2 [2025-02-04]
+### Bug Fixes:
+* Fixed an issue where AppleTV API calls would fail due to changes on AppleTV requiring a missing `utsk` parameter. ([Issue #80](https://github.com/MichaelYochpaz/iSubRip/issues/80))
+* Fixed an issue where iTunes URLs would not work due to iTunes no longer redirecting to AppleTV. A different method will be used now to find corresponding AppleTV URLs. Also added a retry mechanism as it appears to be a bit unreliable at times. (thanks @yonatand1230 for suggesting this method!). ([Issue #78](https://github.com/MichaelYochpaz/iSubRip/issues/78))
+* Removed progress bar when where there are no matching subtitles to download (previously, it would just show 0/0 with 0% progress).
+---
 ## 2.6.1 [2025-01-31]
 ### Bug Fixes:
 * Fixed a backwards compatibility issue in code, which would cause errors when running on Python versions lower than 3.12. ([Issue #78](https://github.com/MichaelYochpaz/iSubRip/issues/78))
