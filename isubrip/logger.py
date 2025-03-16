@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
+from functools import lru_cache
+from typing import ClassVar, Dict, Optional, TYPE_CHECKING
 
 from rich.highlighter import NullHighlighter
 from rich.logging import RichHandler
@@ -34,7 +35,26 @@ def set_logger(_logger: logging.Logger) -> None:
 
 
 class CustomStdoutFormatter(RichHandler):
+    """
+    Custom formatter for stdout logging with Rich integration.
+    
+    This formatter adds color to log messages based on their level and
+    supports hiding messages in interactive mode.
+    """
+    LEVEL_COLORS: ClassVar[Dict[int, str]] = {
+        logging.ERROR: "red",
+        logging.WARNING: "dark_orange",
+        logging.DEBUG: "grey54"
+    }
+    
     def __init__(self, console: Console | None = None, debug_mode: bool = False) -> None:
+        """
+        Initialize the stdout formatter.
+        
+        Args:
+            console (Console | None, optional): Rich console instance to use for output. Defaults to None.
+            debug_mode (bool, optional): Whether to show additional debug information. Defaults to False.
+        """
         super().__init__(
             console=console,
             show_time=debug_mode,
@@ -49,38 +69,107 @@ class CustomStdoutFormatter(RichHandler):
         self._console = console
 
     def emit(self, record: logging.LogRecord) -> None:
+        """
+        Emit a log record, respecting the 'hide_when_interactive' flag.
+        
+        Args:
+            record (LogRecord): The log record to emit.
+        """
+        # Skip emission if record is marked to be hidden in interactive mode
         if getattr(record, 'hide_when_interactive', False) and self._console and self._console.is_interactive:
             return
         super().emit(record)
 
     def format(self, record: logging.LogRecord) -> str:
-        if record.levelno == logging.ERROR:
-            record.msg = f"[red]{record.getMessage()}[/red]"
-        elif record.levelno == logging.WARNING:
-            record.msg = f"[dark_orange]{record.getMessage()}[/dark_orange]"
-        elif record.levelno == logging.DEBUG:
-            record.msg = f"[grey54]{record.getMessage()}[/grey54]"
+        """
+        Format the log record with appropriate color based on level.
+        
+        Args:
+            record (LogRecord): The log record to format.
+            
+        Returns:
+            str: Formatted log message with Rich markup.
+        """
+        # Get the message once
+        message = record.getMessage()
+        
+        # Apply color based on log level using the class variable mapping
+        if color := self.LEVEL_COLORS.get(record.levelno):
+            record.msg = f"[{color}]{message}[/{color}]"
+        
         return super().format(record)
 
 
 class CustomLogFileFormatter(logging.Formatter):
-    _log_format = LOG_FILE_METADATA + "%(message)s"
-
-    def format(self, record: logging.LogRecord) -> str:
-        message = record.getMessage()
-
-        # Remove Rich markup tags
-        while match := BBCOE_REGEX.search(message):
-            message = message[:match.start()] + match.group('content') + message[match.end():]
+    """
+    Custom formatter for log files that removes Rich markup tags.
+    """
+    def __init__(self):
+        """
+        Initialize the formatter with metadata format but without message part.
+        We'll append the message manually to avoid issues with special characters.
+        """
+        super().__init__(
+            fmt=LOG_FILE_METADATA,
+            datefmt=r"%Y-%m-%d %H:%M:%S",
+        )
+    
+    @staticmethod
+    @lru_cache(maxsize=64)
+    def _remove_rich_markup(text: str) -> str:
+        """
+        Remove Rich markup tags from text efficiently with caching.
         
-        return logging.Formatter(fmt=LOG_FILE_METADATA + message, datefmt=r"%Y-%m-%d %H:%M:%S").format(record)
+        Args:
+            text: Text containing Rich markup tags
+            
+        Returns:
+            Text with Rich markup tags removed
+        """
+        while match := BBCOE_REGEX.search(text):
+            text = text[:match.start()] + match.group('content') + text[match.end():]
+        return text
+    
+    def format(self, record: logging.LogRecord) -> str:
+        """
+        Format the log record for file output, removing Rich markup.
+        This implementation uses the standard formatter for the metadata part
+        and then appends the message without formatting to avoid issues with
+        special characters within the log message.
+        
+        Args:
+            record: The log record to format
+            
+        Returns:
+            Formatted log message suitable for file output
+        """
+        message = record.getMessage()
+        clean_message = self._remove_rich_markup(message)
+        
+        # Store the original message
+        original_msg = record.msg
+        original_args = record.args
+        
+        # Temporarily set an empty message to format just the metadata
+        record.msg = ""
+        record.args = None
+        
+        # Format the metadata part using the standard formatter
+        metadata = super().format(record)
+        
+        # Restore the original message and args
+        record.msg = original_msg
+        record.args = original_args
+        
+        # Combine metadata and message without formatting the message
+        return metadata + clean_message
 
 
-def setup_loggers(stdout_output: bool = True, stdout_console: Console | None = None,
+def setup_loggers(stdout_output: bool = True, stdout_console: Optional[Console] = None,
                   stdout_loglevel: int = logging.INFO, logfile_output: bool = True,
                   logfile_loglevel: int = logging.DEBUG) -> None:
     """
-    Configure loggers.
+    Configure loggers for both stdout and file output.
 
     Args:
         stdout_output (bool, optional): Whether to output logs to STDOUT. Defaults to True.
