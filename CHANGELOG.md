@@ -1,4 +1,8 @@
 # Changelog
+## 2.6.3 [2025-03-17]
+### Bug Fixes:
+* Fixed an issue where logs containing the percentage character (`%`) would raise an error. ([Issue #82](https://github.com/MichaelYochpaz/iSubRip/issues/82))
+---
 ## 2.6.2 [2025-02-04]
 ### Bug Fixes:
 * Fixed an issue where AppleTV API calls would fail due to changes on AppleTV requiring a missing `utsk` parameter. ([Issue #80](https://github.com/MichaelYochpaz/iSubRip/issues/80))
