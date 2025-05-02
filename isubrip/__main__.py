@@ -13,7 +13,6 @@ from isubrip.commands.download import download
 from isubrip.config import Config
 from isubrip.constants import (
     DATA_FOLDER_PATH,
-    EVENT_LOOP,
     LOG_FILES_PATH,
     PACKAGE_NAME,
     PACKAGE_VERSION,
@@ -45,7 +44,7 @@ log_rotation_size: int = 15  # Default size, before being updated by the config 
 def main() -> None:
     """A wrapper for the actual main function that handles exceptions and cleanup."""
     try:
-        _main()
+        asyncio.run(_main())
 
     except Exception as ex:
         logger.error(f"Error: {ex}")
@@ -60,17 +59,14 @@ def main() -> None:
         if log_rotation_size > 0:
             handle_log_rotation(rotation_size=log_rotation_size)
 
-        # NOTE: This will only close scrapers initialized using the ScraperFactory.
-        async_cleanup_coroutines = []
         for scraper in ScraperFactory.get_initialized_scrapers():
             logger.debug(f"Requests count for '{scraper.name}' scraper: {scraper.requests_count}")
             scraper.close()
-            async_cleanup_coroutines.append(scraper.async_close())
-
-        EVENT_LOOP.run_until_complete(asyncio.gather(*async_cleanup_coroutines))
+        
         TempDirGenerator.cleanup()
 
-def _main() -> None:
+
+async def _main() -> None:
     # Assure at least one argument was passed
     if len(sys.argv) < 2:
         logger.info(f"Usage: {PACKAGE_NAME} <iTunes movie URL> [iTunes movie URL...]")
@@ -100,14 +96,28 @@ def _main() -> None:
     if config.general.check_for_updates:
         check_for_updates(current_package_version=PACKAGE_VERSION)
 
-    EVENT_LOOP.run_until_complete(download(
-        *single_string_to_list(item=sys.argv[1:]),
-        download_path=config.downloads.folder,
-        language_filter=config.downloads.languages,
-        convert_to_srt=config.subtitles.convert_to_srt,
-        overwrite_existing=config.downloads.overwrite_existing,
-        zip=config.downloads.zip,
-    ))
+    try:
+        await download(
+            *single_string_to_list(item=sys.argv[1:]),
+            download_path=config.downloads.folder,
+            language_filter=config.downloads.languages,
+            convert_to_srt=config.subtitles.convert_to_srt,
+            overwrite_existing=config.downloads.overwrite_existing,
+            zip=config.downloads.zip,
+        )
+    
+    finally:
+        async_cleanup_coroutines = []
+
+        for scraper in ScraperFactory.get_initialized_scrapers():
+            async_cleanup_coroutines.append(scraper.async_close())
+        
+        if async_cleanup_coroutines:
+            try:
+                await asyncio.gather(*async_cleanup_coroutines)
+            except Exception as e:
+                logger.warning(f"Error during async cleanup: {e}")
+                logger.debug("Cleanup debug info:", exc_info=True)
 
 
 def check_for_updates(current_package_version: str) -> None:

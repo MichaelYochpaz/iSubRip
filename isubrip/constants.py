@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import datetime as dt
 from pathlib import Path
 from tempfile import gettempdir
@@ -8,9 +7,6 @@ from tempfile import gettempdir
 # General
 PACKAGE_NAME = "isubrip"
 PACKAGE_VERSION = "2.6.3"
-
-# Async
-EVENT_LOOP = asyncio.get_event_loop()
 
 # Paths
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "resources" / "default_config.toml"
