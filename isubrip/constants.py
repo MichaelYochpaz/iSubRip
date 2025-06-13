@@ -9,7 +9,6 @@ PACKAGE_NAME = "isubrip"
 PACKAGE_VERSION = "2.6.3"
 
 # Paths
-DEFAULT_CONFIG_PATH = Path(__file__).parent / "resources" / "default_config.toml"
 DATA_FOLDER_PATH = Path.home() / f".{PACKAGE_NAME}"
 SCRAPER_MODULES_SUFFIX = "_scraper"
 TEMP_FOLDER_PATH = Path(gettempdir()) / PACKAGE_NAME

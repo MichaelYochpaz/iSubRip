@@ -137,7 +137,7 @@ def convert_log_level(log_level: str) -> int:
     if log_level_upper not in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
         raise ValueError(f"Invalid log level: {log_level}")
 
-    return cast(int, getattr(logging, log_level_upper))
+    return cast("int", getattr(logging, log_level_upper))
 
 
 def download_subtitles_to_file(media_data: Movie | Episode, subtitles_data: SubtitlesData, output_path: str | PathLike,

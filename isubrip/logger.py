@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from functools import lru_cache
 import logging
 import re
-from functools import lru_cache
-from typing import ClassVar, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from rich.highlighter import NullHighlighter
 from rich.logging import RichHandler
@@ -41,10 +41,10 @@ class CustomStdoutFormatter(RichHandler):
     This formatter adds color to log messages based on their level and
     supports hiding messages in interactive mode.
     """
-    LEVEL_COLORS: ClassVar[Dict[int, str]] = {
+    LEVEL_COLORS: ClassVar[dict[int, str]] = {
         logging.ERROR: "red",
         logging.WARNING: "dark_orange",
-        logging.DEBUG: "grey54"
+        logging.DEBUG: "grey54",
     }
     
     def __init__(self, console: Console | None = None, debug_mode: bool = False) -> None:
@@ -104,7 +104,7 @@ class CustomLogFileFormatter(logging.Formatter):
     """
     Custom formatter for log files that removes Rich markup tags.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the formatter with metadata format but without message part.
         We'll append the message manually to avoid issues with special characters.
