@@ -1,4 +1,11 @@
 # Changelog
+## 2.6.4 [2025-06-13]
+### Changes:
+* Minor improvements to the download progress bar.
+
+### Bug Fixes:
+* Fixed an issue where if there is no config file, an error is raised instead of using default settings. ([Issue #86](https://github.com/MichaelYochpaz/iSubRip/issues/86))
+---
 ## 2.6.3 [2025-03-17]
 ### Bug Fixes:
 * Fixed an issue where logs containing the percentage character (`%`) would raise an error. ([Issue #82](https://github.com/MichaelYochpaz/iSubRip/issues/82))

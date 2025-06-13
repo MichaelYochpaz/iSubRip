@@ -1,6 +1,6 @@
 [project]
 name = "isubrip"
-version = "2.6.3"
+version = "2.6.4"
 description = "A Python package for scraping and downloading subtitles from AppleTV / iTunes movie pages."
 authors = [
     {name = "Michael Yochpaz"}
