@@ -4,7 +4,8 @@ from pathlib import Path
 import shutil
 
 from rich.console import Group
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
+from rich.padding import Padding
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.text import Text
 
 from isubrip.cli import conditional_live, console
@@ -243,14 +244,15 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TextColumn("[progress.percentage][yellow]{task.percentage:>3.0f}%[/yellow]"),
-        TextColumn("{task.completed}/{task.total}"),
+        TextColumn("[yellow]{task.completed}/{task.total}[/yellow]"),
+        TimeElapsedColumn(),
         console=console,
     )
     
     task = progress.add_task("Downloading subtitles...", total=len(matching_subtitles))
     downloaded_list = Text(f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):")
 
-    with conditional_live(Group(downloaded_list, progress)) as live:
+    with conditional_live(Group(downloaded_list, Padding(progress, (1, 0, 0, 0)))) as live:
         for matching_subtitles_item in matching_subtitles:
             language_info = scraper.format_subtitles_description(
                 subtitles_media=matching_subtitles_item,
@@ -288,7 +290,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                 if live:
                     downloaded_list.plain = (
                         f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):\n"
-                        f"{format_list(downloaded_subtitles, width=console.width)}"
+                        f"{format_list(downloaded_subtitles, width=live.console.width)}"
                     )
                 logger.info(f"{language_info} subtitles were successfully downloaded.",
                             extra={"hide_when_interactive": True})
