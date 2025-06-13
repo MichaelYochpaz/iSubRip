@@ -76,7 +76,12 @@ async def _main() -> None:
     if not DATA_FOLDER_PATH.is_dir():
         DATA_FOLDER_PATH.mkdir(parents=True)
 
-    config = parse_config(config_file_location=USER_CONFIG_FILE_PATH)
+    # If config file exists, parse it. Otherwise, create a config with default values
+    if USER_CONFIG_FILE_PATH.is_file():
+        config = parse_config(config_file_location=USER_CONFIG_FILE_PATH)
+
+    else:
+        config = Config()
 
     setup_loggers(
         stdout_loglevel=convert_log_level(log_level=config.general.log_level),
