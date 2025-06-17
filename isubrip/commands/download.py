@@ -4,7 +4,6 @@ from pathlib import Path
 import shutil
 
 from rich.console import Group
-from rich.padding import Padding
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.text import Text
 
@@ -252,7 +251,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
     task = progress.add_task("Downloading subtitles...", total=len(matching_subtitles))
     downloaded_list = Text(f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):")
 
-    with conditional_live(Group(downloaded_list, Padding(progress, (1, 0, 0, 0)))) as live:
+    with conditional_live(Group(downloaded_list, Text(), progress)) as live:  # `Text` is for adding a line spacing
         for matching_subtitles_item in matching_subtitles:
             language_info = scraper.format_subtitles_description(
                 subtitles_media=matching_subtitles_item,
