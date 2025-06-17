@@ -104,7 +104,6 @@ class Scraper(ABC, metaclass=SingletonMeta):
         default_proxy (str | None): [Class Attribute] Default proxy to use when making requests.
         default_verify_ssl (bool): [Class Attribute] Whether to verify SSL certificates by default.
         subtitles_fix_rtl (bool): [Class Attribute] Whether to fix RTL from downloaded subtitles.
-            A list of languages to fix RTL on. If None, a default list will be used.
         subtitles_remove_duplicates (bool): [Class Attribute]
             Whether to remove duplicate lines from downloaded subtitles.
 

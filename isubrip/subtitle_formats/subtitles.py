@@ -5,6 +5,7 @@ from copy import deepcopy
 from datetime import time
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
+from isubrip.constants import RTL_LANGUAGES
 from isubrip.logger import logger
 
 if TYPE_CHECKING:
@@ -13,7 +14,6 @@ if TYPE_CHECKING:
 
 RTL_CONTROL_CHARS = ('\u200e', '\u200f', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e')
 RTL_CHAR = '\u202b'
-RTL_LANGUAGES = ["ar", "he", "he-il"]
 
 SubtitlesT = TypeVar('SubtitlesT', bound='Subtitles')
 SubtitlesBlockT = TypeVar('SubtitlesBlockT', bound='SubtitlesBlock')
@@ -295,7 +295,7 @@ class Subtitles(Generic[SubtitlesBlockT], ABC):
         Returns:
             Subtitles: The current subtitles object.
         """
-        fix_rtl = (fix_rtl and self.language_code in RTL_LANGUAGES)
+        fix_rtl = (fix_rtl and self.language_code.split('-')[0] in RTL_LANGUAGES)
 
         if not any((
                 fix_rtl,
