@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 
 from rich.console import Group
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.text import Text
 
 from isubrip.cli import conditional_live, console
@@ -20,6 +20,7 @@ from isubrip.data_structures import (
 )
 from isubrip.logger import logger
 from isubrip.scrapers.scraper import PlaylistLoadError, Scraper, ScraperError, ScraperFactory, SubtitlesDownloadError
+from isubrip.ui import MinsAndSecsTimeElapsedColumn
 from isubrip.utils import (
     TempDirGenerator,
     download_subtitles_to_file,
@@ -247,7 +248,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
         BarColumn(),
         TextColumn("[progress.percentage][yellow]{task.percentage:>3.0f}%[/yellow]"),
         TextColumn("[yellow]{task.completed}/{task.total}[/yellow]"),
-        TimeElapsedColumn(),
+        MinsAndSecsTimeElapsedColumn(),
         console=console,
     )
     task = progress_bar.add_task("Downloading subtitles...", total=len(matching_subtitles))
