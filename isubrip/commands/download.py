@@ -236,9 +236,12 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
             is_zip=zip,
         )
 
-    logger.debug(f"{len(matching_subtitles)} matching subtitles were found.")
+    logger.info(f"{len(matching_subtitles)} matching subtitles were found.", extra={"hide_when_interactive": True})
     downloaded_subtitles: list[str] = []
-    progress = Progress(
+
+    progress_log = Text(f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):")
+    downloads_list = Text()
+    progress_bar = Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
@@ -247,18 +250,18 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
         TimeElapsedColumn(),
         console=console,
     )
-    
-    task = progress.add_task("Downloading subtitles...", total=len(matching_subtitles))
-    downloaded_list = Text(f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):")
+    task = progress_bar.add_task("Downloading subtitles...", total=len(matching_subtitles))
 
-    with conditional_live(Group(downloaded_list, Text(), progress)) as live:  # `Text` is for adding a line spacing
+    with conditional_live(
+        Group(progress_log, downloads_list, Text(), progress_bar),  # Empty 'Text' for line spacing
+        ) as live:
         for matching_subtitles_item in matching_subtitles:
             language_info = scraper.format_subtitles_description(
                 subtitles_media=matching_subtitles_item,
             )
 
             if live:
-                progress.update(task, advance=1, description=f"Processing [magenta]{language_info}[/magenta]")
+                progress_bar.update(task, advance=1, description=f"Processing [magenta]{language_info}[/magenta]")
 
             try:
                 subtitles_data = await scraper.download_subtitles(media_data=matching_subtitles_item,
@@ -286,11 +289,11 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                 ))
 
                 downloaded_subtitles.append(f"• {language_info}")
+
                 if live:
-                    downloaded_list.plain = (
-                        f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):\n"
-                        f"{format_list(downloaded_subtitles, width=live.console.width)}"
-                    )
+                    progress_log.plain = f"Downloaded subtitles ({len(downloaded_subtitles)}/{len(matching_subtitles)}):"
+                    downloads_list.plain = f"{format_list(downloaded_subtitles, width=live.console.width)}"
+
                 logger.info(f"{language_info} subtitles were successfully downloaded.",
                             extra={"hide_when_interactive": True})
                 successful_downloads.append(subtitles_data)
