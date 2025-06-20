@@ -251,7 +251,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
         MinsAndSecsTimeElapsedColumn(),
         console=console,
     )
-    task = progress_bar.add_task("Downloading subtitles...", total=len(matching_subtitles))
+    task = progress_bar.add_task("Starting download", total=len(matching_subtitles))
 
     with conditional_live(
         Group(progress_log, downloads_list, Text(), progress_bar),  # Empty 'Text' for line spacing
@@ -310,6 +310,9 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                         original_exc=e,
                     ),
                 )
+
+        if live:
+            progress_bar.update(task, visible=False)
 
     if not zip or len(temp_downloads) == 1:
         for file_path in temp_downloads:
