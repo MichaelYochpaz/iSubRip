@@ -6,7 +6,7 @@ from tempfile import gettempdir
 
 # General
 PACKAGE_NAME = "isubrip"
-PACKAGE_VERSION = "2.6.4"
+PACKAGE_VERSION = "2.6.5"
 
 # Paths
 DATA_FOLDER_PATH = Path.home() / f".{PACKAGE_NAME}"

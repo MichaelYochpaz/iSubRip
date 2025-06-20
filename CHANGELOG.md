@@ -1,4 +1,12 @@
 # Changelog
+## 2.6.5 [2025-06-20]
+### Changes:
+* Added missing languages to the list of RTL languages (relevant if the `languages.fix-rtl` config setting is enabled).
+* Minor improvements to the download progress bar.
+
+### Bug Fixes:
+* Fixed an issue where in some cases, the "Downloaded subtitles (X/Y)" progress log line would print repeatedly. ([Issue #87](https://github.com/MichaelYochpaz/iSubRip/issues/87))
+---
 ## 2.6.4 [2025-06-13]
 ### Changes:
 * Minor improvements to the download progress bar.

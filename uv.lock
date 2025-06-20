@@ -175,7 +175,7 @@ wheels = [
 
 [[package]]
 name = "isubrip"
-version = "2.6.4"
+version = "2.6.5"
 source = { editable = "." }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
