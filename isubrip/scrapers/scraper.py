@@ -38,6 +38,8 @@ if TYPE_CHECKING:
 
     from isubrip.subtitle_formats.subtitles import Subtitles
 
+from datetime import datetime as dt
+
 
 ScraperT = TypeVar("ScraperT", bound="Scraper")
 
@@ -506,7 +508,7 @@ class HLSScraper(Scraper, ABC):
             if not media_data.language:
                 raise ValueError("Language code not found in media data.")  # noqa: TRY301
 
-            downloaded_segments = await self.download_segments(playlist=playlist_m3u8)
+            downloaded_segments, downloaded_segments_datetime = await self.download_segments(playlist=playlist_m3u8)
             subtitles = self.subtitles_class(data=downloaded_segments[0], language_code=media_data.language)
 
             if len(downloaded_segments) > 1:
@@ -534,7 +536,7 @@ class HLSScraper(Scraper, ABC):
                 content=content,
                 content_encoding=subtitles.encoding,
                 special_type=self.detect_subtitles_type(subtitles_media=media_data),
-            )
+            ), downloaded_segments_datetime
     
         except Exception as e:
             raise SubtitlesDownloadError(
@@ -553,16 +555,20 @@ class HLSScraper(Scraper, ABC):
         )
 
         responses_data = []
+        responses_datetime = dt(1, 1, 1)
 
         for result in responses:
             try:
                 result.raise_for_status()
                 responses_data.append(result.content)
+                result_datetime = dt.strptime(result.headers['last-modified'], "%a, %d %b %Y %H:%M:%S %Z")
+                if result_datetime > responses_datetime:
+                    responses_datetime = result_datetime
 
             except Exception as e:
                 raise DownloadError("One of the subtitles segments failed to download.") from e
 
-        return responses_data
+        return responses_data, (responses_datetime + dt.now().astimezone().utcoffset()).timestamp()
 
     def find_matching_media(self, main_playlist: m3u8.M3U8,
                             filters: dict[str, str | list[str]] | None = None) -> list[m3u8.Media]:
