@@ -265,7 +265,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                 progress_bar.update(task, advance=1, description=f"Processing [magenta]{language_info}[/magenta]")
 
             try:
-                subtitles_data = await scraper.download_subtitles(media_data=matching_subtitles_item,
+                subtitles_data, subtitles_datetime = await scraper.download_subtitles(media_data=matching_subtitles_item,
                                                                   subrip_conversion=convert_to_srt)
 
             except Exception as e:
@@ -287,6 +287,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                     output_path=temp_download_path,
                     source_abbreviation=scraper.abbreviation,
                     overwrite=overwrite_existing,
+                    file_datetime=subtitles_datetime,
                 ))
 
                 downloaded_subtitles.append(f"• {language_info}")
