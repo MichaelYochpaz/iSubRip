@@ -455,7 +455,7 @@ def format_subtitles_description(language_code: str | None = None, language_name
     return language_str
 
 
-def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool = False) -> Any:
+def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool = False, **kwargs: Any) -> Any:
     """
     Get a field from a Pydantic model.
 
@@ -463,6 +463,8 @@ def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool =
         model (BaseModel | None): A Pydantic model.
         field (str): Field name to retrieve.
         convert_to_dict (bool, optional): Whether to convert the field value to a dictionary. Defaults to False.
+        **kwargs: Additional keyword arguments to pass to the serialization method (`model_dump`).
+            Relevant only if `convert_to_dict` is True, and `field_value` is a Pydantic model.
 
     Returns:
         Any: The field value.
@@ -470,8 +472,8 @@ def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool =
     if model and hasattr(model, field):
         field_value = getattr(model, field)
 
-        if convert_to_dict and hasattr(field_value, 'dict'):
-            field_value = field_value.dict()
+        if convert_to_dict and hasattr(field_value, 'model_dump'):
+            return field_value.model_dump(**kwargs)
 
         return field_value
 

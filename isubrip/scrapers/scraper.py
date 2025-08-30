@@ -414,15 +414,12 @@ class HLSScraper(Scraper, ABC):
         self._playlist_filters = return_first_valid(playlist_filters,
                                                     get_model_field(model=self.config,
                                                                     field='playlist_filters',
-                                                                    convert_to_dict=True),
+                                                                    convert_to_dict=True,
+                                                                    exclude_none=True),
                                                     self.default_playlist_filters)
 
         if self._playlist_filters:
-            # Remove None values from the filters (mainly caused by config defaults)
-            self._playlist_filters = {key: value for key, value in self._playlist_filters.items() if value is not None}
-
-            if self._playlist_filters:  # If there are any filters left
-                logger.debug(f"Scraper '{self.name}' initialized with playlist filters: {self._playlist_filters}.")
+            logger.debug(f"Scraper '{self.name}' initialized with playlist filters: {self._playlist_filters}.")
 
     @staticmethod
     def parse_language_name(media_data: m3u8.Media) -> str | None:
