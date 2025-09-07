@@ -29,10 +29,6 @@ def log_files_path() -> Path:
     return data_folder_path() / "logs"
 
 # Other
-TITLE_REPLACEMENT_STRINGS = {  # Replacements will be done by the order of the keys.
-    ": ": ".", ":": ".", " - ": "-", ", ": ".", ". ": ".", " ": ".", "|": ".", "/": ".", "…": ".",
-    "<": "", ">": "", "(": "", ")": "", '"': "", "?": "", "*": "",
-}
 WINDOWS_RESERVED_FILE_NAMES = frozenset(
     ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1",
      "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"],

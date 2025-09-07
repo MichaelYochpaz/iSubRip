@@ -165,6 +165,7 @@ class Season(MediaBase):
         id (str | None, optional): ID of the season on the service it was scraped from. Defaults to None.
         referrer_id (str | None, optional): ID of the season on the original referring service. Defaults to None.
         series_name (str): Name of the series the season is from.
+        season_number (int): Season number.
         series_release_date (datetime | int | None, optional): Release date (datetime), or year (int) of the series.
             Defaults to None.
         season_name (str | None, optional): Season name. Defaults to None.

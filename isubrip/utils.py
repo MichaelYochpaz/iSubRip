@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 from wcwidth import wcswidth
 
-from isubrip.constants import TITLE_REPLACEMENT_STRINGS, WINDOWS_RESERVED_FILE_NAMES, temp_folder_path
+from isubrip.constants import WINDOWS_RESERVED_FILE_NAMES, temp_folder_path
 from isubrip.data_structures import (
     Episode,
     MediaBase,
@@ -58,7 +58,11 @@ class TemporaryDirectory:
             If not specified, a random string will be generated. Defaults to None.
     """
     def __init__(self, directory_name: str | None = None):
-        self.directory_name = directory_name or secrets.token_hex(5)
+        if directory_name:
+            self.directory_name = sanitize_path_segment(directory_name)
+        else:
+            self.directory_name = secrets.token_hex(5)
+
         self.path = temp_folder_path() / self.directory_name
 
     def __enter__(self) -> Path:
@@ -293,7 +297,7 @@ def format_media_description(media_data: MediaBase, shortened: bool = False) -> 
             if isinstance(media_data.release_date, dt.datetime)
             else media_data.release_date
         )
-        description_str = f"{media_data.name} [{release_year}]"
+        description_str = f"{media_data.name.strip()} [{release_year}]"
 
         if media_data.id:
             description_str += f" (ID: {media_data.id})"
@@ -301,7 +305,7 @@ def format_media_description(media_data: MediaBase, shortened: bool = False) -> 
         return description_str
 
     if isinstance(media_data, Series):
-        description_str = f"{media_data.series_name}"
+        description_str = f"{media_data.series_name.strip()}"
 
         if media_data.series_release_date:
             if isinstance(media_data.series_release_date, dt.datetime):
@@ -316,14 +320,15 @@ def format_media_description(media_data: MediaBase, shortened: bool = False) -> 
         return description_str
 
     if isinstance(media_data, Season):
-        if shortened:
-            description_str = f"Season {media_data.season_number:02d}"
+        description_str = ""
 
-        else:
-            description_str = f"{media_data.series_name} - Season {media_data.season_number:02d}"
+        if not shortened:
+            description_str = f"{media_data.series_name.strip()} - "
+
+        description_str += f"Season {media_data.season_number}"
 
         if media_data.season_name:
-            description_str += f" - {media_data.season_name}"
+            description_str += f" - {media_data.season_name.strip()}"
 
         if media_data.id:
             description_str += f" (ID: {media_data.id})"
@@ -331,15 +336,15 @@ def format_media_description(media_data: MediaBase, shortened: bool = False) -> 
         return description_str
 
     if isinstance(media_data, Episode):
-        if shortened:
-            description_str = f"S{media_data.season_number:02d}E{media_data.episode_number:02d}"
+        description_str = ""
 
-        else:
-            description_str = (f"{media_data.series_name} - "
-                               f"S{media_data.season_number:02d}E{media_data.episode_number:02d}")
+        if not shortened:
+            description_str = f"{media_data.series_name.strip()} - "
+    
+        description_str += f"S{media_data.season_number:02d}E{media_data.episode_number:02d}"
 
         if media_data.episode_name:
-            description_str += f" - {media_data.episode_name}"
+            description_str += f" - {media_data.episode_name.strip()}"
 
         if media_data.id:
             description_str += f" (ID: {media_data.id})"
@@ -374,27 +379,25 @@ def format_release_name(title: str,
         additional_info (list[str] | str | None, optional): Additional info to add to the file name. Defaults to None.
         language_code (str | None, optional): Language code. Defaults to None.
         subtitles_type (SubtitlesType | None, optional): Subtitles type. Defaults to None.
-        file_format (SubtitlesFormat | str | None, optional): File format to use.  Defaults to None.
+        file_format (SubtitlesFormat | str | None, optional): File format to use. Defaults to None.
 
     Returns:
         str: Generated file name.
     """
-    file_name = standardize_title(title).rstrip('.')
+    file_name = slugify_title(title=title, separator=".")
 
     if release_date is not None:
         if isinstance(release_date, dt.datetime):
             release_year = release_date.year
-
         else:
             release_year = release_date
-
         file_name += f".{release_year}"
 
     if season_number is not None and episode_number is not None:
         file_name += f".S{season_number:02}E{episode_number:02}"
 
     if episode_name is not None:
-        file_name += f".{standardize_title(episode_name).rstrip('.')}"
+        file_name += f".{slugify_title(title=episode_name, separator='.')}"
 
     if media_source is not None:
         file_name += f".{media_source}"
@@ -405,7 +408,6 @@ def format_release_name(title: str,
     if additional_info is not None:
         if isinstance(additional_info, (list, tuple)):
             additional_info = '.'.join(additional_info)
-
         file_name += f".{additional_info}"
 
     if language_code is not None:
@@ -414,13 +416,17 @@ def format_release_name(title: str,
     if subtitles_type is not None:
         file_name += f".{subtitles_type.value.lower()}"
 
+    sanitized_basename = sanitize_path_segment(file_name)
+
     if file_format is not None:
         if isinstance(file_format, SubtitlesFormatType):
-            file_format = file_format.value.file_extension
+            file_format_str = file_format.value.file_extension
+        else:
+            file_format_str = file_format.lstrip('.')
 
-        file_name += f".{file_format}"
+        return f"{sanitized_basename}.{file_format_str}"
 
-    return file_name
+    return sanitized_basename
 
 
 @lru_cache
@@ -480,31 +486,35 @@ def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool =
     return None
 
 
-def generate_media_folder_name(media_data: Movie | Episode, source: str | None = None) -> str:
+def generate_media_folder_name(media_data: Movie | Episode, source: str | None = None, separator: str = ".") -> str:
     """
     Generate a folder name for media data.
 
     Args:
         media_data (Movie | Episode): A movie or episode data object.
         source (str | None, optional): Abbreviation of the source to use for file names. Defaults to None.
+        separator (str, optional): A separator to use between words. Defaults to ".".
 
     Returns:
         str: A folder name for the media data.
     """
     if isinstance(media_data, Movie):
-        return format_release_name(
-            title=media_data.name,
-            release_date=media_data.release_date,
-            media_source=source,
-        )
+        folder_name = slugify_title(title=media_data.name, separator=separator)
+        if media_data.release_date:
+            release_year = media_data.release_date.year if isinstance(media_data.release_date, dt.datetime) \
+                else media_data.release_date
+            folder_name += f".{release_year}"
+        if source:
+            folder_name += f".{source}"
 
-    # elif isinstance(media_data, Episode):
-    return format_release_name(
-        title=media_data.series_name,
-        season_number=media_data.season_number,
-        episode_number=media_data.episode_number,
-        media_source=source,
-    )
+    else:  # Episode
+        folder_name = slugify_title(title=media_data.series_name, separator=separator)
+        if media_data.season_number is not None and media_data.episode_number is not None:
+            folder_name += f".S{media_data.season_number:02}E{media_data.episode_number:02}"
+        if source:
+            folder_name += f".{source}"
+
+    return sanitize_path_segment(folder_name)
 
 
 def generate_non_conflicting_path(file_path: Path, has_extension: bool = True) -> Path:
@@ -709,33 +719,76 @@ def split_subtitles_timestamp(timestamp: str) -> tuple[dt.time, dt.time]:
     return dt.time.fromisoformat(start_time), dt.time.fromisoformat(end_time)
 
 
+_REMOVED_CHARS_SLUG = str.maketrans("", "", '<>():"?*')
+_REMOVED_CHARS_FS = str.maketrans("", "", '<>:"/\\|?*')
+_REPLACE_WITH_SEPARATOR = [" - ", " & ", ",", ":", "|", "/", " "]
+
+
 @lru_cache
-def standardize_title(title: str) -> str:
+def slugify_title(title: str, separator: str = " ") -> str:
     """
-    Format movie title to a standardized title that can be used as a file name.
+    Normalize a title into a slug-like string for creating name components.
+    This function is for normalization, not for filesystem safety.
 
     Args:
-        title (str): A movie title.
+        title (str): A media title.
+        separator (str, optional): A separator to use between words. Defaults to " ".
 
     Returns:
-        str: The movie title, in a file-name-friendly format.
+        str: A slugified title.
     """
     title = title.strip()
+    title = title.replace("…", "...")
 
-    for string, replacement_string in TITLE_REPLACEMENT_STRINGS.items():
-        title = title.replace(string, replacement_string)
+    # Replace multi-character sequences first
+    for item in _REPLACE_WITH_SEPARATOR:
+        if separator == " " and item in (" & ", " - "):
+            continue
+        if item == " & ":
+            title = title.replace(item, f"{separator}&{separator}")
+        else:
+            title = title.replace(item, separator)
 
-    title = re.sub(r"\.+", ".", title)  # Replace multiple dots with a single dot
+    # Remove invalid characters for a slug
+    title = title.translate(_REMOVED_CHARS_SLUG)
 
-    # If running on Windows, rename Windows reserved names to allow file creation
-    if sys.platform == 'win32':
-        split_title = title.split('.')
-
-        if split_title[0].upper() in WINDOWS_RESERVED_FILE_NAMES:
-            if len(split_title) > 1:
-                return split_title[0] + split_title[1] + '.'.join(split_title[2:])
-
-            if len(split_title) == 1:
-                return "_" + title
+    # Replace multiple separators with a single one
+    if separator:
+        title = re.sub(f"[{re.escape(separator)}]+", separator, title)
 
     return title
+
+
+@lru_cache
+def sanitize_path_segment(segment: str, platform: str | None = None) -> str:
+    """
+    Sanitize a file or directory name (path segment) for a given OS.
+
+    Args:
+        segment (str): The path segment to sanitize (file or directory name).
+        platform (str | None, optional): Target platform ('win32', 'linux', 'darwin'). 
+            Defaults to 'sys.platform' (current platform).
+
+    Returns:
+        str: A sanitized path segment safe for use on the target filesystem.
+    """
+    if platform is None:
+        platform = sys.platform
+
+    # Remove characters illegal on all filesystems
+    segment = segment.translate(_REMOVED_CHARS_FS)
+
+    if platform == "win32":
+        # On Windows, remove trailing dots and spaces
+        segment = segment.rstrip(". ")
+
+        # Handle reserved device names (match first segment before dot)
+        base_name, _, _ = segment.partition('.')
+        if base_name.upper() in WINDOWS_RESERVED_FILE_NAMES:
+            segment = f"_{segment}"
+
+    # Ensure the segment is not empty
+    if not segment:
+        return "_"
+
+    return segment

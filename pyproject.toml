@@ -59,6 +59,7 @@ build-backend = "hatchling.build"
 dev-dependencies = [
     "mypy>=1.14.1",
     "pyperf>=2.9.0",
+    "pytest>=8.4.2",
     "ruff>=0.9.3",
 ]
 
@@ -118,6 +119,9 @@ ignore = [
     "TRY003",
 ]
 unfixable = ["ARG"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["S101"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
