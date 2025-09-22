@@ -440,16 +440,24 @@ class HLSScraper(Scraper, ABC):
         _headers = headers or self._client.headers
         result: m3u8.M3U8 | None = None
 
-        for url_item in single_string_to_list(item=url):
+        urls = single_string_to_list(item=url)
+        response: httpx.Response | None = None
+
+        for idx, url_item in enumerate(urls):
             try:
+                logger.debug(f"Loading M3U8 playlist from {url_item} ({idx + 1} of {len(urls)})")
                 response = await self._client.get(url=url_item, headers=_headers, timeout=5)
 
+                if not response.text:
+                    logger.debug("Received an empty response for the playlist.")
+                    continue
+
             except Exception as e:
-                logger.debug(f"Failed to load M3U8 playlist '{url_item}': {e}")
+                logger.debug(f"Failed to load playlist: {e}")
                 continue
 
-            if not response.text:
-                raise PlaylistLoadError("Received empty response for playlist from server.")
+            if not response:
+                raise PlaylistLoadError("Failed to load playlists from server.")
 
             result = m3u8.loads(content=response.text, uri=url_item)
             break
