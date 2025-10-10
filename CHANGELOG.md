@@ -2,7 +2,7 @@
 ## 2.6.7 [2025-10-10]
 ### Added:
 * Updated M3U8 playlists loading to use alternative playlist URLs as fallback in case of an empty response.
-* Added playlist URLs to debug-level logs. ([Issue #92](https://github.com/MichaelYochpaz/iSubRip/issues/94))
+* Added playlist URLs to debug-level logs. ([Issue #94](https://github.com/MichaelYochpaz/iSubRip/issues/94))
 ---
 ## 2.6.6 [2025-08-13]
 ### Changes:
