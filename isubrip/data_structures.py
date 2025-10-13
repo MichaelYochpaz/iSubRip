@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 import datetime as dt  # noqa: TC003
 from enum import Enum
-from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, TypeVar
 
 import m3u8
 from pydantic import BaseModel
@@ -86,8 +86,8 @@ class SubtitlesData(BaseModel):
     subtitles_format: SubtitlesFormatType
     content: bytes
     content_encoding: str
-    language_name: Optional[str] = None
-    special_type: Union[SubtitlesType, None] = None
+    language_name: str | None = None
+    special_type: SubtitlesType | None = None
 
     class ConfigDict:
         str_strip_whitespace = True
@@ -115,12 +115,12 @@ class Movie(MediaBase):
     """
     media_type: Literal["movie"] = "movie"
     name: str
-    release_date: Union[dt.datetime, int]
-    id: Optional[str] = None
-    referrer_id: Optional[str] = None
-    duration: Optional[dt.timedelta] = None
-    preorder_availability_date: Optional[dt.datetime] = None
-    playlist: Union[str, list[str], None] = None
+    release_date: dt.datetime | int
+    id: str | None = None
+    referrer_id: str | None = None
+    duration: dt.timedelta | None = None
+    preorder_availability_date: dt.datetime | None = None
+    playlist: str | list[str] | None = None
 
 
 class Episode(MediaBase):
@@ -145,16 +145,16 @@ class Episode(MediaBase):
     series_name: str
     season_number: int
     episode_number: int
-    id: Optional[str] = None
-    referrer_id: Optional[str] = None
-    series_release_date: Union[dt.datetime, int, None] = None
-    season_name: Optional[str] = None
-    release_date: Optional[dt.datetime] = None
-    duration: Optional[dt.timedelta] = None
-    episode_name: Optional[str] = None
-    episode_release_date: Optional[dt.datetime] = None
-    episode_duration: Optional[dt.timedelta] = None
-    playlist: Union[str, list[str], None] = None
+    id: str | None = None
+    referrer_id: str | None = None
+    series_release_date: dt.datetime | int | None = None
+    season_name: str | None = None
+    release_date: dt.datetime | None = None
+    duration: dt.timedelta | None = None
+    episode_name: str | None = None
+    episode_release_date: dt.datetime | None = None
+    episode_duration: dt.timedelta | None = None
+    playlist: str | list[str] | None = None
 
 
 class Season(MediaBase):
@@ -175,11 +175,11 @@ class Season(MediaBase):
     media_type: Literal["season"] = "season"
     series_name: str
     season_number: int
-    id: Optional[str] = None
-    referrer_id: Optional[str] = None
-    series_release_date: Union[dt.datetime, int, None] = None
-    season_name: Optional[str] = None
-    season_release_date: Union[dt.datetime, int, None] = None
+    id: str | None = None
+    referrer_id: str | None = None
+    series_release_date: dt.datetime | int | None = None
+    season_name: str | None = None
+    season_release_date: dt.datetime | int | None = None
     episodes: list[Episode] = []
 
 
@@ -198,9 +198,9 @@ class Series(MediaBase):
     media_type: Literal["series"] = "series"
     series_name: str
     seasons: list[Season] = []
-    id: Optional[str] = None
-    referrer_id: Optional[str] = None
-    series_release_date: Union[dt.datetime, int, None] = None
+    id: str | None = None
+    referrer_id: str | None = None
+    series_release_date: dt.datetime | int | None = None
 
 
 class ScrapedMediaResponse(BaseModel, Generic[MediaData]):

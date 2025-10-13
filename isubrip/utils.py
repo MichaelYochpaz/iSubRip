@@ -406,7 +406,7 @@ def format_release_name(title: str,
         file_name += f".{source_type}"
 
     if additional_info is not None:
-        if isinstance(additional_info, (list, tuple)):
+        if isinstance(additional_info, list | tuple):
             additional_info = '.'.join(additional_info)
         file_name += f".{additional_info}"
 

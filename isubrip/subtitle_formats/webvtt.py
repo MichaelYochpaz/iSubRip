@@ -303,7 +303,7 @@ class WebVTTSubtitles(Subtitles[WebVTTBlock]):
             if isinstance(block, WebVTTCaptionBlock):
                 break
 
-            if isinstance(block, (WebVTTCommentBlock, WebVTTStyleBlock, WebVTTRegionBlock)):
+            if isinstance(block, WebVTTCommentBlock | WebVTTStyleBlock | WebVTTRegionBlock):
                 self.blocks.remove(block)
 
 

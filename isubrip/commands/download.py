@@ -128,7 +128,7 @@ async def download_media(scraper: Scraper, media_item: MediaData, download_path:
                                  language_filter=language_filter, convert_to_srt=convert_to_srt,
                                  overwrite_existing=overwrite_existing, zip=zip)
 
-    elif isinstance(media_item, (Movie, Episode)):
+    elif isinstance(media_item, (Movie | Episode)):
         await download_media_item(media_item=media_item, scraper=scraper, download_path=download_path,
                                  language_filter=language_filter, convert_to_srt=convert_to_srt,
                                  overwrite_existing=overwrite_existing, zip=zip)
@@ -341,7 +341,7 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
             else:
                 destination_path = generate_non_conflicting_path(file_path=download_path / file_name)
 
-            shutil.move(src=str(zip_path), dst=destination_path)
+            shutil.move(src=zip_path, dst=destination_path)
 
     return SubtitlesDownloadResults(
         media_data=media_data,

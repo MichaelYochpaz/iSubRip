@@ -4,7 +4,7 @@ import datetime as dt
 from functools import lru_cache
 import logging
 import re
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 from rich.highlighter import NullHighlighter
 from rich.logging import RichHandler
@@ -167,9 +167,9 @@ class CustomLogFileFormatter(logging.Formatter):
         return metadata + clean_message
 
 
-def setup_loggers(stdout_output: bool = True, stdout_console: Optional[Console] = None,
+def setup_loggers(stdout_output: bool = True, stdout_console: Console | None = None,
                   stdout_loglevel: int = logging.INFO, logfile_output: bool = False,
-                  logfile_output_path: Optional[Path] = None, logfile_loglevel: int = logging.DEBUG) -> None:
+                  logfile_output_path: Path | None = None, logfile_loglevel: int = logging.DEBUG) -> None:
     """
     Configure loggers for both stdout and file output.
 

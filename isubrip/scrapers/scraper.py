@@ -8,7 +8,7 @@ import inspect
 from pathlib import Path
 import re
 import sys
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, overload
 
 import httpx
 import m3u8
@@ -59,10 +59,10 @@ class ScraperConfigBase(BaseModel, ABC):
         ),
     )
 
-    timeout: Union[int, float, None] = Field(default=None)
-    user_agent: Union[str, None] = Field(default=None)
-    proxy: Union[str, None] = Field(default=None)
-    verify_ssl: Union[bool, None] = Field(default=None)
+    timeout: int | float | None = Field(default=None)
+    user_agent: str | None = Field(default=None)
+    proxy: str | None = Field(default=None)
+    verify_ssl: bool | None = Field(default=None)
 
 
 class DefaultScraperConfig(ScraperConfigBase):
@@ -76,11 +76,11 @@ class DefaultScraperConfig(ScraperConfigBase):
         proxy (str | None): Proxy to use when making requests.
         verify_ssl (bool): Whether to verify SSL certificates.
     """
-    timeout: Union[int, float] = Field(default=10)
+    timeout: int | float = Field(default=10)
     user_agent: str = Field(
         default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36",    # noqa: E501
     )
-    proxy: Optional[str] = Field(default=None)
+    proxy: str | None = Field(default=None)
     verify_ssl: bool = Field(default=True)
 
 
@@ -395,7 +395,7 @@ class HLSScraper(Scraper, ABC):
             "PlaylistFiltersSubcategory",
             __base__=ScraperConfigSubcategory,
             **{
-                m3u8_attribute.value: (Union[str, list[str], None],
+                m3u8_attribute.value: (str | list[str] | None,
                                        Field(default=None))
                 for m3u8_attribute in M3U8Attribute
             },  # type: ignore[call-overload]
@@ -554,7 +554,7 @@ class HLSScraper(Scraper, ABC):
     def find_matching_media(self, main_playlist: m3u8.M3U8,
                             filters: dict[str, str | list[str]] | None = None) -> list[m3u8.Media]:
         results: list[m3u8.Media] = []
-        playlist_filters: dict[str, Union[str, list[str]]] | None
+        playlist_filters: dict[str, str | list[str]] | None
 
         if self._playlist_filters:
             # Merge filtering dictionaries into a single dictionary

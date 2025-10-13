@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.live import Live
@@ -10,7 +10,7 @@ console = Console(
 )
 
 @contextmanager 
-def conditional_live(renderable: Any) -> Iterator[Optional[Live]]:
+def conditional_live(renderable: Any) -> Iterator[Live | None]:
     """
     A context manager that conditionally enables Rich's Live display based on console interactivity.
     
