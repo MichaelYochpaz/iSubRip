@@ -1,4 +1,11 @@
 # Changelog
+## 2.6.8 [2025-10-14]
+### Changes:
+* Removed Python 3.9 support, added Python 3.14 support.
+
+### Bug Fixes:
+* Fixed a regression issue where the source type (e.g. "WEB") was missing from zip file names following the changes in version 2.6.7. ([Issue #100](https://github.com/MichaelYochpaz/iSubRip/issues/100))
+---
 ## 2.6.7 [2025-10-10]
 ### Added:
 * Updated M3U8 playlists loading to use alternative playlist URLs as fallback in case of an empty response.
