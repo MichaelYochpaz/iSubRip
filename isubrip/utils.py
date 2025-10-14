@@ -486,37 +486,6 @@ def get_model_field(model: BaseModel | None, field: str, convert_to_dict: bool =
     return None
 
 
-def generate_media_folder_name(media_data: Movie | Episode, source: str | None = None, separator: str = ".") -> str:
-    """
-    Generate a folder name for media data.
-
-    Args:
-        media_data (Movie | Episode): A movie or episode data object.
-        source (str | None, optional): Abbreviation of the source to use for file names. Defaults to None.
-        separator (str, optional): A separator to use between words. Defaults to ".".
-
-    Returns:
-        str: A folder name for the media data.
-    """
-    if isinstance(media_data, Movie):
-        folder_name = slugify_title(title=media_data.name, separator=separator)
-        if media_data.release_date:
-            release_year = media_data.release_date.year if isinstance(media_data.release_date, dt.datetime) \
-                else media_data.release_date
-            folder_name += f".{release_year}"
-        if source:
-            folder_name += f".{source}"
-
-    else:  # Episode
-        folder_name = slugify_title(title=media_data.series_name, separator=separator)
-        if media_data.season_number is not None and media_data.episode_number is not None:
-            folder_name += f".S{media_data.season_number:02}E{media_data.episode_number:02}"
-        if source:
-            folder_name += f".{source}"
-
-    return sanitize_path_segment(folder_name)
-
-
 def generate_non_conflicting_path(file_path: Path, has_extension: bool = True) -> Path:
     """
     Generate a non-conflicting path for a file.

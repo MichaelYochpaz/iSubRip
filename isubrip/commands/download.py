@@ -26,7 +26,7 @@ from isubrip.utils import (
     download_subtitles_to_file,
     format_list,
     format_media_description,
-    generate_media_folder_name,
+    format_release_name,
     generate_non_conflicting_path,
 )
 
@@ -210,7 +210,14 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
     Returns:
         SubtitlesDownloadResults: A SubtitlesDownloadResults object containing the results of the download.
     """
-    temp_dir_name = generate_media_folder_name(media_data=media_data, source=scraper.abbreviation)
+    temp_dir_name = format_release_name(
+        title=media_data.name if isinstance(media_data, Movie) else media_data.series_name,
+        release_date=media_data.release_date,
+        season_number=None if isinstance(media_data, Movie) else media_data.season_number,
+        episode_number=None if isinstance(media_data, Movie) else media_data.episode_number,
+        episode_name=None if isinstance(media_data, Movie) else media_data.episode_name,
+        media_source=scraper.abbreviation,
+    )
     successful_downloads: list[SubtitlesData] = []
     failed_downloads: list[SubtitlesDownloadError] = []
 
@@ -332,8 +339,15 @@ async def download_subtitles(scraper: Scraper, media_data: Movie | Episode, down
                 root_dir=temp_download_path,
             ))
 
-            file_name = generate_media_folder_name(media_data=media_data,
-                                                   source=scraper.abbreviation) + ".zip"
+            file_name = format_release_name(
+                title=media_data.name if isinstance(media_data, Movie) else media_data.series_name,
+                release_date=media_data.release_date,
+                season_number=None if isinstance(media_data, Movie) else media_data.season_number,
+                episode_number=None if isinstance(media_data, Movie) else media_data.episode_number,
+                episode_name=None if isinstance(media_data, Movie) else media_data.episode_name,
+                media_source=scraper.abbreviation,
+                file_format="zip",
+                )
 
             if overwrite_existing:
                 destination_path = download_path / file_name

@@ -2,9 +2,10 @@ import datetime as dt
 
 import pytest
 
-from isubrip.data_structures import Episode, Movie, Season, Series
+from isubrip.data_structures import Episode, Movie, Season, Series, SubtitlesFormatType, SubtitlesType
 from isubrip.utils import (
     format_media_description,
+    format_release_name,
     sanitize_path_segment,
     slugify_title,
 )
@@ -119,3 +120,56 @@ class TestFormatMediaDescription:
         ep = Episode(series_name="Breaking Bad",
                      season_number=5, episode_number=14, episode_name="Ozymandias", id="ID111")
         assert format_media_description(media_data=ep, shortened=True) == "S05E14 - Ozymandias (ID: ID111)"
+
+
+class TestFormatReleaseName:
+    def test_movie_with_source_and_web_default(self) -> None:
+        assert format_release_name(
+            title="Interstellar",
+            release_date=2014,
+            media_source="iT",
+        ) == "Interstellar.2014.iT.WEB"
+
+    def test_movie_with_source_type_none(self) -> None:
+        assert format_release_name(
+            title="Interstellar",
+            release_date=2014,
+            media_source="iT",
+            source_type=None,
+        ) == "Interstellar.2014.iT"
+
+    def test_episode_with_source_web(self) -> None:
+        assert format_release_name(
+            title="Breaking Bad",
+            season_number=5,
+            episode_number=14,
+            media_source="iT",
+        ) == "Breaking.Bad.S05E14.iT.WEB"
+
+    def test_episode_with_name_included(self) -> None:
+        assert format_release_name(
+            title="Breaking Bad",
+            season_number=1,
+            episode_number=1,
+            episode_name="Pilot",
+            media_source="iT",
+        ) == "Breaking.Bad.S01E01.Pilot.iT.WEB"
+
+    def test_additional_info_language_and_subtitles_type_and_format_enum(self) -> None:
+        assert format_release_name(
+            title="Interstellar",
+            release_date=2014,
+            media_source="iT",
+            additional_info=["HDR", "DV"],
+            language_code="en",
+            subtitles_type=SubtitlesType.FORCED,
+            file_format=SubtitlesFormatType.SUBRIP,
+        ) == "Interstellar.2014.iT.WEB.HDR.DV.en.forced.srt"
+
+    def test_movie_zip_with_source_and_web(self) -> None:
+        assert format_release_name(
+            title="Interstellar",
+            release_date=2014,
+            media_source="iT",
+            file_format="zip",
+        ) == "Interstellar.2014.iT.WEB.zip"
