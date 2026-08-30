@@ -130,6 +130,27 @@ def convert_log_level(log_level: str) -> int:
     return cast("int", getattr(logging, log_level_upper))
 
 
+def remove_url_query_param(url: str, key: str) -> str:
+    """
+    Remove every query parameter matching a key from a URL.
+
+    Args:
+        url (str): URL to update.
+        key (str): Query parameter key to remove. Matched case-insensitively.
+
+    Returns:
+        str: URL without any query parameter matching the given key.
+    """
+    url_parts = urlsplit(url)
+    query_parts = [
+        query_part
+        for query_part in url_parts.query.split("&")
+        if query_part and unquote_plus(query_part.partition("=")[0]).casefold() != key.casefold()
+    ]
+
+    return urlunsplit(url_parts._replace(query="&".join(query_parts)))
+
+
 def add_or_replace_url_query_param(url: str, key: str, value: str) -> str:
     """
     Add a query parameter to a URL, replacing existing parameters with the same key.
@@ -142,12 +163,8 @@ def add_or_replace_url_query_param(url: str, key: str, value: str) -> str:
     Returns:
         str: URL with the updated query parameter.
     """
-    url_parts = urlsplit(url)
-    query_parts = [
-        query_part
-        for query_part in url_parts.query.split("&")
-        if query_part and unquote_plus(query_part.partition("=")[0]).casefold() != key.casefold()
-    ]
+    url_parts = urlsplit(remove_url_query_param(url=url, key=key))
+    query_parts = [query_part for query_part in url_parts.query.split("&") if query_part]
     query_parts.append(f"{quote_plus(key)}={quote_plus(value)}")
 
     return urlunsplit(url_parts._replace(query="&".join(query_parts)))

@@ -153,7 +153,7 @@ def parse_cli_args(args: Sequence[str] | None = None) -> CLIArguments:
     parser.add_argument(
         "--dsid",
         metavar="DSID",
-        help="Apple account DSID to use for this run.",
+        help="Optional Apple account DSID fallback to use for owned or rented movies.",
     )
     parser.add_argument(
         "urls",

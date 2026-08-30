@@ -20,13 +20,9 @@ from isubrip.utils import (
     get_model_field,
     parse_url_params,
     raise_for_status,
+    remove_url_query_param,
 )
 
-MISSING_DSID_ERROR_MESSAGE = (
-    "Apple DSID authentication is required to access this paid Apple TV / iTunes title. Set the numeric DSID for "
-    "the Apple account that owns the movie or has an active rental using the '--dsid' command-line option, the "
-    "'ISUBRIP_DSID' environment variable, or the 'scrapers.appletv.dsid' setting in config.toml."
-)
 APPLE_MOVIE_ROUTE_PATH = "/uts/v3/movies/{movieId}"
 
 
@@ -71,7 +67,7 @@ class AppleTVScraper(HLSScraper):
     class ScraperConfig(HLSScraper.ScraperConfig):
         dsid: str | None = Field(
             default=None,
-            description="Apple ID DSID for accessing owned/rented Apple TV/iTunes content.",
+            description="Optional Apple ID DSID fallback for owned/rented Apple TV/iTunes content.",
         )
 
         @field_validator("dsid", mode="before")
@@ -374,32 +370,35 @@ class AppleTVScraper(HLSScraper):
         movie_title = playable_data["canonicalMetadata"]["movieTitle"]
         movie_release_date = convert_epoch_to_datetime(playable_data["canonicalMetadata"]["releaseDate"] // 1000)
 
-        movie_playlists = []
+        anonymous_playlists = []
         movie_duration = None
         dsid = get_model_field(model=self.config, field="dsid")
         offers = playable_data["itunesMediaApiData"].get("offers")
+        movie_expected_release_date = None
 
-        if (
-            playable_data.get("isEntitledToPlay") is False
-            and not isinstance(dsid, str)
-            and isinstance(offers, list)
-            and any(isinstance(offer, dict) and offer.get("hlsUrl") for offer in offers)
-        ):
-            raise ScraperError(MISSING_DSID_ERROR_MESSAGE)
+        if availability_date := playable_data["itunesMediaApiData"].get("futureRentalAvailabilityDate"):
+            movie_expected_release_date = dt.datetime.strptime(availability_date, "%Y-%m-%d")
 
         if offers:
             for offer in offers:
-                if (playlist := offer.get("hlsUrl")) and isinstance(dsid, str):
-                    playlist = add_or_replace_url_query_param(url=playlist, key="dsid", value=dsid)
+                playlist = offer.get("hlsUrl")
 
-                if playlist and playlist not in movie_playlists:
-                    movie_playlists.append(playlist)
+                if isinstance(playlist, str):
+                    playlist = remove_url_query_param(url=playlist, key="dsid")
+
+                if playlist and playlist not in anonymous_playlists:
+                    anonymous_playlists.append(playlist)
 
             if movie_duration_int := offers[0].get("durationInMilliseconds"):
                 movie_duration = dt.timedelta(milliseconds=movie_duration_int)
 
-        if movie_expected_release_date := playable_data["itunesMediaApiData"].get("futureRentalAvailabilityDate"):
-            movie_expected_release_date = dt.datetime.strptime(movie_expected_release_date, "%Y-%m-%d")
+        movie_playlists = anonymous_playlists.copy()
+
+        if isinstance(dsid, str):
+            movie_playlists.extend(
+                add_or_replace_url_query_param(url=playlist, key="dsid", value=dsid)
+                for playlist in anonymous_playlists
+            )
 
         return Movie(
             id=itunes_movie_id,

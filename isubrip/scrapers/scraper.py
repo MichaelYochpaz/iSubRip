@@ -31,6 +31,7 @@ from isubrip.utils import (
     get_model_field,
     merge_dict_values,
     redact_url_query_param,
+    remove_url_query_param,
     return_first_valid,
     single_string_to_list,
 )
@@ -913,7 +914,12 @@ class PlaylistLoadError(ScraperError):
     def __init__(self, message: str = "", status_code: int | None = None, url: str | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
-        self.url = url
+
+        try:
+            self.url = remove_url_query_param(url=url, key="dsid") if url is not None else None
+
+        except ValueError:
+            self.url = None
 
 
 class SubtitlesDownloadError(ScraperError):
