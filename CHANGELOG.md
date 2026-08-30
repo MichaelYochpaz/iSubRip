@@ -1,4 +1,17 @@
 # Changelog
+## 2.7.1 [2026-08-30]
+### Changes:
+* Restored subtitle downloads without a DSID for movies that Apple currently serves publicly. ([Issue #103](https://github.com/MichaelYochpaz/iSubRip/issues/103))
+* A configured DSID is now optional and is only used as a fallback for movies owned or rented by that account.
+
+### Bug Fixes:
+* Fixed an issue in version 2.7.0 that incorrectly required a DSID even when subtitles were publicly accessible.
+* Improved the reliability of Apple movie requests and the error messages shown when playlists cannot be loaded.
+
+### Notes:
+* Apple does not document downloads without a DSID, so this may stop working again in the future.
+
+---
 ## 2.7.0 [2026-08-08]
 ### Added:
 * Added Apple DSID authentication for Apple TV content owned or rented by the configured account. The DSID can be set with the `--dsid` command-line option, the `ISUBRIP_DSID` environment variable, or the `scrapers.appletv.dsid` config setting. ([Issue #103](https://github.com/MichaelYochpaz/iSubRip/issues/103))

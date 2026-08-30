@@ -6,7 +6,7 @@ from tempfile import gettempdir
 
 # General
 PACKAGE_NAME = "isubrip"
-PACKAGE_VERSION = "2.7.0"
+PACKAGE_VERSION = "2.7.1"
 
 SCRAPER_MODULES_SUFFIX = "_scraper"
 USER_CONFIG_FILE_NAME = "config.toml"
