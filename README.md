@@ -23,17 +23,12 @@
 
 ## ✨ Features
 
-- Scrape subtitles from Apple TV and iTunes movies you own or have rented.
+- Download publicly accessible subtitles from Apple TV and iTunes movie pages.
 - Retrieve the expected streaming release date (if available) for unreleased movies.
 - Utilize asynchronous downloading to speed up the download of chunked subtitles.
 - Automatically convert subtitles to SubRip (SRT) format.
 - Fix right-to-left (RTL) alignment in RTL language subtitles automatically.
 - Configure settings such as download folder, preferred languages, and toggling features.
-
-> [!NOTE]
-> Apple previously allowed Apple TV master playlists to be fetched without account entitlement. They are now restricted
-> to Apple Accounts that own or have rented the movie.
-> See [Issue #103](https://github.com/MichaelYochpaz/iSubRip/issues/103) for more context.
 
 ## 🚀 Quick Start
 
@@ -49,7 +44,8 @@ pip install isubrip
 isubrip [--dsid DSID] <URL> [URL...]
 ```
 
-Owned or rented content requires an Apple DSID. See [Apple DSID](#apple-dsid) for setup instructions.
+No Apple account or DSID is normally required. See [Apple DSID](#apple-dsid) for the optional owned/rented-content
+fallback.
 
 > [!TIP]
 > Run `isubrip --help` for all command-line options.
@@ -84,9 +80,6 @@ fix-rtl = true
 
 [subtitles.webvtt]
 subrip-alignment-conversion = true
-
-[scrapers.appletv]
-dsid = "1234567890"
 ```
 
 > [!TIP]
@@ -94,8 +87,12 @@ dsid = "1234567890"
 
 ### Apple DSID
 
-Apple requires account entitlement before HLS manifests of paid content can be loaded.
-A DSID identifies the Apple account that owns or has rented the title.
+iSubRip always attempts Apple movie manifests anonymously first. If those requests receive an HTTP 401, 403, or 404 response, iSubRip can retry with a configured DSID.
+
+A DSID identifies the Apple account that owns or has rented the title and is never sent when an anonymous request succeeds.
+
+Because Apple does not document this manifest API, a failed request does not prove that authentication is required.  
+A movie package may instead be unavailable, unreleased, or no longer present.
 
 #### Finding your DSID
 
@@ -112,8 +109,8 @@ You can try the following steps to find your DSID:
 
 #### Configuring your DSID
 
-Configure the DSID using one of the following methods. If multiple methods are configured, `--dsid` overrides the
-`ISUBRIP_DSID` environment variable, which overrides `config.toml`.
+Configure a DSID if you want iSubRip to retry failed anonymous requests for movies that the account owns or has rented.  
+If multiple methods are configured, `--dsid` overrides the `ISUBRIP_DSID` environment variable, which overrides `config.toml`.
 
 The configuration file is recommended for regular use:
 
@@ -149,7 +146,7 @@ isubrip --dsid 1234567890 <URL>
 
 - If the response from [ph2.tv.apple.com/settings](https://ph2.tv.apple.com/settings) contains `"message": "Sign-In Required"`, make sure you authenticated on the Apple TV Billing page, even if you are already signed in on the main Apple TV website.
 - Confirm that the DSID belongs to the Apple account that owns the movie or has an active rental.
-- An Apple HTTP 404 with a configured DSID can mean that the account is not entitled to that title, the rental expired, or Apple changed the manifest access flow.
+- An Apple HTTP 401, 403, or 404 can mean that the movie package is unavailable, the account is not entitled to the title, the rental expired, or Apple changed the manifest access flow.
 
 ## 📜 Logs
 Log files are created for each run in the following paths, depending on your operating system:

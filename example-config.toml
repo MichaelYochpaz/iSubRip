@@ -1,7 +1,7 @@
 # ---------------- ⚠️ IMPORTANT - READ BEFORE USING ⚠️ ----------------
 # This is an example config file with all available settings and their default values (if they have one).
 # All settings are optional and override their default values when configured.
-# Apple normally requires a DSID for paid content, but it can also be supplied by environment variable or CLI flag.
+# Apple movie manifests are attempted anonymously first. A DSID can optionally be configured as a fallback.
 #
 # In your config file, set only the settings you wish to change from their default values.
 # Do NOT copy this file and use it as your config, as it will override ALL settings with the values specified here.
@@ -112,8 +112,8 @@ verify-ssl = true
 
 
 [scrapers.appletv]
-# Apple account DSID for accessing content that the account owns or has rented on Apple TV.
-# This config setting is optional only because the DSID can instead come from the environment or CLI.
+# Optional Apple account DSID fallback for content that the account owns or has rented on Apple TV.
+# The DSID is only sent after an anonymous Apple movie manifest request returns HTTP 401, 403, or 404.
 #
 # The DSID is not your password, but it is account-linked and should not be shared publicly.
 # You can also set the 'ISUBRIP_DSID' environment variable or use the '--dsid' command-line option for a single run instead.
