@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import logging
 import re
 from typing import TYPE_CHECKING, Any
@@ -15,7 +16,7 @@ from isubrip.config import Config
 from isubrip.constants import PACKAGE_NAME, PACKAGE_VERSION
 from isubrip.data_structures import Movie, ScrapedMediaResponse, SubtitlesDownloadResults
 from isubrip.scrapers.appletv_scraper import AppleTVScraper
-from isubrip.scrapers.itunes_scraper import ItunesScraper
+from isubrip.scrapers.itunes_scraper import REDIRECT_SLEEP_TIME, ItunesScraper
 from isubrip.scrapers.scraper import HLSScraper, PlaylistLoadError, ScraperError, ScraperFactory
 from isubrip.subtitle_formats.webvtt import WebVTTSubtitles
 from isubrip.utils import (
@@ -53,6 +54,132 @@ def make_itunes_scraper(handler: httpx2.MockTransport | None = None) -> ItunesSc
 def close_scraper(scraper: HLSScraper) -> None:
     if hasattr(scraper, "_client"):
         asyncio.run(scraper.async_close())
+
+
+@pytest.mark.parametrize("redirect_status", [301, 302, 303, 307, 308])
+def test_itunes_get_data_accepts_standard_relative_redirects(redirect_status: int) -> None:
+    requests: list[str] = []
+    redirected_urls: list[str] = []
+    expected_response = ScrapedMediaResponse(
+        media_data=[],
+        metadata_scraper="appletv",
+        playlist_scraper="itunes",
+        original_data={},
+    )
+
+    class FakeAppleTVScraper:
+        @staticmethod
+        def match_url(url: str) -> bool:
+            redirected_urls.append(url)
+            return True
+
+        @staticmethod
+        async def get_data(url: str) -> ScrapedMediaResponse:
+            redirected_urls.append(url)
+            return expected_response
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(str(request.url))
+        return httpx2.Response(
+            redirect_status,
+            headers={"Location": "/us/movie/test/umc.cmc.12345678901234567890123"},
+            request=request,
+        )
+
+    scraper = make_itunes_scraper(handler=httpx2.MockTransport(handler))
+    scraper._appletv_scraper = FakeAppleTVScraper()  # type: ignore[assignment]  # noqa: SLF001
+
+    try:
+        response = asyncio.run(
+            scraper.get_data("https://itunes.apple.com/us/movie/test/id1234567890"),
+        )
+    finally:
+        close_scraper(scraper=scraper)
+
+    expected_redirect = "https://tv.apple.com/us/movie/test/umc.cmc.12345678901234567890123"
+    assert response is expected_response
+    assert requests == ["https://tv.apple.com/us/movie/id1234567890"]
+    assert redirected_urls == [expected_redirect, expected_redirect]
+
+
+def test_itunes_get_data_retries_transport_and_server_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request_count = 0
+    sleep_delays: list[float] = []
+    expected_response = ScrapedMediaResponse(
+        media_data=[],
+        metadata_scraper="appletv",
+        playlist_scraper="itunes",
+        original_data={},
+    )
+
+    class FakeAppleTVScraper:
+        @staticmethod
+        def match_url(url: str) -> bool:  # noqa: ARG004
+            return True
+
+        @staticmethod
+        async def get_data(url: str) -> ScrapedMediaResponse:  # noqa: ARG004
+            return expected_response
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        nonlocal request_count
+        request_count += 1
+
+        if request_count == 1:
+            raise httpx2.ConnectError("Temporary connection failure.", request=request)
+
+        if request_count == 2:
+            return httpx2.Response(500, request=request)
+
+        return httpx2.Response(
+            301,
+            headers={"Location": "//tv.apple.com/us/movie/test/umc.cmc.12345678901234567890123"},
+            request=request,
+        )
+
+    async def fake_sleep(delay: float) -> None:
+        sleep_delays.append(delay)
+
+    monkeypatch.setattr("isubrip.scrapers.itunes_scraper.asyncio.sleep", fake_sleep)
+    scraper = make_itunes_scraper(handler=httpx2.MockTransport(handler))
+    scraper._appletv_scraper = FakeAppleTVScraper()  # type: ignore[assignment]  # noqa: SLF001
+
+    try:
+        response = asyncio.run(
+            scraper.get_data("https://itunes.apple.com/us/movie/test/id1234567890"),
+        )
+    finally:
+        close_scraper(scraper=scraper)
+
+    assert response is expected_response
+    assert request_count == 3
+    assert sleep_delays == [REDIRECT_SLEEP_TIME, REDIRECT_SLEEP_TIME]
+
+
+def test_itunes_get_data_does_not_retry_a_permanent_404(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests: list[str] = []
+    sleep_delays: list[float] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(str(request.url))
+        return httpx2.Response(404, request=request)
+
+    async def fake_sleep(delay: float) -> None:
+        sleep_delays.append(delay)
+
+    monkeypatch.setattr("isubrip.scrapers.itunes_scraper.asyncio.sleep", fake_sleep)
+    scraper = make_itunes_scraper(handler=httpx2.MockTransport(handler))
+
+    try:
+        with pytest.raises(ScraperError, match=r"Response code: 404"):
+            asyncio.run(scraper.get_data("https://itunes.apple.com/us/movie/test/id1234567890"))
+    finally:
+        close_scraper(scraper=scraper)
+
+    assert requests == ["https://tv.apple.com/us/movie/id1234567890"]
+    assert sleep_delays == []
 
 
 def test_add_or_replace_url_query_param_appends_to_url_without_query() -> None:
@@ -362,6 +489,100 @@ def test_raise_for_status_omits_response_body_from_logs(caplog: pytest.LogCaptur
     assert "Response body omitted from logs" in caplog.text
 
 
+@pytest.mark.parametrize("required_params_type", ["Default", "WithoutUtsk"])
+def test_appletv_request_params_follow_the_route_advertised_parameter_class(
+    required_params_type: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scraper = object.__new__(AppleTVScraper)
+    scraper._storefronts_request_params_cache = {}  # noqa: SLF001
+    configuration_data = {
+        "applicationProps": {
+            "requiredParamsMap": {
+                "Default": {"caller": "web", "utsk": "public-token", "v": "100"},
+                "WithoutUtsk": {"caller": "web", "v": "100"},
+            },
+            "routes": {
+                "movieDetail": {
+                    "path": "/uts/v3/movies/{movieId}",
+                    "requiredParamsType": required_params_type,
+                },
+            },
+            "storefront": {
+                "defaultLocale": "en_US",
+                "localesSupported": ["en_US"],
+            },
+        },
+    }
+
+    async def fake_get_configuration_data(storefront_id: str) -> dict:  # noqa: ARG001
+        return configuration_data
+
+    monkeypatch.setattr(scraper, "_get_configuration_data", fake_get_configuration_data)
+    request_params = asyncio.run(
+        scraper._fetch_request_params(  # noqa: SLF001
+            storefront_id="143441",
+            route_path="/uts/v3/movies/{movieId}",
+        ),
+    )
+
+    assert ("utsk" in request_params) is (required_params_type == "Default")
+    assert request_params["sf"] == "143441"
+    assert request_params["locale"] == "en-US"
+
+
+def test_appletv_api_failure_does_not_expose_public_utsk(monkeypatch: pytest.MonkeyPatch) -> None:
+    public_utsk = "public-token-that-must-not-be-logged"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(500, request=request)
+
+    scraper = object.__new__(AppleTVScraper)
+    scraper._client = httpx2.AsyncClient(  # noqa: SLF001
+        transport=httpx2.MockTransport(handler),
+        headers={"User-Agent": "test"},
+    )
+
+    async def fake_fetch_request_params(**kwargs: Any) -> dict[str, str]:  # noqa: ARG001
+        return {"utsk": public_utsk}
+
+    monkeypatch.setattr(scraper, "_fetch_request_params", fake_fetch_request_params)
+
+    try:
+        with pytest.raises(ScraperError, match=r"Apple TV API request failed \(HTTP 500\)") as exc_info:
+            asyncio.run(scraper._fetch_api_data(storefront_id="143441", endpoint="/movies/test"))  # noqa: SLF001
+    finally:
+        close_scraper(scraper=scraper)
+
+    assert public_utsk not in str(exc_info.value)
+
+
+def test_appletv_transport_failure_does_not_expose_public_utsk(monkeypatch: pytest.MonkeyPatch) -> None:
+    public_utsk = "public-token-that-must-not-be-logged"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError(f"Failed request: {request.url}", request=request)
+
+    scraper = object.__new__(AppleTVScraper)
+    scraper._client = httpx2.AsyncClient(  # noqa: SLF001
+        transport=httpx2.MockTransport(handler),
+        headers={"User-Agent": "test"},
+    )
+
+    async def fake_fetch_request_params(**kwargs: Any) -> dict[str, str]:  # noqa: ARG001
+        return {"utsk": public_utsk}
+
+    monkeypatch.setattr(scraper, "_fetch_request_params", fake_fetch_request_params)
+
+    try:
+        with pytest.raises(ScraperError, match=r"Apple TV API request failed\.") as exc_info:
+            asyncio.run(scraper._fetch_api_data(storefront_id="143441", endpoint="/movies/test"))  # noqa: SLF001
+    finally:
+        close_scraper(scraper=scraper)
+
+    assert public_utsk not in str(exc_info.value)
+
+
 def test_download_media_item_reports_no_matching_subtitles_as_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -385,6 +606,38 @@ def test_download_media_item_reports_no_matching_subtitles_as_failure(
             download_path=tmp_path,
         ),
     ) is False
+
+
+def test_download_media_item_reports_playlist_failure_alongside_future_rental_date(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    movie = Movie(
+        name="Test Movie",
+        release_date=2026,
+        preorder_availability_date=dt.datetime(2027, 1, 1),
+        playlist="https://example.com/master.m3u8",
+    )
+
+    async def fake_download_subtitles(**kwargs: Any) -> SubtitlesDownloadResults:  # noqa: ARG001
+        raise PlaylistLoadError("Actionable playlist failure.")
+
+    monkeypatch.setattr("isubrip.commands.download.download_subtitles", fake_download_subtitles)
+
+    with caplog.at_level(logging.INFO, logger=PACKAGE_NAME):
+        result = asyncio.run(
+            download_media_item(
+                scraper=object.__new__(PlaylistTestScraper),
+                media_item=movie,
+                download_path=tmp_path,
+            ),
+        )
+
+    assert result is False
+    assert "available to rent on" in caplog.text
+    assert "currently unavailable" not in caplog.text
+    assert "Actionable playlist failure" in caplog.text
 
 
 def test_appletv_movie_extraction_adds_dsid_to_every_playlist() -> None:

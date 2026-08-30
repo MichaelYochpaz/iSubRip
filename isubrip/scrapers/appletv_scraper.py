@@ -27,6 +27,7 @@ MISSING_DSID_ERROR_MESSAGE = (
     "the Apple account that owns the movie or has an active rental using the '--dsid' command-line option, the "
     "'ISUBRIP_DSID' environment variable, or the 'scrapers.appletv.dsid' setting in config.toml."
 )
+APPLE_MOVIE_ROUTE_PATH = "/uts/v3/movies/{movieId}"
 
 
 class AppleTVScraper(HLSScraper):
@@ -123,7 +124,7 @@ class AppleTVScraper(HLSScraper):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._storefronts_request_params_cache: dict[str, dict[str, str]] = {}
+        self._storefronts_request_params_cache: dict[tuple[str, str | None], dict[str, str]] = {}
 
     def _decide_locale(self, preferred_locales: str | list[str], default_locale: str, locales: list[str]) -> str:
         """
@@ -149,63 +150,112 @@ class AppleTVScraper(HLSScraper):
 
         return default_locale
 
-    async def _fetch_api_data(self, storefront_id: str, endpoint: str, additional_params: dict | None = None) -> dict:
+    async def _fetch_api_data(
+        self,
+        storefront_id: str,
+        endpoint: str,
+        additional_params: dict | None = None,
+        route_path: str | None = None,
+    ) -> dict:
         """
         Send a request to AppleTV's API and return the JSON response.
 
         Args:
+            storefront_id (str): The storefront ID to use for the request.
             endpoint (str): The endpoint to send the request to.
             additional_params (dict[str, str]): Additional parameters to send with the request.
+            route_path (str | None): Route-template path from Apple's configuration response. When provided, the
+                route's advertised parameter class is used instead of assuming the Default class.
 
         Returns:
             dict: The JSON response.
 
         Raises:
-            HttpError: If an HTTP error response is received.
+            ScraperError: If the Apple TV API request fails.
         """
-        request_params = await self._fetch_request_params(storefront_id=storefront_id)
+        request_params = await self._fetch_request_params(
+            storefront_id=storefront_id,
+            route_path=route_path,
+        )
 
         if additional_params:
             request_params.update(additional_params)
 
-        response = await self._client.get(url=f"{self._api_base_url}{endpoint}", params=request_params)
+        response = None
 
         try:
+            response = await self._client.get(url=f"{self._api_base_url}{endpoint}", params=request_params)
             raise_for_status(response)
 
         except HTTPError as e:
-            if response.status_code == 404:
+            if response is not None and response.status_code == 404:
                 raise ScraperError(
                     "Media not found. This could indicate that the provided URL is invalid.",
                 ) from e
 
-            raise
+            status_suffix = f" (HTTP {response.status_code})" if response is not None else ""
+            raise ScraperError(f"Apple TV API request failed{status_suffix}.") from e
 
         response_json: dict = response.json()
         response_data: dict = response_json.get("data", {})
 
         return response_data
     
-    async def _fetch_request_params(self, storefront_id: str) -> dict[str, str]:
+    async def _fetch_request_params(
+        self,
+        storefront_id: str,
+        route_path: str | None = None,
+    ) -> dict[str, str]:
         """
         Fetch from the API request parameters for the given storefront ID.
         Uses caching with `self._storefronts_request_params_cache` for efficiency.
 
         Args:
             storefront_id (str): The ID of the storefront to fetch the request parameters for.
+            route_path (str | None): Route-template path from Apple's configuration response. When omitted, the
+                Default parameter class is used.
 
         Returns:
             dict: The request parameters for the given storefront ID. If returned from cache, a copy is returned.
         """
-        if storefront_cached_params := self._storefronts_request_params_cache.get(storefront_id):
-            logger.debug(f"Using cached request parameters for storefront '{storefront_id}':"
-                         f"'{storefront_cached_params}'.")
+        cache_key = (storefront_id, route_path)
+
+        if storefront_cached_params := self._storefronts_request_params_cache.get(cache_key):
+            logger.debug(f"Using cached request parameters for storefront '{storefront_id}'.")
             return storefront_cached_params.copy()
 
         configuration_data = await self._get_configuration_data(storefront_id=storefront_id)
-        request_params: dict[str, str] = configuration_data["applicationProps"]["requiredParamsMap"]["Default"]
-        default_locale: str = configuration_data["applicationProps"]["storefront"]["defaultLocale"]
-        available_locales: list[str] = configuration_data["applicationProps"]["storefront"]["localesSupported"]
+        application_props = configuration_data["applicationProps"]
+        required_params_type = "Default"
+
+        if route_path is not None:
+            matching_route = next(
+                (
+                    route
+                    for route in application_props.get("routes", {}).values()
+                    if isinstance(route, dict) and route.get("path") == route_path
+                ),
+                None,
+            )
+
+            if isinstance(matching_route, dict) and isinstance(matching_route.get("requiredParamsType"), str):
+                required_params_type = matching_route["requiredParamsType"]
+
+            else:
+                logger.debug(
+                    f"No parameter-class metadata was found for Apple TV route '{route_path}'; using Default.",
+                )
+
+        required_params = application_props["requiredParamsMap"].get(required_params_type)
+
+        if not isinstance(required_params, dict):
+            raise ScraperError(
+                f"Apple TV configuration did not provide the '{required_params_type}' request parameter class.",
+            )
+
+        request_params: dict[str, str] = required_params.copy()
+        default_locale: str = application_props["storefront"]["defaultLocale"]
+        available_locales: list[str] = application_props["storefront"]["localesSupported"]
 
         logger.debug(f"Available locales for storefront '{storefront_id}': {available_locales}'. "
                      f"Storefront's default locale: '{default_locale}'.")
@@ -219,8 +269,10 @@ class AppleTVScraper(HLSScraper):
         request_params["sf"] = storefront_id
         request_params["locale"] = locale
 
-        logger.debug(f"Using and caching request parameters for storefront '{storefront_id}': {request_params}")
-        self._storefronts_request_params_cache[storefront_id] = request_params.copy()
+        logger.debug(
+            f"Using and caching '{required_params_type}' request parameters for storefront '{storefront_id}'.",
+        )
+        self._storefronts_request_params_cache[cache_key] = request_params.copy()
 
         return request_params
 
@@ -240,8 +292,18 @@ class AppleTVScraper(HLSScraper):
         params = self._api_base_params.copy()
         params["sf"] = storefront_id
 
-        response = await self._client.get(url=url, params=params)
-        raise_for_status(response)
+        response = None
+
+        try:
+            response = await self._client.get(url=url, params=params)
+            raise_for_status(response)
+
+        except HTTPError as e:
+            status_suffix = f" (HTTP {response.status_code})" if response is not None else ""
+            raise ScraperError(
+                f"Failed to fetch Apple TV configuration{status_suffix}.",
+            ) from e
+
         logger.debug("Configuration data fetched successfully.")
 
         response_data: dict = response.json()["data"]
@@ -269,6 +331,7 @@ class AppleTVScraper(HLSScraper):
         data = await self._fetch_api_data(
             storefront_id=storefront_id,
             endpoint=f"/movies/{movie_id}",
+            route_path=APPLE_MOVIE_ROUTE_PATH,
         )
 
         mapped_playables = self._map_playables_by_channel(playables=data["playables"].values())

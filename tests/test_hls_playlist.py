@@ -339,6 +339,29 @@ def test_load_playlist_rejects_redirect_response_with_body() -> None:
     assert playlist.segments[0].uri == "fallback-body.ts"
 
 
+def test_load_playlist_uses_the_scraper_client_timeout() -> None:
+    observed_read_timeouts: list[float] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        observed_read_timeouts.append(request.extensions["timeout"]["read"])
+        return httpx2.Response(200, text=SEGMENT_PLAYLIST, request=request)
+
+    scraper = object.__new__(PlaylistTestScraper)
+    scraper._playlist_filters = None  # noqa: SLF001
+    scraper._client = httpx2.AsyncClient(  # noqa: SLF001
+        transport=httpx2.MockTransport(handler),
+        headers={"User-Agent": "test"},
+        timeout=17,
+    )
+
+    try:
+        asyncio.run(scraper.load_playlist(url="https://example.com/playlist.m3u8"))
+    finally:
+        close_scraper(scraper=scraper)
+
+    assert observed_read_timeouts == [17]
+
+
 def test_load_playlist_rejects_invalid_success_body_and_uses_fallback() -> None:
     requests: list[str] = []
 

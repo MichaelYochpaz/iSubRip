@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import re
 from typing import TYPE_CHECKING, Any
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, urljoin, urlsplit
+
+from httpx2 import HTTPError
 
 from isubrip.logger import logger
 from isubrip.scrapers.scraper import HLSScraper, PlaylistLoadError, ScraperError, ScraperFactory
@@ -21,6 +23,7 @@ if TYPE_CHECKING:
 
 REDIRECT_MAX_RETRIES = 5
 REDIRECT_SLEEP_TIME = 2
+REDIRECT_STATUS_CODES = {301, 302, 303, 307, 308}
 APPLE_SUBTITLE_CDN_HOST_REGEX = re.compile(
     r"vod-(?:ap|fa|ak)-(?P<family>amt|aoc)\.tv\.apple\.com",
     flags=re.IGNORECASE,
@@ -112,13 +115,10 @@ class ItunesScraper(HLSScraper):
             url (str): An iTunes store movie URL.
 
         Raises:
-            InvalidURL: `itunes_url` is not a valid iTunes store movie URL.
-            PageLoadError: HTML page did not load properly.
-            HTTPError: HTTP request failed.
+            ScraperError: If the Apple TV redirect cannot be retrieved or is invalid.
 
         Returns:
-            Movie: A Movie (NamedTuple) object with movie's name, and an M3U8 object of the main_playlist
-            if the main_playlist is found. None otherwise.
+            ScrapedMediaResponse: Media data returned by the Apple TV scraper.
         """
         regex_match = self.match_url(url, raise_error=True)
         url_data = regex_match.groupdict()
@@ -128,25 +128,48 @@ class ItunesScraper(HLSScraper):
 
         logger.debug("Attempting to fetch redirect location from: " + appletv_redirect_finding_url)
 
-        retries = 0
-        while True:
-            response = await self._client.get(url=appletv_redirect_finding_url, follow_redirects=False)
-            if response.status_code != 301 and retries < REDIRECT_MAX_RETRIES:
-                retries += 1
-                logger.debug(f"AppleTV redirect URL not found (Response code: {response.status_code}),"
-                               f" retrying... ({retries}/{REDIRECT_MAX_RETRIES})")
+        response = None
+        redirect_location = None
+
+        for attempt in range(REDIRECT_MAX_RETRIES + 1):
+            try:
+                response = await self._client.get(url=appletv_redirect_finding_url, follow_redirects=False)
+
+            except HTTPError as e:
+                if attempt >= REDIRECT_MAX_RETRIES:
+                    raise ScraperError("AppleTV redirect request failed after multiple attempts.") from e
+
+                logger.debug(
+                    f"AppleTV redirect request failed ({type(e).__name__}), retrying... "
+                    f"({attempt + 1}/{REDIRECT_MAX_RETRIES})",
+                )
                 await asyncio.sleep(REDIRECT_SLEEP_TIME)
                 continue
-            break
 
-        redirect_location = response.headers.get("Location")
+            redirect_location = response.headers.get("Location")
 
-        if response.status_code != 301 or not redirect_location:
+            if response.status_code in REDIRECT_STATUS_CODES and redirect_location:
+                break
+
+            is_transient_failure = response.status_code == 429 or response.status_code >= 500
+            is_incomplete_redirect = response.status_code in REDIRECT_STATUS_CODES and not redirect_location
+
+            if attempt >= REDIRECT_MAX_RETRIES or not (is_transient_failure or is_incomplete_redirect):
+                break
+
+            logger.debug(
+                f"AppleTV redirect URL not found (Response code: {response.status_code}), retrying... "
+                f"({attempt + 1}/{REDIRECT_MAX_RETRIES})",
+            )
+            await asyncio.sleep(REDIRECT_SLEEP_TIME)
+
+        if response is None:
+            raise ScraperError("AppleTV redirect request failed.")
+
+        if response.status_code not in REDIRECT_STATUS_CODES or not redirect_location:
             raise ScraperError(f"AppleTV redirect URL not found (Response code: {response.status_code}).")
 
-        # Add 'https:' if redirect_location starts with '//'
-        if redirect_location.startswith('//'):
-            redirect_location = "https:" + redirect_location
+        redirect_location = urljoin(appletv_redirect_finding_url, redirect_location)
 
         logger.debug(f"Redirect URL: {redact_url_query_param(url=redirect_location, key='dsid')}")
 

@@ -209,16 +209,20 @@ async def download_media_item(scraper: HLSScraper, media_item: Movie | Episode, 
             ex = e
 
     # We get here if there is no playlist, or there is one, but it failed to load
+    has_future_rental_date = False
+
     if isinstance(media_item, Movie) and media_item.preorder_availability_date:
-        logger.info(f"[gold1]'{media_item.name}' is currently unavailable on {scraper.name}, "
-                    f"and will be available on {media_item.preorder_availability_date.strftime(r'%B %e, %Y')}.[/gold1]")
+        has_future_rental_date = True
+        logger.info(
+            f"[gold1]Apple lists '{media_item.name}' as available to rent on "
+            f"{media_item.preorder_availability_date.strftime(r'%B %e, %Y')}.[/gold1]",
+        )
 
-    else:
-        if ex:
-            logger.error(f"Error: {ex}")
+    if ex:
+        logger.error(f"Error: {redact_url_query_param(url=str(ex), key='dsid')}")
 
-        else:
-            logger.error("Error: No valid playlist was found.")
+    elif not has_future_rental_date:
+        logger.error("Error: No valid playlist was found.")
 
     return False
 

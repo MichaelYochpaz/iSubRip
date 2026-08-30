@@ -467,7 +467,7 @@ class HLSScraper(Scraper, ABC):
 
             try:
                 logger.debug(f"Loading M3U8 playlist from {safe_url} ({idx + 1} of {len(urls)})")
-                response = await self._client.get(url=url_item, headers=_headers, timeout=5)
+                response = await self._client.get(url=url_item, headers=_headers)
 
                 if not response.is_success:
                     failure_detail = self._format_playlist_failure_response(response=response)
