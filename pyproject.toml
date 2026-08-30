@@ -34,6 +34,7 @@ requires-python = ">= 3.10"
 dependencies = [
     "httpx2>=2.9.1",
     "m3u8>=6.0.0",
+    "packaging>=26.0",
     "pydantic>=2.12.0",
     "pydantic-settings>=2.11.0",
     "pygments>=2.19.1",  # Used by 'rich'. Specified here as version 2.18 appears to cause issues.

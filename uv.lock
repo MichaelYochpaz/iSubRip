@@ -211,6 +211,7 @@ source = { editable = "." }
 dependencies = [
     { name = "httpx2" },
     { name = "m3u8" },
+    { name = "packaging" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pygments" },
@@ -231,6 +232,7 @@ dev = [
 requires-dist = [
     { name = "httpx2", specifier = ">=2.9.1" },
     { name = "m3u8", specifier = ">=6.0.0" },
+    { name = "packaging", specifier = ">=26.0" },
     { name = "pydantic", specifier = ">=2.12.0" },
     { name = "pydantic-settings", specifier = ">=2.11.0" },
     { name = "pygments", specifier = ">=2.19.1" },

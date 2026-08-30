@@ -10,7 +10,14 @@ import httpx2
 from pydantic import ValidationError
 import pytest
 
-from isubrip.__main__ import format_cli_command_for_logging, load_config, main, parse_cli_args, parse_config
+from isubrip.__main__ import (
+    check_for_updates,
+    format_cli_command_for_logging,
+    load_config,
+    main,
+    parse_cli_args,
+    parse_config,
+)
 from isubrip.commands.download import download, download_media_item
 from isubrip.config import Config
 from isubrip.constants import PACKAGE_NAME, PACKAGE_VERSION
@@ -40,6 +47,33 @@ class PlaylistTestScraper(HLSScraper):
 
     async def get_data(self, url: str) -> ScrapedMediaResponse:
         raise NotImplementedError
+
+
+@pytest.mark.parametrize(
+    ("published_version", "expect_upgrade_warning"),
+    [
+        ("2.7.0", False),
+        ("2.7.1", False),
+        ("2.8.0", True),
+    ],
+)
+def test_check_for_updates_only_warns_for_a_newer_published_version(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    published_version: str,
+    expect_upgrade_warning: bool,
+) -> None:
+    response = httpx2.Response(
+        status_code=200,
+        json={"info": {"version": published_version}},
+        request=httpx2.Request("GET", "https://pypi.org/pypi/isubrip/json"),
+    )
+    monkeypatch.setattr(httpx2, "get", lambda **_kwargs: response)
+
+    with caplog.at_level(logging.DEBUG, logger=PACKAGE_NAME):
+        check_for_updates(current_package_version="2.7.1")
+
+    assert ("Consider upgrading" in caplog.text) is expect_upgrade_warning
 
 
 def make_itunes_scraper(handler: httpx2.MockTransport | None = None) -> ItunesScraper:
