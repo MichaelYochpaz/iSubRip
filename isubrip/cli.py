@@ -1,9 +1,24 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
+import sys
 from typing import Any
 
 from rich.console import Console
 from rich.live import Live
+
+
+def _configure_windows_console_output() -> None:
+    """Use UTF-8 for multilingual CLI output on Windows."""
+    encoding = (sys.stdout.encoding or "").lower().replace("-", "")
+    if sys.platform != "win32" or encoding in {"utf8", "cp65001"}:
+        return
+
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if callable(reconfigure):
+        reconfigure(encoding="utf-8")
+
+
+_configure_windows_console_output()
 
 console = Console(
     highlight=False,
