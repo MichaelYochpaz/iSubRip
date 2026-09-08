@@ -1,4 +1,10 @@
 # Changelog
+## 2.7.2 [2026-09-08]
+### Bug Fixes:
+* Fixed subtitle downloads failing for movies with incomplete iTunes entries alongside valid offers. ([Issue #108](https://github.com/MichaelYochpaz/iSubRip/issues/108))
+* Added a clearer error message when none of a movie's iTunes entries contain usable metadata.
+
+---
 ## 2.7.1 [2026-08-30]
 ### Changes:
 * Restored subtitle downloads without a DSID for movies that Apple currently serves publicly. ([Issue #103](https://github.com/MichaelYochpaz/iSubRip/issues/103))
