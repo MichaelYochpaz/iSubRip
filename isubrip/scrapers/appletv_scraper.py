@@ -343,7 +343,24 @@ class AppleTVScraper(HLSScraper):
         return_data = []
 
         for playable_data in mapped_playables[self.Channel.ITUNES.value]:
+            itunes_media_data = playable_data.get("itunesMediaApiData")
+
+            # Apple can return catalog-only entries alongside complete offers for the same movie.
+            if (
+                not isinstance(itunes_media_data, dict)
+                or not isinstance(itunes_media_data.get("id"), str)
+                or not itunes_media_data["id"].strip()
+            ):
+                logger.debug(
+                    f"Skipping iTunes playable '{playable_data.get('id', 'unknown')}': "
+                    "missing or invalid iTunes media data or movie ID.",
+                )
+                continue
+
             return_data.append(self._extract_itunes_movie_data(playable_data))
+
+        if not return_data:
+            raise ScraperError("No usable iTunes movie metadata was found for this storefront.")
 
         if len(return_data) > 1:
             logger.debug(f"{len(return_data)} iTunes playables were found for movie '{movie_id}'.")
