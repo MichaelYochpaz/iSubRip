@@ -1,4 +1,9 @@
 # Changelog
+## 2.7.3 [2026-09-19]
+### Bug Fixes:
+* Added support for new Apple TV storefronts. ([Issue #109](https://github.com/MichaelYochpaz/iSubRip/issues/109))
+
+---
 ## 2.7.2 [2026-09-08]
 ### Bug Fixes:
 * Fixed subtitle downloads failing for movies with incomplete iTunes entries alongside valid offers. ([Issue #108](https://github.com/MichaelYochpaz/iSubRip/issues/108))
