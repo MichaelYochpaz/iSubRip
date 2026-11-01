@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from copy import deepcopy
+from html import unescape
 import re
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -55,17 +56,17 @@ class WebVTTCaptionBlock(SubtitlesCaptionBlock, WebVTTBlock):
         return copy
 
     def to_srt(self) -> SubRipCaptionBlock:
+        # WebVTT uses HTML character references; decode once when converting to SRT.
+        payload = unescape(self.payload)
+
         # Add a {\an8} tag at the start of the payload if the `line` setting is set to 0%
         if self.subrip_alignment_conversion and WEBVTT_BOTTOM_LINE_ALIGNMENT_REGEX.search(self.settings):
             # If the payload starts with an RTL control char, add the tag after it
-            if self.payload.startswith(RTL_CHAR):
-                payload = RTL_CHAR + WEBVTT_ALIGN_TOP_TAG + self.payload[len(RTL_CHAR):]
+            if payload.startswith(RTL_CHAR):
+                payload = RTL_CHAR + WEBVTT_ALIGN_TOP_TAG + payload[len(RTL_CHAR):]
 
             else:
-                payload = WEBVTT_ALIGN_TOP_TAG + self.payload
-
-        else:
-            payload = self.payload
+                payload = WEBVTT_ALIGN_TOP_TAG + payload
 
         return SubRipCaptionBlock(start_time=self.start_time, end_time=self.end_time, payload=payload)
 
