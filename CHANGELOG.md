@@ -1,4 +1,9 @@
 # Changelog
+## 2.7.4 [2026-11-01]
+### Bug Fixes:
+* Fixed character references such as `&amp;` appearing as encoded text when converting WebVTT subtitles to SRT. ([Issue #110](https://github.com/MichaelYochpaz/iSubRip/issues/110))
+
+---
 ## 2.7.3 [2026-09-19]
 ### Bug Fixes:
 * Added support for new Apple TV storefronts. ([Issue #109](https://github.com/MichaelYochpaz/iSubRip/issues/109))
